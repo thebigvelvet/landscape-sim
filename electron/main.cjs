@@ -42,7 +42,7 @@ app.on('second-instance', () => { if (win) { if (win.isMinimized()) win.restore(
 function createWindow() {
   win = new BrowserWindow({
     width: 1500, height: 920, minWidth: 900, minHeight: 600,
-    backgroundColor: '#12161b', title: 'Landscape Simulator', show: true,
+    backgroundColor: '#12161b', title: 'Landscape Time-Lapse', show: true,
     autoHideMenuBar: true,
     webPreferences: { contextIsolation: true, nodeIntegration: false, backgroundThrottling: false },
   });
@@ -52,7 +52,7 @@ function createWindow() {
   else win.loadURL('app://local/index.html' + query);
 
   win.webContents.on('render-process-gone', (_e, d) => {
-    dialog.showErrorBox('Landscape Simulator', `The display process stopped (${d.reason}). Please restart the app.`);
+    dialog.showErrorBox('Landscape Time-Lapse', `The display process stopped (${d.reason}). Please restart the app.`);
   });
   win.webContents.setWindowOpenHandler(({ url }) => { shell.openExternal(url); return { action: 'deny' }; });
   win.webContents.on('before-input-event', (_e, input) => {
@@ -127,14 +127,14 @@ app.whenReady().then(() => {
   });
 
   if (!DEV && !fs.existsSync(path.join(DIST, 'index.html'))) {
-    dialog.showErrorBox('Landscape Simulator', 'The app has not been built yet. Please run start.bat (it builds automatically).');
+    dialog.showErrorBox('Landscape Time-Lapse', 'The app has not been built yet. Please run start.bat (it builds automatically).');
     app.quit();
     return;
   }
   const gpu = app.getGPUFeatureStatus();
   if (gpu && gpu.webgpu && /disabled|unavailable/i.test(gpu.webgpu) && !SCRIPTED) {
     dialog.showMessageBox({
-      type: 'warning', title: 'Landscape Simulator',
+      type: 'warning', title: 'Landscape Time-Lapse',
       message: 'WebGPU looks unavailable on this computer.',
       detail: 'The simulator needs WebGPU (GPU compute). Updating your graphics driver usually fixes this. The app will try anyway.',
     });

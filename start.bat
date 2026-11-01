@@ -1,6 +1,6 @@
 @echo off
 setlocal
-title Landscape Simulator
+title Landscape Time-Lapse
 cd /d "%~dp0"
 
 where node >nul 2>nul

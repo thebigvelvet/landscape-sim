@@ -57,5 +57,5 @@ if (wait) {
 } else {
   const child = spawn(exe, [ROOT, ...extra], { detached: true, stdio: 'ignore', env });
   child.unref();
-  console.log('Landscape Simulator started.');
+  console.log('Landscape Time-Lapse started.');
 }

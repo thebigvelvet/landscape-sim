@@ -103,6 +103,10 @@ export class Climate {
   setPreset(name) { if (PRESETS[name]) this.presetName = name; }
   triggerStorm(days = 3, mul = 12) { this.stormDaysLeft = days; this.stormMul = mul; }
 
+  // Day-to-day weather multiplier. A forced "big storm" replaces the day's weather (wet or dry)
+  // so it is always the advertised 12x the seasonal mean, never stacked on a natural storm.
+  weatherMul() { return this.stormDaysLeft > 0 ? 1 : this.wx; }
+
   // Effective storm multiplier averaged over an interval of D days (so a 3-day storm inside a
   // 16-year frame adds exactly 3 storm-days of extra rain, not 16 years of it).
   stormFactor(D) {
@@ -129,7 +133,7 @@ export class Climate {
       dayOfYear,
       airTempSeaLevel: tSea,
       lapseRate: p.lapse,
-      precipRate_mm_per_day: this.precipAt(dayOfYear) * this.stormFactor(D) * this.wx,
+      precipRate_mm_per_day: this.precipAt(dayOfYear) * this.stormFactor(D) * this.weatherMul(),
       isSnow: this.airTempAt(dayOfYear, refElevation) < 0.5,
       airTempAtRef: this.airTempAt(dayOfYear, refElevation),
       storm: this.stormDaysLeft > 0,
@@ -143,7 +147,7 @@ export class Climate {
     return {
       tSea: p.tSea + this.tempOffset, tAmp: p.tAmp * this.seasonality, lapse: p.lapse,
       pMean: p.pMean * this.precipMul, pSeas: Math.min(1, p.pSeas * this.seasonality), pPeakDay: p.pPeakDay,
-      tPeakDay: p.tPeakDay, dtr: p.dtr, stormMul: this.stormFactor(D) * this.wx, zRef: refElevation, orog: p.orog,
+      tPeakDay: p.tPeakDay, dtr: p.dtr, stormMul: this.stormFactor(D) * this.weatherMul(), zRef: refElevation, orog: p.orog,
       ksat: p.ksat, gwMax: p.gwMax, etMul: p.etMul,
     };
   }
