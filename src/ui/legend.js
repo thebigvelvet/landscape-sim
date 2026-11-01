@@ -46,6 +46,13 @@ export const OVERLAYS = [
     labels: ['drier (20% full)', 'half full', 'wet (80%+)'],
     note: 'Rain soaks in, creeps downhill underground, and fills the ground in hollows and valley bottoms. Bright teal spots are springs where it comes back out and feeds the streams.',
   },
+  {
+    id: 7, name: 'Plants', dot: '#2f8a3a',
+    desc: 'How much of the ground plants cover, and where fires have burned recently.',
+    gradient: 'linear-gradient(90deg, rgb(237,219,168), rgb(158,199,77), rgb(13,97,31))',
+    labels: ['bare', 'half covered', 'dense forest'],
+    note: 'Plants grow where there is water and warmth: thick in wet, mild places, sparse in deserts, thinning out to nothing above the treeline. Orange to red patches are recent burn scars; they fade over a few years as plants grow back.',
+  },
 ];
 
 export function showLegend(id) {

@@ -87,11 +87,13 @@ export class OrbitCamera {
     let drag = null;
     c.addEventListener('contextmenu', (e) => e.preventDefault());
     c.addEventListener('pointerdown', (e) => {
+      // a weather brush may take the left button (see ui/brushes.js)
+      if (this.intercept && this.intercept(e)) { drag = null; return; }
       drag = { x: e.clientX, y: e.clientY, pan: e.button === 2 || e.button === 1 || e.shiftKey };
-      c.setPointerCapture(e.pointerId);
+      try { c.setPointerCapture(e.pointerId); } catch { /* synthetic events */ }
       this.autoRotate = false;
     });
-    c.addEventListener('pointerup', (e) => { drag = null; c.releasePointerCapture?.(e.pointerId); });
+    c.addEventListener('pointerup', (e) => { drag = null; try { c.releasePointerCapture(e.pointerId); } catch { /* synthetic */ } });
     c.addEventListener('pointermove', (e) => {
       if (!drag) return;
       const dx = e.clientX - drag.x, dy = e.clientY - drag.y;

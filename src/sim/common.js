@@ -16,7 +16,12 @@ fn idxc(x : i32, y : i32) -> u32 { return idx(cl(x), cl(y)); }
 fn isBad(v : f32) -> bool { return (bitcast<u32>(v) & 0x7f800000u) == 0x7f800000u; }
 fn finite(v : f32) -> f32 { return select(v, 0.0, isBad(v)); }
 const PI : f32 = 3.14159265;
+// Groundwater storage capacity (m of water) of a cell with soil depth so: thin rocky soils hold
+// little, deep soils hold the preset's full gwMax (round 2). Mirrored in JS as gwCapJS.
+fn gwCap(so : f32) -> f32 { return P.gwMax * min(1.0, 0.15 + 1.1 * (1.0 - exp(-max(so, 0.0) / 0.5))); }
 `;
+
+export function gwCapJS(gwMax, so) { return gwMax * Math.min(1, 0.15 + 1.1 * (1 - Math.exp(-Math.max(so, 0) / 0.5))); }
 
 export function dispatchGrid(pass, N) {
   const g = Math.ceil(N / WG);
@@ -24,12 +29,12 @@ export function dispatchGrid(pass, N) {
 }
 
 // Helper to create a compute pipeline + bind group layout from (params + storage buffers).
-// `bindings` is a list of 'r' (read-only storage) / 'rw' (storage) flags, binding i+1.
+// `bindings` is a list of 'r' (read-only storage) / 'rw' (storage) / 'u' (uniform) flags, binding i+1.
 export function makeKernel(device, label, code, bindings, entryPoint = 'main') {
   const entries = [{ binding: 0, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'uniform' } }];
   bindings.forEach((m, i) => entries.push({
     binding: i + 1, visibility: GPUShaderStage.COMPUTE,
-    buffer: { type: m === 'r' ? 'read-only-storage' : 'storage' },
+    buffer: { type: m === 'r' ? 'read-only-storage' : m === 'u' ? 'uniform' : 'storage' },
   }));
   const layout = device.createBindGroupLayout({ label, entries });
   const module = device.createShaderModule({ label, code });

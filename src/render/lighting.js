@@ -1,6 +1,7 @@
 // Terrain lighting precompute (compute shader): soft sun shadows by marching toward the sun
 // across the height field, and horizon-based ambient occlusion. Also packs the groundwater fill and
-// spring strength for the shaders. Written to world.light (vec4: sun vis, ao, groundwater fill, spring).
+// spring strength for the shaders. Written to world.light[2i] (vec4: sun vis, ao, groundwater fill,
+// spring); light[2i+1] holds the plant fields and is written by sim/vegetation.js.
 import { WGSL_COMMON, makeKernels, dispatch } from './gpu.js';
 
 const CODE = /* wgsl */ `
@@ -62,7 +63,9 @@ fn main(@builtin(global_invocation_id) g: vec3u) {
   }
   let ao = clamp(1.0 - occ / 8.0 * 1.1, 0.0, 1.0);
   let i = ix(x, y, n);
-  light[i] = vec4f(vis, ao, clamp(groundwater[i] / max(u.gwMax, 1e-3), 0.0, 1.0), finiteOr(spring[i], 0.0));
+  // groundwater fill relative to this cell's capacity (thin soils hold little; see sim/common.js gwCap)
+  let cap = u.gwMax * min(1.0, 0.15 + 1.1 * (1.0 - exp(-max(soil[i], 0.0) / 0.5)));
+  light[2u * i] = vec4f(vis, ao, clamp(groundwater[i] / max(cap, 1e-4), 0.0, 1.0), finiteOr(spring[i], 0.0));
 }`;
 
 export class Lighting {

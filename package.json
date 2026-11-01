@@ -10,7 +10,8 @@
     "build": "vite build",
     "preview": "vite preview --port 5173 --strictPort",
     "app": "node scripts/launch.cjs",
-    "app:dev": "electron . --dev"
+    "app:dev": "electron . --dev",
+    "test": "node scripts/launch.cjs --eval=tests/round2.js --out=tests/out-round2.json --shot=tests/shot-round2-final.png"
   },
   "devDependencies": {
     "electron": "^45.2.1",

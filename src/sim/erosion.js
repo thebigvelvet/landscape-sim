@@ -39,6 +39,7 @@ ${COMMON_WGSL}
 @group(0) @binding(5) var<storage, read_write> sediment : array<f32>;
 @group(0) @binding(6) var<storage, read_write> soil : array<f32>;
 @group(0) @binding(7) var<storage, read_write> bedrock : array<f32>;
+@group(0) @binding(8) var<storage, read> erodMul : array<f32>;
 
 @compute @workgroup_size(16, 16)
 fn main(@builtin(global_invocation_id) gid : vec3<u32>) {
@@ -57,7 +58,8 @@ fn main(@builtin(global_invocation_id) gid : vec3<u32>) {
   let sRaw = slope[i];
   let S = max(sRaw, P.minSlope);
   let lim = smoothstep(0.0005, 0.03, h);          // thin sheet flow carries little
-  let conc = min(P.kc * sp * S, 0.25);
+  // plants protect the ground and trap sediment, fresh burn scars erode much faster (vegetation.js)
+  let conc = min(P.kc * sp * S * erodMul[i], 0.25);
   let C = conc * min(h, 1.5) * lim * P.morph;     // bed-equivalent capacity (m)
   if (C > s) {
     // local-relief limit: a sub-step can never dig a cell more than ~half the drop to its
@@ -89,11 +91,13 @@ ${COMMON_WGSL}
 @group(0) @binding(1) var<storage, read> bedrock : array<f32>;
 @group(0) @binding(2) var<storage, read> soil : array<f32>;
 @group(0) @binding(3) var<storage, read_write> delta : array<vec2<f32>>;
+@group(0) @binding(4) var<storage, read> veg : array<f32>;
 
-fn pairFlux(dz : f32, dist : f32, donorSoil : f32) -> f32 {
+// roots hold the soil: creep slows by up to 60 % and talus failure by 30 % under full cover
+fn pairFlux(dz : f32, dist : f32, donorSoil : f32, donorVeg : f32) -> f32 {
   let excess = dz - P.talusTan * dist;
   let r = P.cellSize / dist;
-  var F = 0.5 * P.thermalRate * max(excess, 0.0) + P.creepFrac * r * r * dz;
+  var F = 0.5 * P.thermalRate * max(excess, 0.0) * (1.0 - 0.3 * donorVeg) + P.creepFrac * r * r * dz * (1.0 - 0.6 * donorVeg);
   F = min(F, 0.12 * dz);
   return min(F, donorSoil / 8.5);
 }
@@ -106,6 +110,7 @@ fn main(@builtin(global_invocation_id) gid : vec3<u32>) {
   let i = idx(x, y);
   let so = soil[i];
   let z = bedrock[i] + so;
+  let vi = veg[i];
   var net = 0.0;
   var rockEx = 0.0;
   for (var dy = -1; dy <= 1; dy++) {
@@ -118,10 +123,10 @@ fn main(@builtin(global_invocation_id) gid : vec3<u32>) {
       let dz = z - (bedrock[j] + sn);
       let dist = P.cellSize * select(1.0, 1.41421356, dx != 0 && dy != 0);
       if (dz > 0.0) {
-        net -= pairFlux(dz, dist, so);
+        net -= pairFlux(dz, dist, so, vi);
         rockEx = max(rockEx, dz - P.rockTan * dist);
       } else if (dz < 0.0) {
-        net += pairFlux(-dz, dist, sn);
+        net += pairFlux(-dz, dist, sn, veg[j]);
       }
     }
   }
@@ -160,12 +165,12 @@ class ErosionModule {
   init(device, world) {
     this.device = device; this.world = world;
     const B = world.buffers, prm = world.params.buffer;
-    this.kx = makeKernel(device, 'erosion.exchange', EXCHANGE_WGSL, ['r', 'r', 'r', 'r', 'rw', 'rw', 'rw']);
-    this.kg = makeKernel(device, 'erosion.thermalGather', THERMAL_GATHER_WGSL, ['r', 'r', 'rw']);
+    this.kx = makeKernel(device, 'erosion.exchange', EXCHANGE_WGSL, ['r', 'r', 'r', 'r', 'rw', 'rw', 'rw', 'r']);
+    this.kg = makeKernel(device, 'erosion.thermalGather', THERMAL_GATHER_WGSL, ['r', 'r', 'rw', 'r']);
     this.ka = makeKernel(device, 'erosion.thermalApply', THERMAL_APPLY_WGSL, ['rw', 'rw', 'r']);
     const W = [B.water, B.water2], S = [B.sediment, B.sediment2];
-    this.xBG = [0, 1].map((p) => this.kx.bind(prm, [W[p], B.velX, B.velY, B.slope, S[p], B.soil, B.bedrock]));
-    this.gBG = this.kg.bind(prm, [B.bedrock, B.soil, B.thermalDelta]);
+    this.xBG = [0, 1].map((p) => this.kx.bind(prm, [W[p], B.velX, B.velY, B.slope, S[p], B.soil, B.bedrock, B.erodMul]));
+    this.gBG = this.kg.bind(prm, [B.bedrock, B.soil, B.thermalDelta, B.veg]);
     this.aBG = this.ka.bind(prm, [B.bedrock, B.soil, B.thermalDelta]);
     // register the per-sub-step exchange with the water module's hydraulic loop
     const hooks = world.substepHooks || (world.substepHooks = []);
@@ -173,7 +178,7 @@ class ErosionModule {
       if (!this.enabled) return;
       pass.setPipeline(this.kx.pipeline); pass.setBindGroup(0, this.xBG[parity]); dispatchGrid(pass, world.N);
     };
-    hooks.push(this.hook);
+    if (!hooks.includes(this.hook)) hooks.push(this.hook);
   }
 
   recordThermal(pass) {
