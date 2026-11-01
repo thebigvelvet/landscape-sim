@@ -41,13 +41,15 @@ ${WATER_VERTICAL_WGSL}
 struct Col { swe : f32, g : f32, d : f32, fr : f32, mn : f32 };
 
 // Integrate n inner steps of length dt from day "start". Returns (precip, ET, runoff, weathering).
-fn integrate(st : ptr<function, Col>, n : u32, dt : f32, start : f32, z : f32, so : f32) -> vec4<f32> {
+// asp: slope aspect, +1 steep sun-facing (south) .. -1 steep shaded (north). Sunny slopes run warmer
+// and melt faster; shaded ones cooler and slower (ported from the Physicist build's insolation model).
+fn integrate(st : ptr<function, Col>, n : u32, dt : f32, start : f32, z : f32, so : f32, asp : f32) -> vec4<f32> {
   var a = vec4<f32>(0.0);
   for (var k = 0u; k < n; k++) {
     let doy = start + (f32(k) + 0.5) * dt;
-    let T = airTemp(doy, z);
+    let T = airTemp(doy, z) + select(1.5, 1.0, asp > 0.0) * asp;
     let pr = precipRate(doy, z) * dt;
-    let sn = snowStep((*st).swe, T, pr, dt);
+    let sn = snowStep((*st).swe, T, pr, dt, 1.0 + 0.5 * asp);
     (*st).swe = sn.x;
     (*st).mn = min((*st).mn, sn.x);
     a.y += sn.z;
@@ -71,12 +73,15 @@ fn main(@builtin(global_invocation_id) gid : vec3<u32>) {
   let br = bedrock[i];
   let so = soil[i];
   let z = br + so + P.datum;                 // absolute elevation for lapse rate
+  // north-south slope (grid +y points south): ground falling away to the south faces the sun
+  let gy = (bedrock[idxc(x, y + 1)] + soil[idxc(x, y + 1)] - bedrock[idxc(x, y - 1)] - soil[idxc(x, y - 1)]) / (2.0 * P.cellSize);
+  let asp = clamp(-gy / 0.6, -1.0, 1.0);
   let swe0 = snowSWE[i];
   let g0 = groundwater[i];
   var st = Col(swe0, g0, frostDepth[i], 0.0, 1e9);
   let n = max(1u, u32(P.nInner));
   let dt = P.spanDays / f32(n);
-  var a = integrate(&st, n, dt, P.dayStart, z, so);
+  var a = integrate(&st, n, dt, P.dayStart, z, so, asp);
   var aP = a.x; var aET = a.y; var aR = a.z; var aW = a.w;
   var swe = st.swe; var g = st.g;
   if (P.yrs > 1.0001) {
@@ -87,7 +92,7 @@ fn main(@builtin(global_invocation_id) gid : vec3<u32>) {
     // then rescaled so that P_total = dStorage + runoff + ET holds exactly.
     let s1 = st.swe;
     st.mn = 1e9;
-    let a2 = integrate(&st, n, dt, P.dayStart, z, so);
+    let a2 = integrate(&st, n, dt, P.dayStart, z, so, asp);
     let perennial = st.mn > 0.005;
     swe = select(st.swe, max(0.0, s1 + (st.swe - s1) * (P.yrs - 1.0)), perennial);
     g = st.g;
@@ -128,7 +133,7 @@ fn main(@builtin(global_invocation_id) gid : vec3<u32>) {
   snowSWE[i] = swe;
   frostDepth[i] = d;
   groundwater[i] = g;
-  temp[i] = airTemp(P.dayStart + P.spanDays, z);
+  temp[i] = airTemp(P.dayStart + P.spanDays, z) + select(1.5, 1.0, asp > 0.0) * asp;
   acc[i] = acc[i] + vec4<f32>(aP, fast, aET + e, 0.0);
 }
 `;

@@ -14,10 +14,11 @@
 //                      one frame and folded into a GPU log by the reduction kernel.
 //   thermalDelta       vec2 per cell scratch for the race-free talus/creep kernel.
 //   initHeight         terrain height at load (for the erosion/deposition overlay).
+//   spring             recent spring discharge (m/day), for display; see sim/groundwater.js.
 //   statPartials, accPartials, fluxLog   reduction scratch / log ring.
 
 export const LAYERS = ['bedrock', 'soil', 'water', 'sediment', 'snowSWE', 'frostDepth', 'temp', 'velX', 'velY'];
-export const EXTRA1 = ['water2', 'sediment2', 'groundwater', 'slope', 'initHeight'];
+export const EXTRA1 = ['water2', 'sediment2', 'groundwater', 'slope', 'initHeight', 'spring'];
 export const STAT_GROUPS = 256;   // workgroups in the stats reduction
 export const STAT_STRIDE = 16;    // floats per partial
 export const LOG_SIZE = 4096;     // entries in the GPU flux log ring
@@ -38,7 +39,8 @@ export class World {
     mk('flux', 4);
     mk('acc', 4);
     mk('thermalDelta', 2);
-    mk('light', 2);   // renderer: (sun visibility, ambient occlusion), written by render/lighting.js
+    mk('gwFlux', 4);  // groundwater transfers through the four faces (-x, +x, -y, +y)
+    mk('light', 4);   // renderer: (sun visibility, ambient occlusion, groundwater fill, springs), from render/lighting.js
     this.buffers.statPartials = device.createBuffer({ size: STAT_GROUPS * STAT_STRIDE * 4, usage, label: 'statPartials' });
     this.buffers.accPartials = device.createBuffer({ size: STAT_GROUPS * 16, usage, label: 'accPartials' });
     this.buffers.fluxLog = device.createBuffer({ size: LOG_SIZE * 16, usage, label: 'fluxLog' });
@@ -52,7 +54,7 @@ export class World {
   upload(layers) {
     const q = this.device.queue;
     const zero = new Float32Array(this.cells * 4);
-    for (const name of [...LAYERS, ...EXTRA1, 'flux', 'acc', 'thermalDelta']) {
+    for (const name of [...LAYERS, ...EXTRA1, 'flux', 'acc', 'thermalDelta', 'gwFlux']) {
       const buf = this.buffers[name];
       const src = layers[name];
       if (src) q.writeBuffer(buf, 0, src);

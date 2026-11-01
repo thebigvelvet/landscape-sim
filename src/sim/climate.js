@@ -10,7 +10,7 @@
 export const PRESETS = {
   'Utah desert': {
     tSea: 21.5, tAmp: 13, lapse: 6.5, pMean: 0.65, pSeas: 0.35, pPeakDay: 225, tPeakDay: 200, dtr: 17,
-    orog: 0.6, ksat: 0.012, gwMax: 0.18, etMul: 1.3, baseElevation: 1400,
+    orog: 0.6, ksat: 0.012, gwMax: 0.18, etMul: 1.3, baseElevation: 1400, wetFrac: 0.10, stormLen: 1.5,
     colors: { soil: [0.71, 0.45, 0.30], veg: [0.47, 0.50, 0.30], rock: [0.62, 0.36, 0.26] },
     blurb: 'Canyon country of the Colorado Plateau: hot dry summers, cold nights, rare but violent monsoon storms that send flash floods down bare slickrock.',
     tagline: 'Red rock, flash floods',
@@ -19,7 +19,7 @@ export const PRESETS = {
   },
   'Colorado alpine': {
     tSea: 20, tAmp: 11, lapse: 6.5, pMean: 2.2, pSeas: 0.3, pPeakDay: 60, tPeakDay: 200, dtr: 15,
-    orog: 0.5, ksat: 0.025, gwMax: 0.25, etMul: 1.0, baseElevation: 2900,
+    orog: 0.5, ksat: 0.025, gwMax: 0.25, etMul: 1.0, baseElevation: 2900, wetFrac: 0.32, stormLen: 2,
     colors: { soil: [0.45, 0.38, 0.28], veg: [0.20, 0.36, 0.17], rock: [0.50, 0.48, 0.46] },
     blurb: 'High Rockies near treeline: long snowy winters, a quick spring melt and summer afternoon thunderstorms. Granite peaks, talus slopes.',
     tagline: 'Snowy peaks',
@@ -28,7 +28,7 @@ export const PRESETS = {
   },
   'Pacific NW wet': {
     tSea: 11, tAmp: 7, lapse: 6.0, pMean: 6.0, pSeas: 0.75, pPeakDay: 350, tPeakDay: 205, dtr: 8,
-    orog: 0.8, ksat: 0.04, gwMax: 0.35, etMul: 0.8, baseElevation: 150,
+    orog: 0.8, ksat: 0.04, gwMax: 0.35, etMul: 0.8, baseElevation: 150, wetFrac: 0.55, stormLen: 3,
     colors: { soil: [0.32, 0.27, 0.20], veg: [0.12, 0.33, 0.13], rock: [0.38, 0.39, 0.38] },
     blurb: 'Cascade foothills near Puget Sound: mild, grey and very wet. Rain most of the winter, snow only up high, dark volcanic rock.',
     tagline: 'Rainy and mild',
@@ -37,7 +37,7 @@ export const PRESETS = {
   },
   'Temperate': {
     tSea: 12, tAmp: 10, lapse: 6.5, pMean: 2.5, pSeas: 0.15, pPeakDay: 180, tPeakDay: 200, dtr: 10,
-    orog: 0.4, ksat: 0.03, gwMax: 0.3, etMul: 1.0, baseElevation: 300,
+    orog: 0.4, ksat: 0.03, gwMax: 0.3, etMul: 1.0, baseElevation: 300, wetFrac: 0.38, stormLen: 2,
     colors: { soil: [0.42, 0.34, 0.24], veg: [0.27, 0.42, 0.18], rock: [0.48, 0.46, 0.43] },
     blurb: 'Rolling uplands like the Appalachians or central Europe: four distinct seasons, steady rain all year, a modest winter snowpack.',
     tagline: 'Four seasons',
@@ -68,6 +68,36 @@ export class Climate {
     this.seasonality = 1;     // x on amplitudes
     this.stormDaysLeft = 0;
     this.stormMul = 12;
+    // Day-to-day weather (ported from the Physicist build): a two-state Markov chain of wet and dry
+    // spells, with wet-day fraction and mean storm length per preset. Wet days get 1/wetFrac times
+    // the seasonal mean (times a random storm size), so the long-term mean equals the seasonal curve.
+    this.wx = 1;
+    this.wxDay = -1;
+    this.wet = false;
+    this.rng = 12345;
+  }
+  rand() {
+    // mulberry32
+    let t = (this.rng = (this.rng + 0x6d2b79f5) | 0);
+    t = Math.imul(t ^ (t >>> 15), t | 1);
+    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  }
+  resetWeather(seed = 1) { this.rng = (seed * 2654435761) | 0; this.wxDay = -1; this.wet = false; this.wx = 1; }
+  // Advance the wet/dry chain to the batch [day, day + D). Batches longer than 2 days see the mean.
+  advanceWeather(day, D) {
+    const p = this.preset;
+    if (D > 2 || !p.wetFrac) { this.wx = 1; this.wxDay = Math.floor(day + D); return; }
+    const target = Math.floor(day + D * 0.5);
+    if (this.wxDay < 0 || target - this.wxDay > 30) this.wxDay = target - 30;   // spin up after a jump
+    while (this.wxDay < target) {
+      this.wxDay++;
+      const pEnd = 1 / p.stormLen;                                   // wet -> dry
+      const pStart = (p.wetFrac / (1 - p.wetFrac)) * pEnd;           // dry -> wet (stationary wet fraction)
+      this.wet = this.wet ? this.rand() > pEnd : this.rand() < pStart;
+      this.size = Math.min(5, -Math.log(1 - 0.999 * this.rand()));    // storm size, mean ~1
+    }
+    this.wx = this.wet ? this.size / p.wetFrac : 0;
   }
   get preset() { return PRESETS[this.presetName] || PRESETS['Colorado alpine']; }
   setPreset(name) { if (PRESETS[name]) this.presetName = name; }
@@ -99,7 +129,7 @@ export class Climate {
       dayOfYear,
       airTempSeaLevel: tSea,
       lapseRate: p.lapse,
-      precipRate_mm_per_day: this.precipAt(dayOfYear) * this.stormFactor(D),
+      precipRate_mm_per_day: this.precipAt(dayOfYear) * this.stormFactor(D) * this.wx,
       isSnow: this.airTempAt(dayOfYear, refElevation) < 0.5,
       airTempAtRef: this.airTempAt(dayOfYear, refElevation),
       storm: this.stormDaysLeft > 0,
@@ -113,7 +143,7 @@ export class Climate {
     return {
       tSea: p.tSea + this.tempOffset, tAmp: p.tAmp * this.seasonality, lapse: p.lapse,
       pMean: p.pMean * this.precipMul, pSeas: Math.min(1, p.pSeas * this.seasonality), pPeakDay: p.pPeakDay,
-      tPeakDay: p.tPeakDay, dtr: p.dtr, stormMul: this.stormFactor(D), zRef: refElevation, orog: p.orog,
+      tPeakDay: p.tPeakDay, dtr: p.dtr, stormMul: this.stormFactor(D) * this.wx, zRef: refElevation, orog: p.orog,
       ksat: p.ksat, gwMax: p.gwMax, etMul: p.etMul,
     };
   }

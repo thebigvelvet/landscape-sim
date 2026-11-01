@@ -1,14 +1,17 @@
 // Terrain lighting precompute (compute shader): soft sun shadows by marching toward the sun
-// across the height field, and horizon-based ambient occlusion. Written to world.light (vec2).
+// across the height field, and horizon-based ambient occlusion. Also packs the groundwater fill and
+// spring strength for the shaders. Written to world.light (vec4: sun vis, ao, groundwater fill, spring).
 import { WGSL_COMMON, makeKernels, dispatch } from './gpu.js';
 
 const CODE = /* wgsl */ `
-struct U { N: u32, dx: f32, sunX: f32, sunZ: f32, tanElev: f32, vex: f32, snowDen: f32, pad: f32 };
+struct U { N: u32, dx: f32, sunX: f32, sunZ: f32, tanElev: f32, vex: f32, snowDen: f32, gwMax: f32 };
 @group(0) @binding(0) var<uniform> u: U;
 @group(0) @binding(1) var<storage, read> bedrock: array<f32>;
 @group(0) @binding(2) var<storage, read> soil: array<f32>;
 @group(0) @binding(3) var<storage, read> snowSWE: array<f32>;
-@group(0) @binding(4) var<storage, read_write> light: array<vec2f>;
+@group(0) @binding(4) var<storage, read_write> light: array<vec4f>;
+@group(0) @binding(5) var<storage, read> groundwater: array<f32>;
+@group(0) @binding(6) var<storage, read> spring: array<f32>;
 ${WGSL_COMMON}
 fn Hc(x: i32, y: i32, n: i32) -> f32 {
   let i = ix(x, y, n);
@@ -58,19 +61,20 @@ fn main(@builtin(global_invocation_id) g: vec3u) {
     occ += maxT / sqrt(1.0 + maxT * maxT);
   }
   let ao = clamp(1.0 - occ / 8.0 * 1.1, 0.0, 1.0);
-  light[ix(x, y, n)] = vec2f(vis, ao);
+  let i = ix(x, y, n);
+  light[i] = vec4f(vis, ao, clamp(groundwater[i] / max(u.gwMax, 1e-3), 0.0, 1.0), finiteOr(spring[i], 0.0));
 }`;
 
 export class Lighting {
   constructor(device, world) {
     this.device = device;
     this.world = world;
-    this.k = makeKernels(device, 'lighting', CODE, ['uniform', 'read', 'read', 'read', 'storage'], ['main']);
+    this.k = makeKernels(device, 'lighting', CODE, ['uniform', 'read', 'read', 'read', 'storage', 'read', 'read'], ['main']);
     this.ub = device.createBuffer({ size: 32, usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST });
-    this.bg = this.k.bind([this.ub, world.bedrock, world.soil, world.snowSWE, world.light]);
+    this.bg = this.k.bind([this.ub, world.bedrock, world.soil, world.snowSWE, world.light, world.groundwater, world.spring]);
     this.data = new ArrayBuffer(32);
   }
-  update(encoder, sunDir, vex) {
+  update(encoder, sunDir, vex, gwMax = 0.25) {
     const f = new Float32Array(this.data), u = new Uint32Array(this.data);
     const hl = Math.hypot(sunDir[0], sunDir[2]) || 1;
     u[0] = this.world.N;
@@ -80,6 +84,7 @@ export class Lighting {
     f[4] = sunDir[1] / hl;
     f[5] = vex;
     f[6] = 0.33;
+    f[7] = gwMax;
     this.device.queue.writeBuffer(this.ub, 0, this.data);
     dispatch(encoder, this.k.pipes.main, this.bg, this.world.N);
   }

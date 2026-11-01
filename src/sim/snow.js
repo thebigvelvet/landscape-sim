@@ -20,12 +20,14 @@ fn pdd(T : f32) -> f32 {
   return (T + a) * (T + a) / (4.0 * a);
 }
 // returns (newSWE, liquid water released = rain + melt, sublimation loss)   all in metres
-fn snowStep(swe : f32, T : f32, precip : f32, dt : f32) -> vec3<f32> {
+// sunF scales melt by how much sun the slope gets (enhanced temperature index, Hock 1999):
+// ~0.5 on steep north faces, ~1.5 on steep south faces, 1 on flat ground.
+fn snowStep(swe : f32, T : f32, precip : f32, dt : f32, sunF : f32) -> vec3<f32> {
   let sf = clamp((1.5 - T) / 3.0, 0.0, 1.0);          // rain/snow transition -1.5..+1.5 degC
   let snowfall = precip * sf;
   let rain = precip - snowfall;
   var s = swe + snowfall;
-  let melt = min(s, P.ddf * pdd(T) * dt);
+  let melt = min(s, P.ddf * sunF * pdd(T) * dt);
   s = s - melt;
   let sub = min(s, P.sublim * dt * select(0.0, 1.0, T < 0.0));
   s = s - sub;

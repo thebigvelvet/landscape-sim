@@ -39,6 +39,13 @@ export const OVERLAYS = [
     labels: ['-50 m', '-1 m', '0', '+1 m', '+50 m'],
     note: 'Red: worn away by streams, landslides and frost. Blue: sediment dropped in valleys, fans and lakes.',
   },
+  {
+    id: 6, name: 'Groundwater & springs', dot: '#2fb3a0',
+    desc: 'How full the ground is with water, and where it comes back out as springs.',
+    gradient: 'linear-gradient(90deg, rgb(237,204,140), rgb(153,191,224), rgb(26,56,158)), linear-gradient(90deg, transparent, transparent)',
+    labels: ['drier (20% full)', 'half full', 'wet (80%+)'],
+    note: 'Rain soaks in, creeps downhill underground, and fills the ground in hollows and valley bottoms. Bright teal spots are springs where it comes back out and feeds the streams.',
+  },
 ];
 
 export function showLegend(id) {

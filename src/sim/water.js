@@ -17,7 +17,7 @@ import { COMMON_WGSL, makeKernel, dispatchGrid } from './common.js';
 export const WATER_PARAMS = {
   g: 9.81,
   manning: 0.045,
-  kBase: 0.04,        // 1/day groundwater -> baseflow
+  kBase: 0.01,        // 1/day groundwater -> local baseflow (the rest moves downhill, see groundwater.js)
   eSurf: 6e-8,        // m/s open-water evaporation at ~20 degC (~5 mm/day)
   kTrans: 1.2e-7,     // m/s channel transmission loss into groundwater (~10 mm/day)
   hDry: 1e-4,         // m, below this a cell is considered dry for erosion

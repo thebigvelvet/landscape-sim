@@ -20,7 +20,9 @@ export const PARAM_FIELDS = [
   ['kc', 'f32'], ['ks', 'f32'], ['kd', 'f32'], ['kRock', 'f32'],
   ['minSlope', 'f32'], ['dzMax', 'f32'], ['vMax', 'f32'], ['manning', 'f32'],
   ['talusTan', 'f32'], ['rockTan', 'f32'], ['thermalRate', 'f32'], ['creepFrac', 'f32'],
-  ['rockRate', 'f32'], ['hDry', 'f32'], ['pad1', 'f32'], ['pad2', 'f32'],
+  ['rockRate', 'f32'], ['hDry', 'f32'], ['kGw', 'f32'], ['gwPor', 'f32'],
+  // groundwater
+  ['gwDt', 'f32'], ['pad1', 'f32'], ['pad2', 'f32'], ['pad3', 'f32'],
 ];
 
 export const PARAMS_WGSL = `struct Params {\n${PARAM_FIELDS.map(([n, t]) => `  ${n} : ${t},`).join('\n')}\n};\n`;

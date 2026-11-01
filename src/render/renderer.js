@@ -8,7 +8,7 @@ import { OrbitCamera } from './camera.js';
 import { PRESETS } from '../sim/climate.js';
 
 // Overlay names, in the order of the shader's overlay modes (0 = natural view).
-export const OVERLAYS = ['none', 'water', 'sediment', 'snow', 'frost', 'change'];
+export const OVERLAYS = ['none', 'water', 'sediment', 'snow', 'frost', 'change', 'groundwater'];
 
 const SAMPLES = 4;
 const WEATHER_VISIBLE_SPEED = 36;   // days/s; above this rain particles and clouds are averaged out
@@ -221,7 +221,7 @@ export class Renderer {
     this.device.queue.writeBuffer(this.ub, 0, u);
 
     if (this.frameCount % 2 === 0 || this.lightDirty) {
-      this.lighting.update(encoder, atm.sun, this.vex);
+      this.lighting.update(encoder, atm.sun, this.vex, atm.preset.gwMax);
       this.lightDirty = false;
     }
     const pass = encoder.beginRenderPass({

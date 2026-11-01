@@ -101,7 +101,7 @@ const TERRAIN_DATA = /* wgsl */ `
 @group(0) @binding(4) var<storage, read> water: array<f32>;
 @group(0) @binding(5) var<storage, read> sediment: array<f32>;
 @group(0) @binding(6) var<storage, read> frostDepth: array<f32>;
-@group(0) @binding(7) var<storage, read> light: array<vec2f>;
+@group(0) @binding(7) var<storage, read> light: array<vec4f>;
 @group(0) @binding(8) var<storage, read> height0: array<f32>;
 fn gi(x: i32, y: i32) -> u32 {
   let n = i32(R_.grid.x);
@@ -118,6 +118,7 @@ struct VO {
   @location(2) m0: vec4f,   // soil, snowSWE, water, sediment
   @location(3) m1: vec4f,   // frost, sun visibility, ao, height change since start
   @location(4) m2: vec4f,   // ground height (m), grid x, grid y, ground slope (tan)
+  @location(5) m3: vec2f,   // groundwater fill 0..1, spring discharge (m/day)
 };
 @vertex fn vs(@builtin(vertex_index) vi: u32) -> VO {
   let n = u32(R_.grid.x);
@@ -144,6 +145,7 @@ struct VO {
   let L = light[i];
   o.m1 = vec4f(frostDepth[i], L.x, L.y, ground - height0[i]);
   o.m2 = vec4f(ground, f32(x), f32(y), gslope);
+  o.m3 = L.zw;
   return o;
 }
 
@@ -154,7 +156,7 @@ fn ramp3(t: f32, a: vec3f, b: vec3f, c: vec3f) -> vec3f {
 }
 
 // Overlay colour maps. Must match the legends drawn in src/ui/legend.js.
-fn overlay(mode: i32, m0: vec4f, m1: vec4f) -> vec4f {
+fn overlay(mode: i32, m0: vec4f, m1: vec4f, m3: vec2f) -> vec4f {
   if (mode == 1) { // water depth, log 1 mm .. 10 m
     let d = m0.z;
     if (d < 0.001) { return vec4f(0.0); }
@@ -185,6 +187,16 @@ fn overlay(mode: i32, m0: vec4f, m1: vec4f) -> vec4f {
     let a = smoothstep(0.03, 0.2, abs(t)) * 0.85;
     if (t < 0.0) { return vec4f(mix(vec3f(1.0, 0.85, 0.75), vec3f(0.70, 0.08, 0.10), clamp(-t, 0.0, 1.0)), a); }
     return vec4f(mix(vec3f(0.80, 0.88, 1.0), vec3f(0.08, 0.25, 0.75), clamp(t, 0.0, 1.0)), a);
+  }
+  if (mode == 6) { // groundwater fill 0..1, springs (log 0.1 mm/day .. 10 cm/day) on top
+    let sp = m3.y;
+    if (sp > 1e-4) {
+      let t = clamp(log(sp / 1e-4) / log(1000.0), 0.0, 1.0);
+      return vec4f(mix(vec3f(0.10, 1.0, 0.80), vec3f(0.0, 0.70, 0.45), t), 1.0);
+    }
+    // stretch 20%..80% full: the store rarely leaves that range, and the contrast is the story
+    let g = clamp((m3.x - 0.2) / 0.6, 0.0, 1.0);
+    return vec4f(ramp3(g, vec3f(0.93, 0.80, 0.55), vec3f(0.60, 0.75, 0.88), vec3f(0.10, 0.22, 0.62)), 0.85);
   }
   return vec4f(0.0);
 }
@@ -226,7 +238,9 @@ fn overlay(mode: i32, m0: vec4f, m1: vec4f) -> vec4f {
   let season = R_.talus.w;
   let summer = 0.5 + 0.5 * cos(6.2831853 * (season - 0.55));
   let vegOk = smoothstep(-1.5, 3.0, tMean) * smoothstep(0.15, 0.6, soilD) * (1.0 - smoothstep(0.45, 0.9, slopeTan));
-  let vegAmt = clamp(vegOk * R_.rock2.w * (0.75 + 0.5 * nz), 0.0, 1.0);
+  // Moist ground (high water table, springs) is greener even in dry climates.
+  let moist = smoothstep(0.35, 0.95, i.m3.x) + smoothstep(1e-4, 3e-3, i.m3.y);
+  let vegAmt = clamp(vegOk * (R_.rock2.w + 0.45 * moist * (1.0 - R_.rock2.w)) * (0.75 + 0.5 * nz), 0.0, 1.0);
   let vegC = mix(R_.veg.rgb * vec3f(1.25, 1.05, 0.7), R_.veg.rgb, summer) * (0.8 + 0.4 * nzf);
   let looseWithVeg = mix(looseC, vegC, vegAmt);
 
@@ -234,7 +248,7 @@ fn overlay(mode: i32, m0: vec4f, m1: vec4f) -> vec4f {
   var albedo = mix(looseWithVeg, rockC, rockExpo);
 
   // Wet ground darkens.
-  let wet = smoothstep(0.0005, 0.02, wdep);
+  let wet = max(smoothstep(0.0005, 0.02, wdep), smoothstep(1e-4, 2e-3, i.m3.y) * 0.7);
   albedo = albedo * (1.0 - 0.35 * wet);
   // Hoar frost on frozen bare ground.
   albedo = mix(albedo, srgb(vec3f(0.80, 0.84, 0.88)), smoothstep(0.05, 0.5, i.m1.x) * 0.18 * (1.0 - wet));
@@ -265,7 +279,7 @@ fn overlay(mode: i32, m0: vec4f, m1: vec4f) -> vec4f {
   col = applyHaze(col, wp);
   var outc = tonemap(col);
   // --- Overlay, blended in display space so colours match the legend.
-  let ov = overlay(i32(R_.skyZenith.w), i.m0, i.m1);
+  let ov = overlay(i32(R_.skyZenith.w), i.m0, i.m1, i.m3);
   if (i32(R_.skyZenith.w) > 0) {
     // Mute the natural colours so the overlay reads clearly.
     let g = dot(outc, vec3f(0.3, 0.55, 0.15));
@@ -346,7 +360,7 @@ export const WATER = UNIFORMS + COMMON + /* wgsl */ `
 @group(0) @binding(4) var<storage, read> velX: array<f32>;
 @group(0) @binding(5) var<storage, read> velY: array<f32>;
 @group(0) @binding(6) var<storage, read> sediment: array<f32>;
-@group(0) @binding(7) var<storage, read> light: array<vec2f>;
+@group(0) @binding(7) var<storage, read> light: array<vec4f>;
 @group(0) @binding(8) var<storage, read> snowSWE: array<f32>;
 fn gi(x: i32, y: i32) -> u32 {
   let n = i32(R_.grid.x);

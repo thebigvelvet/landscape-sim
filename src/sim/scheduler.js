@@ -25,6 +25,7 @@ import snow, { SNOW_PARAMS } from './snow.js';
 import freezethaw, { FREEZETHAW_PARAMS } from './freezethaw.js';
 import climateModule from './climate.js';
 import { column } from './column.js';
+import { groundwater, GROUNDWATER_PARAMS } from './groundwater.js';
 import { Stats } from './stats.js';
 
 export const A_CAP = 150;              // max routing intensity (x real-time runoff rate)
@@ -43,7 +44,7 @@ export class Simulation {
     this.nSub = 16;            // hydraulic sub-steps per frame (governor adjusts)
     this.maxSub = 64;
     this.world = null;
-    this.modules = [climateModule, snow, freezethaw, water, erosion];
+    this.modules = [climateModule, snow, freezethaw, groundwater, water, erosion];
     this.day = 0;
     this.frame = 0;
     this.carry = 0;
@@ -77,6 +78,7 @@ export class Simulation {
       this.cellSize = cellSize;
       for (const m of [water, erosion]) m.init(this.device, this.world);
       column.init(this.device, this.world);
+      groundwater.init(this.device, this.world);
       this.statsK = new Stats(this.device, this.world);
       this.maxSub = N <= 256 ? 256 : N <= 512 ? 128 : 64;
       this.nSub = Math.min(this.nSub, this.maxSub);
@@ -94,6 +96,7 @@ export class Simulation {
     this.day = 0; this.frame = 0; this.carry = 0; this.hmax = 0.3; this.consumed = 0;
     this.cum = { precip: 0, outflow: 0, evap: 0, sedOut: 0 };
     this.climate.stormDaysLeft = 0;
+    this.climate.resetWeather(seed);
     this.world.params.set({ N, cellSize, cellArea: cellSize * cellSize, frame: 0, logSize: LOG_SIZE });
     this.world.params.upload();
     const s0 = await this._readback();
@@ -122,6 +125,7 @@ export class Simulation {
     const nInner = Math.min(48, Math.max(1, Math.ceil(span / 1.0)));
     const zRef = this.datum + (this.terrainRange?.mean ?? 0);
     const yearsE = Deros / 365;
+    this.climate.advanceWeather(this.day, Dcol);
     const plan = {
       N: w.N, frame: this.frame, logSize: LOG_SIZE, nSub: n,
       cellSize: dx, cellArea: dx * dx, dtH, g: WATER_PARAMS.g,
@@ -130,6 +134,7 @@ export class Simulation {
       ...SNOW_PARAMS, ...FREEZETHAW_PARAMS,
       kBase: WATER_PARAMS.kBase, eSurf: WATER_PARAMS.eSurf, kTrans: WATER_PARAMS.kTrans, hDry: WATER_PARAMS.hDry,
       manning: WATER_PARAMS.manning, datum: this.datum,
+      kGw: GROUNDWATER_PARAMS.kGw, gwPor: GROUNDWATER_PARAMS.gwPor, gwDt: Dcol * 86400,
       kc: EROSION_PARAMS.kc * this.erosionStrength, ks: EROSION_PARAMS.ks, kd: EROSION_PARAMS.kd, kRock: EROSION_PARAMS.kRock,
       minSlope: EROSION_PARAMS.minSlope, dzMax: 0.02 * dx, vMax: 0.5 * dx / dtH,
       talusTan: EROSION_PARAMS.talusTan, rockTan: EROSION_PARAMS.rockTan,
@@ -144,6 +149,7 @@ export class Simulation {
     const enc = this.device.createCommandEncoder({ label: 'sim' });
     const pass = enc.beginComputePass({ label: 'sim', timestampWrites: timed ? this.timer?.simPassTimestamps() : undefined });
     column.record(pass);
+    groundwater.record(pass);
     water.record(pass, n);
     erosion.recordThermal(pass);
     this.statsK.recordAccumulate(pass);
