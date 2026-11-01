@@ -1,340 +1,254 @@
-// Raw-WebGPU renderer that reads the simulation storage buffers DIRECTLY in the vertex shader:
-// zero copies, zero CPU readback. One shared index buffer (N-1)^2 quads, three draws:
-// terrain (lit, snow/vegetation/rock shading + overlays), translucent water, and diorama skirts.
+// Raw WebGPU renderer (from the Artist build): sky, terrain with material shading, soft sun shadows,
+// ambient occlusion and haze, block sides, translucent flowing water, and falling rain/snow.
+// Reads the simulation storage buffers directly (no copies, no CPU readback). The frame is encoded
+// into the caller's command encoder so simulation and rendering share one submission.
+import { SKY, TERRAIN, SKIRT, WATER, PRECIP } from './shaders.js';
+import { Lighting } from './lighting.js';
 import { OrbitCamera } from './camera.js';
+import { PRESETS } from '../sim/climate.js';
 
+// Overlay names, in the order of the shader's overlay modes (0 = natural view).
 export const OVERLAYS = ['none', 'water', 'sediment', 'snow', 'frost', 'change'];
 
-const SHADER = /* wgsl */`
-struct R {
-  viewProj : mat4x4<f32>,
-  camPos : vec4<f32>,     // w = vertical exaggeration
-  sun : vec4<f32>,        // xyz dir, w = N
-  p0 : vec4<f32>,         // cellSize, overlay mode, overlay scale, morph
-  soilC : vec4<f32>,      // w = hRef (height drawn at y=0)
-  vegC : vec4<f32>,       // w = floor height for skirts
-  rockC : vec4<f32>,      // w = gwMax
-  p1 : vec4<f32>,         // x = show water, y = time
-};
-@group(0) @binding(0) var<uniform> U : R;
-@group(0) @binding(1) var<storage, read> bedrock : array<f32>;
-@group(0) @binding(2) var<storage, read> soil : array<f32>;
-@group(0) @binding(3) var<storage, read> water : array<f32>;
-@group(0) @binding(4) var<storage, read> snowSWE : array<f32>;
-@group(0) @binding(5) var<storage, read> ovl : array<f32>;
-@group(0) @binding(6) var<storage, read> initHeight : array<f32>;
-@group(0) @binding(7) var<storage, read> groundwater : array<f32>;
-@group(0) @binding(8) var<storage, read> temp : array<f32>;
+const SAMPLES = 4;
+const WEATHER_VISIBLE_SPEED = 36;   // days/s; above this rain particles and clouds are averaged out
 
-fn NN() -> i32 { return i32(U.sun.w); }
-fn id(x : i32, y : i32) -> u32 { let n = NN(); return u32(clamp(y, 0, n - 1) * n + clamp(x, 0, n - 1)); }
-fn terr(i : u32) -> f32 { return bedrock[i] + soil[i]; }
-fn surf(i : u32) -> f32 { return terr(i) + snowSWE[i] * 3.0; }       // snow depth ~ 3x SWE
-fn wpos(x : i32, y : i32, h : f32) -> vec3<f32> {
-  let n = f32(NN());
-  let cs = U.p0.x;
-  return vec3<f32>((f32(x) - 0.5 * (n - 1.0)) * cs, (h - U.soilC.w) * U.camPos.w, (f32(y) - 0.5 * (n - 1.0)) * cs);
-}
+function lerp3(a, b, t) { return [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t, a[2] + (b[2] - a[2]) * t]; }
 
-struct VOut {
-  @builtin(position) pos : vec4<f32>,
-  @location(0) world : vec3<f32>,
-  @location(1) nrm : vec3<f32>,
-  @location(2) a : vec4<f32>,     // soil, swe, water depth, overlay value
-  @location(3) b : vec4<f32>,     // change since start, groundwater, temp, slope
-};
-
-@vertex fn vsTerrain(@builtin(vertex_index) vid : u32) -> VOut {
-  let n = NN();
-  let x = i32(vid) % n; let y = i32(vid) / n;
-  let i = id(x, y);
-  let h = surf(i);
-  let cs = U.p0.x; let ex = U.camPos.w;
-  let hl = surf(id(x - 1, y)); let hr = surf(id(x + 1, y));
-  let hd = surf(id(x, y - 1)); let hu = surf(id(x, y + 1));
-  let gx = (hr - hl) / (2.0 * cs); let gy = (hu - hd) / (2.0 * cs);
-  var o : VOut;
-  let p = wpos(x, y, h);
-  o.pos = U.viewProj * vec4<f32>(p, 1.0);
-  o.world = p;
-  o.nrm = normalize(vec3<f32>(-gx * ex, 1.0, -gy * ex));
-  o.a = vec4<f32>(soil[i], snowSWE[i], water[i], ovl[i]);
-  o.b = vec4<f32>(terr(i) - initHeight[i], groundwater[i], temp[i], length(vec2<f32>(gx, gy)));
-  return o;
+/** Rough sun position for the season at mid-morning. World: +x east, +z south, +y up; points TO the sun. */
+export function sunDirection(dayOfYear) {
+  const s = Math.cos((2 * Math.PI * (dayOfYear - 172)) / 365); // +1 midsummer, -1 midwinter
+  const elev = ((36 + 22 * s) * Math.PI) / 180;
+  const az = ((-35 - 10 * s) * Math.PI) / 180;
+  return [Math.cos(elev) * Math.sin(-az), Math.sin(elev), Math.cos(elev) * Math.cos(az)];
 }
-
-fn sky(d : vec3<f32>) -> vec3<f32> {
-  let t = clamp(d.y * 1.4 + 0.15, 0.0, 1.0);
-  return mix(vec3<f32>(0.80, 0.86, 0.92), vec3<f32>(0.33, 0.52, 0.80), t);
-}
-fn ramp(t : f32, c0 : vec3<f32>, c1 : vec3<f32>, c2 : vec3<f32>) -> vec3<f32> {
-  let u = clamp(t, 0.0, 1.0);
-  return select(mix(c1, c2, (u - 0.5) * 2.0), mix(c0, c1, u * 2.0), u < 0.5);
-}
-fn fogged(c : vec3<f32>, world : vec3<f32>) -> vec3<f32> {
-  let d = length(world - U.camPos.xyz);
-  let f = 1.0 - exp(-d * d * 1.2e-10 / max(U.p0.x * U.p0.x / 100.0, 0.05));
-  return mix(c, vec3<f32>(0.78, 0.84, 0.90), clamp(f, 0.0, 0.6));
-}
-
-@fragment fn fsTerrain(v : VOut) -> @location(0) vec4<f32> {
-  let n = normalize(v.nrm);
-  let soilD = v.a.x; let swe = v.a.y; let depth = v.a.z;
-  let slope = v.b.w; let T = v.b.z; let gw = v.b.y;
-  let steep = smoothstep(0.55, 1.1, slope);
-  let soilMix = smoothstep(0.02, 0.35, soilD) * (1.0 - steep * 0.8);
-  var c = mix(U.rockC.rgb, U.soilC.rgb, soilMix);
-  // rock strata banding
-  c *= 0.97 + 0.03 * sin(v.world.y * 0.05 / max(U.camPos.w, 0.1)) * steep;
-  let wet = clamp(gw / max(U.rockC.w, 1e-3), 0.0, 1.0);
-  // vegetation: needs soil, not too steep, warmth, and moisture (local groundwater + regional climate)
-  let moist = clamp(U.p1.z * 0.75 + smoothstep(0.1, 0.7, wet) * 0.6, 0.0, 1.0);
-  let veg = soilMix * moist * smoothstep(-6.0, 8.0, T) * (1.0 - steep);
-  c = mix(c, U.vegC.rgb * (0.8 + 0.3 * wet), veg * 0.85);
-  c *= 1.0 - 0.35 * smoothstep(0.0005, 0.03, depth);        // damp ground darkens
-  let snowC = smoothstep(0.003, 0.04, swe);
-  c = mix(c, vec3<f32>(0.93, 0.95, 0.98), snowC);
-  // lighting: sun + sky hemisphere
-  let L = normalize(U.sun.xyz);
-  let diff = max(dot(n, L), 0.0);
-  let hemi = 0.5 + 0.5 * n.y;
-  var col = c * (diff * vec3<f32>(1.0, 0.96, 0.88) * 0.95 + hemi * vec3<f32>(0.30, 0.36, 0.45));
-  // overlays
-  let mode = i32(U.p0.y + 0.5);
-  let sc = U.p0.z;
-  if (mode == 1) {         // water depth
-    let t = clamp(log(1.0 + v.a.w * 100.0) / log(1.0 + sc * 100.0), 0.0, 1.0);
-    col = mix(col, ramp(t, vec3<f32>(0.75, 0.9, 1.0), vec3<f32>(0.1, 0.5, 0.95), vec3<f32>(0.05, 0.05, 0.45)), smoothstep(0.0, 0.05, t) * 0.85);
-  } else if (mode == 2) {  // sediment (bed-equivalent, log)
-    let t = clamp(log(1.0 + v.a.w * 1000.0) / log(1.0 + sc * 1000.0), 0.0, 1.0);
-    col = mix(col, ramp(t, vec3<f32>(1.0, 0.95, 0.6), vec3<f32>(0.95, 0.55, 0.1), vec3<f32>(0.5, 0.15, 0.05)), smoothstep(0.0, 0.05, t) * 0.85);
-  } else if (mode == 3) {  // snow SWE
-    let t = clamp(v.a.w / sc, 0.0, 1.0);
-    col = mix(col, ramp(t, vec3<f32>(0.8, 0.95, 1.0), vec3<f32>(0.4, 0.6, 1.0), vec3<f32>(0.5, 0.1, 0.7)), smoothstep(0.0, 0.02, t) * 0.85);
-  } else if (mode == 4) {  // frost depth
-    let t = clamp(v.a.w / sc, 0.0, 1.0);
-    col = mix(col, ramp(t, vec3<f32>(0.7, 1.0, 1.0), vec3<f32>(0.2, 0.7, 0.9), vec3<f32>(0.1, 0.2, 0.6)), smoothstep(0.0, 0.02, t) * 0.85);
-  } else if (mode == 5) {  // erosion (red) / deposition (blue) since start
-    let t = clamp(v.b.x / sc, -1.0, 1.0);
-    let ce = mix(vec3<f32>(0.97, 0.97, 0.95), vec3<f32>(0.8, 0.1, 0.05), clamp(-t, 0.0, 1.0));
-    let cd = mix(vec3<f32>(0.97, 0.97, 0.95), vec3<f32>(0.05, 0.3, 0.85), clamp(t, 0.0, 1.0));
-    let cc = select(cd, ce, t < 0.0);
-    col = mix(col, cc * (0.55 + 0.45 * diff + 0.2), 0.8 * smoothstep(0.0, 0.03, abs(t)) + 0.1);
-  }
-  return vec4<f32>(fogged(col, v.world), 1.0);
-}
-
-// ---------------- water ----------------
-struct WOut {
-  @builtin(position) pos : vec4<f32>,
-  @location(0) world : vec3<f32>,
-  @location(1) nrm : vec3<f32>,
-  @location(2) d : vec2<f32>,    // depth, muddiness
-};
-fn wsurf(i : u32) -> f32 { return terr(i) + water[i]; }
-@vertex fn vsWater(@builtin(vertex_index) vid : u32) -> WOut {
-  let n = NN();
-  let x = i32(vid) % n; let y = i32(vid) / n;
-  let i = id(x, y);
-  let d = water[i];
-  let cs = U.p0.x; let ex = U.camPos.w;
-  let hs = wsurf(i);
-  let gx = (wsurf(id(x + 1, y)) - wsurf(id(x - 1, y))) / (2.0 * cs);
-  let gy = (wsurf(id(x, y + 1)) - wsurf(id(x, y - 1))) / (2.0 * cs);
-  var o : WOut;
-  let p = wpos(x, y, select(terr(i) - 1.0, hs, d > 0.003));
-  o.pos = U.viewProj * vec4<f32>(p, 1.0);
-  o.world = p;
-  o.nrm = normalize(vec3<f32>(-gx * ex * 0.3, 1.0, -gy * ex * 0.3));
-  let conc = ovl[i] / max(U.p0.w * d, 1e-6);       // ovl = sediment here
-  o.d = vec2<f32>(d, clamp(conc * 25.0, 0.0, 0.85));
-  return o;
-}
-@fragment fn fsWater(v : WOut) -> @location(0) vec4<f32> {
-  if (v.d.x < 0.004 || U.p1.x < 0.5) { discard; }
-  let n = normalize(v.nrm);
-  let V = normalize(U.camPos.xyz - v.world);
-  let L = normalize(U.sun.xyz);
-  let deep = 1.0 - exp(-v.d.x * 1.2);
-  var c = mix(vec3<f32>(0.18, 0.45, 0.55), vec3<f32>(0.03, 0.15, 0.32), deep);
-  c = mix(c, vec3<f32>(0.45, 0.33, 0.20), v.d.y);
-  let fres = 0.04 + 0.96 * pow(1.0 - max(dot(n, V), 0.0), 5.0);
-  let refl = sky(reflect(-V, n));
-  let H = normalize(L + V);
-  let spec = pow(max(dot(n, H), 0.0), 120.0) * 0.8;
-  var col = mix(c * (0.55 + 0.45 * max(dot(n, L), 0.0)), refl, fres * 0.6) + vec3<f32>(spec);
-  let a = clamp(0.35 + 0.65 * smoothstep(0.004, 0.6, v.d.x) + fres * 0.3, 0.0, 0.92);
-  return vec4<f32>(fogged(col, v.world), a);
-}
-
-// ---------------- skirts (diorama sides) ----------------
-struct SOut {
-  @builtin(position) pos : vec4<f32>,
-  @location(0) world : vec3<f32>,
-  @location(1) t : vec2<f32>,    // depth below surface, side shade
-};
-@vertex fn vsSkirt(@builtin(vertex_index) vid : u32) -> SOut {
-  let n = NN();
-  let segs = u32(n - 1);
-  let side = vid / (segs * 6u);
-  let r = vid % (segs * 6u);
-  let seg = r / 6u;
-  let corner = array<vec2<u32>, 6>(vec2<u32>(0u, 0u), vec2<u32>(1u, 0u), vec2<u32>(0u, 1u), vec2<u32>(1u, 0u), vec2<u32>(1u, 1u), vec2<u32>(0u, 1u))[r % 6u];
-  let k = i32(seg + corner.x);
-  var x = 0; var y = 0;
-  if (side == 0u) { x = k; y = 0; }
-  else if (side == 1u) { x = n - 1; y = k; }
-  else if (side == 2u) { x = n - 1 - k; y = n - 1; }
-  else { x = 0; y = n - 1 - k; }
-  let top = terr(id(x, y));
-  let h = select(top, U.vegC.w, corner.y == 1u);
-  var o : SOut;
-  let p = wpos(x, y, h);
-  o.pos = U.viewProj * vec4<f32>(p, 1.0);
-  o.world = p;
-  o.t = vec2<f32>(top - h, 0.75 + 0.25 * f32(side % 2u));
-  return o;
-}
-@fragment fn fsSkirt(v : SOut) -> @location(0) vec4<f32> {
-  var c = U.rockC.rgb * 0.75;
-  c = mix(U.soilC.rgb * 0.8, c, smoothstep(0.5, 3.0, v.t.x));
-  c *= 0.85 + 0.15 * sin(v.world.y * 0.15 / max(U.camPos.w, 0.1));
-  return vec4<f32>(fogged(c * v.t.y, v.world), 1.0);
-}
-
-// ---------------- sky ----------------
-struct KOut { @builtin(position) pos : vec4<f32>, @location(0) uv : vec2<f32> };
-@vertex fn vsSky(@builtin(vertex_index) vid : u32) -> KOut {
-  let p = array<vec2<f32>, 3>(vec2<f32>(-1.0, -1.0), vec2<f32>(3.0, -1.0), vec2<f32>(-1.0, 3.0))[vid];
-  var o : KOut; o.pos = vec4<f32>(p, 1.0, 1.0); o.uv = p; return o;
-}
-@fragment fn fsSky(v : KOut) -> @location(0) vec4<f32> {
-  let t = clamp(v.uv.y * 0.5 + 0.5, 0.0, 1.0);
-  return vec4<f32>(mix(vec3<f32>(0.80, 0.86, 0.92), vec3<f32>(0.36, 0.55, 0.82), t), 1.0);
-}
-`;
 
 export class Renderer {
   constructor(device, canvas, format) {
-    this.device = device; this.canvas = canvas; this.format = format;
+    this.device = device;
+    this.canvas = canvas;
     this.ctx = canvas.getContext('webgpu');
+    this.format = format;
     this.ctx.configure({ device, format, alphaMode: 'opaque' });
     this.camera = new OrbitCamera(canvas);
-    this.overlay = 'none';
-    this.overlayScale = { none: 1, water: 2, sediment: 0.5, snow: 0.5, frost: 1.0, change: 5 };
-    this.exaggeration = 1.5;
+    this.ub = device.createBuffer({ size: 84 * 4, usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST });
+    this.u = new Float32Array(84);
+    this.mode = 0;
+    this.vex = 1.25;
+    this.haze = 0.12;
+    this.contours = false;
     this.showWater = true;
-    this.sampleCount = 4;
-    this.ubuf = device.createBuffer({ size: 192, usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST });
-    this.u = new Float32Array(48);
-    const entries = [{ binding: 0, visibility: GPUShaderStage.VERTEX | GPUShaderStage.FRAGMENT, buffer: { type: 'uniform' } }];
-    for (let b = 1; b <= 8; b++) entries.push({ binding: b, visibility: GPUShaderStage.VERTEX, buffer: { type: 'read-only-storage' } });
-    this.layout = device.createBindGroupLayout({ entries, label: 'render' });
-    const module = device.createShaderModule({ code: SHADER, label: 'render' });
-    module.getCompilationInfo?.().then((info) => { for (const m of info.messages) if (m.type === 'error') console.error('[render] WGSL', m.lineNum, m.message); });
-    const pl = device.createPipelineLayout({ bindGroupLayouts: [this.layout] });
-    const ms = { count: this.sampleCount };
-    const depth = (write = true) => ({ format: 'depth32float', depthWriteEnabled: write, depthCompare: 'less' });
-    this.pTerrain = device.createRenderPipeline({
-      label: 'terrain', layout: pl, multisample: ms, depthStencil: depth(),
-      vertex: { module, entryPoint: 'vsTerrain' }, fragment: { module, entryPoint: 'fsTerrain', targets: [{ format }] },
-      primitive: { topology: 'triangle-list', cullMode: 'none' },
-    });
-    this.pSkirt = device.createRenderPipeline({
-      label: 'skirt', layout: pl, multisample: ms, depthStencil: depth(),
-      vertex: { module, entryPoint: 'vsSkirt' }, fragment: { module, entryPoint: 'fsSkirt', targets: [{ format }] },
-      primitive: { topology: 'triangle-list', cullMode: 'none' },
-    });
-    this.pWater = device.createRenderPipeline({
-      label: 'water', layout: pl, multisample: ms, depthStencil: depth(false),
-      vertex: { module, entryPoint: 'vsWater' },
-      fragment: { module, entryPoint: 'fsWater', targets: [{ format, blend: { color: { srcFactor: 'src-alpha', dstFactor: 'one-minus-src-alpha' }, alpha: { srcFactor: 'one', dstFactor: 'one-minus-src-alpha' } } }] },
-      primitive: { topology: 'triangle-list', cullMode: 'none' },
-    });
-    const skyModule = device.createShaderModule({ code: SHADER.slice(SHADER.indexOf('// ---------------- sky')), label: 'sky' });
-    this.pSky = device.createRenderPipeline({
-      label: 'sky', layout: device.createPipelineLayout({ bindGroupLayouts: [] }), multisample: ms,
-      depthStencil: { format: 'depth32float', depthWriteEnabled: false, depthCompare: 'always' },
-      vertex: { module: skyModule, entryPoint: 'vsSky' },
-      fragment: { module: skyModule, entryPoint: 'fsSky', targets: [{ format }] },
-    });
+    this.time = 0;
+    this.cloud = 0;
+    this.precipVis = 0;
+    this.snowVis = 0;
+    this.frameCount = 0;
+    this.lastT = performance.now();
+    this.makePipelines();
   }
 
+  // String overlay name (engine/test API) <-> numeric shader mode.
+  get overlay() { return OVERLAYS[this.mode]; }
+  set overlay(v) { const i = typeof v === 'number' ? v : OVERLAYS.indexOf(v); this.mode = i >= 0 ? i : 0; }
+  get exaggeration() { return this.vex; }
+  set exaggeration(v) { this.vex = v; this.lightDirty = true; }
+
+  makePipelines() {
+    const d = this.device;
+    const mk = (code, label, { blend = false, depthWrite = true, depth = true } = {}) => {
+      const module = d.createShaderModule({ label, code });
+      module.getCompilationInfo?.().then((info) => {
+        for (const m of info.messages) if (m.type === 'error') console.error(`[${label}] WGSL ${m.lineNum}:${m.linePos} ${m.message}`);
+      });
+      return d.createRenderPipeline({
+        label,
+        layout: 'auto',
+        vertex: { module, entryPoint: 'vs' },
+        fragment: {
+          module, entryPoint: 'fs',
+          targets: [{
+            format: this.format,
+            blend: blend ? {
+              color: { srcFactor: 'src-alpha', dstFactor: 'one-minus-src-alpha', operation: 'add' },
+              alpha: { srcFactor: 'one', dstFactor: 'one-minus-src-alpha', operation: 'add' },
+            } : undefined,
+          }],
+        },
+        primitive: { topology: 'triangle-list', cullMode: 'none' },
+        depthStencil: depth ? { format: 'depth24plus', depthWriteEnabled: depthWrite, depthCompare: 'less-equal' } : { format: 'depth24plus', depthWriteEnabled: false, depthCompare: 'always' },
+        multisample: { count: SAMPLES },
+      });
+    };
+    this.pSky = mk(SKY, 'sky', { depth: false });
+    this.pTerrain = mk(TERRAIN, 'terrain');
+    this.pSkirt = mk(SKIRT, 'skirt');
+    this.pWater = mk(WATER, 'water', { blend: true, depthWrite: false });
+    this.pPrecip = mk(PRECIP, 'precip', { blend: true, depth: false });
+  }
+
+  /** (Re)bind to a world; called by the engine whenever it creates a new World. */
   setWorld(world) {
+    const d = this.device;
     this.world = world;
-    const N = world.N, B = world.buffers;
-    // index buffer for (N-1)^2 quads
+    const N = world.N;
     if (this.indexN !== N) {
       this.index?.destroy();
-      const q = (N - 1) * (N - 1);
-      const idx = new Uint32Array(q * 6);
+      const idx = new Uint32Array((N - 1) * (N - 1) * 6);
       let k = 0;
-      for (let y = 0; y < N - 1; y++) for (let x = 0; x < N - 1; x++) {
-        const a = y * N + x, b = a + 1, c = a + N, d = c + 1;
-        idx[k++] = a; idx[k++] = c; idx[k++] = b; idx[k++] = b; idx[k++] = c; idx[k++] = d;
+      for (let y = 0; y < N - 1; y++) {
+        for (let x = 0; x < N - 1; x++) {
+          const a = y * N + x, b = a + 1, c = a + N, e = c + 1;
+          // Alternate the diagonal for less directional bias.
+          if ((x + y) & 1) { idx[k++] = a; idx[k++] = c; idx[k++] = b; idx[k++] = b; idx[k++] = c; idx[k++] = e; }
+          else { idx[k++] = a; idx[k++] = c; idx[k++] = e; idx[k++] = a; idx[k++] = e; idx[k++] = b; }
+        }
       }
-      this.index = this.device.createBuffer({ size: idx.byteLength, usage: GPUBufferUsage.INDEX | GPUBufferUsage.COPY_DST });
-      this.device.queue.writeBuffer(this.index, 0, idx);
-      this.indexCount = idx.length; this.indexN = N;
+      this.index = d.createBuffer({ size: idx.byteLength, usage: GPUBufferUsage.INDEX | GPUBufferUsage.COPY_DST });
+      d.queue.writeBuffer(this.index, 0, idx);
+      this.indexCount = idx.length;
+      this.indexN = N;
     }
-    const mk = (ovl) => this.device.createBindGroup({
-      layout: this.layout,
-      entries: [this.ubuf, B.bedrock, B.soil, B.water, B.snowSWE, ovl, B.initHeight, B.groundwater, B.temp]
-        .map((b, i) => ({ binding: i, resource: { buffer: b } })),
+    const bg = (pipe, bufs) => d.createBindGroup({
+      layout: pipe.getBindGroupLayout(0),
+      entries: bufs.map((b, i) => ({ binding: i, resource: { buffer: b } })),
     });
-    this.bg = {
-      none: mk(B.water), water: mk(B.water), sediment: mk(B.sediment), snow: mk(B.snowSWE),
-      frost: mk(B.frostDepth), change: mk(B.water),
-    };
-    this.bgWater = mk(B.sediment);
-    this.camera.reset(N * world.cellSize * 0.5 * 2);
+    const w = world;
+    this.bgSky = bg(this.pSky, [this.ub]);
+    this.bgPrecip = bg(this.pPrecip, [this.ub]);
+    this.bgTerrain = bg(this.pTerrain, [this.ub, w.bedrock, w.soil, w.snowSWE, w.water, w.sediment, w.frostDepth, w.light, w.height0]);
+    this.bgSkirt = bg(this.pSkirt, [this.ub, w.bedrock, w.soil]);
+    this.bgWater = bg(this.pWater, [this.ub, w.bedrock, w.soil, w.water, w.velX, w.velY, w.sediment, w.light, w.snowSWE]);
+    this.lighting = new Lighting(d, world);
+    this.lightDirty = true;
   }
 
-  _targets() {
+  /** Called after new terrain is uploaded: frame the camera on it. */
+  frameTerrain(range) {
+    const extent = this.world.N * this.world.cellSize;
+    this.camera.frame(extent, ((range.min + range.max) * 0.5) * this.vex * 0.8);
+    this.lightDirty = true;
+  }
+
+  resize() {
     const dpr = Math.min(window.devicePixelRatio || 1, 2);
-    const w = Math.max(1, Math.floor(this.canvas.clientWidth * dpr)), h = Math.max(1, Math.floor(this.canvas.clientHeight * dpr));
+    const w = Math.max(1, Math.floor(this.canvas.clientWidth * dpr));
+    const h = Math.max(1, Math.floor(this.canvas.clientHeight * dpr));
     if (this.canvas.width !== w || this.canvas.height !== h || !this.msaa) {
-      this.canvas.width = w; this.canvas.height = h;
-      this.msaa?.destroy(); this.depth?.destroy();
-      this.msaa = this.device.createTexture({ size: [w, h], sampleCount: this.sampleCount, format: this.format, usage: GPUTextureUsage.RENDER_ATTACHMENT });
-      this.depth = this.device.createTexture({ size: [w, h], sampleCount: this.sampleCount, format: 'depth32float', usage: GPUTextureUsage.RENDER_ATTACHMENT });
+      this.canvas.width = w;
+      this.canvas.height = h;
+      this.msaa?.destroy();
+      this.depth?.destroy();
+      this.msaa = this.device.createTexture({ size: [w, h], sampleCount: SAMPLES, format: this.format, usage: GPUTextureUsage.RENDER_ATTACHMENT });
+      this.depth = this.device.createTexture({ size: [w, h], sampleCount: SAMPLES, format: 'depth24plus', usage: GPUTextureUsage.RENDER_ATTACHMENT });
     }
-    return [w, h];
   }
 
-  // Encodes a frame into `encoder` (caller submits, so sim + render go in one submission).
+  /** Season- and weather-dependent sky and sun. */
+  atmosphere(sim) {
+    const c = sim.climate;
+    const lc = sim.lastClimate;
+    const doy = lc?.dayOfYear ?? 172;
+    const fast = !sim.paused && sim.speed > WEATHER_VISIBLE_SPEED;
+    const summer = 0.5 + 0.5 * Math.cos((2 * Math.PI * (doy - 196)) / 365); // 1 in July, 0 in January
+    const autumn = Math.max(0, Math.cos((2 * Math.PI * (doy - 290)) / 365)) ** 4;
+    const name = c.presetName;
+    const desert = name === 'Utah desert' ? 1 : 0;
+    const wet = name === 'Pacific NW wet' ? 1 : 0;
+    let zenith = lerp3([0.30, 0.47, 0.78], [0.13, 0.36, 0.82], summer);
+    let horizon = lerp3([0.80, 0.86, 0.93], [0.70, 0.82, 0.94], summer);
+    horizon = lerp3(horizon, [0.88, 0.80, 0.68], autumn * 0.45);
+    horizon = lerp3(horizon, [0.93, 0.80, 0.66], desert * 0.45);
+    horizon = lerp3(horizon, [0.74, 0.79, 0.82], wet * 0.35);
+    // Clouds follow the weather (smoothed so time-lapse flicker stays gentle).
+    const rate = lc?.precipRate_mm_per_day ?? 0;
+    const mean = Math.max(0.2, c.precipAt(doy));
+    const target = lc ? Math.min(1, (rate / mean) * 0.35) : 0;
+    this.cloud += (target - this.cloud) * (fast ? 0.02 : 0.08);
+    const cl = this.cloud;
+    zenith = lerp3(zenith, [0.50, 0.53, 0.58], cl * 0.8);
+    horizon = lerp3(horizon, [0.70, 0.72, 0.75], cl * 0.8);
+    const sunColor = lerp3([1.0, 0.86, 0.70], [1.0, 0.96, 0.90], summer);
+    const sun = sunDirection(doy);
+    // Rain/snow particles only when the weather is visible in real time.
+    const precipTarget = !fast && !sim.paused && rate > 0.3 ? Math.min(1, rate / 15 + 0.25) : 0;
+    this.precipVis += (precipTarget - this.precipVis) * 0.1;
+    const midZ = sim.datum + (sim.terrainRange ? (sim.terrainRange.min + sim.terrainRange.max) * 0.5 : 0);
+    const snowTarget = lc && c.airTempAt(doy, midZ) < 0.5 ? 1 : 0;
+    this.snowVis += (snowTarget - this.snowVis) * 0.1;
+    return { zenith, horizon, sunColor, sun, preset: PRESETS[name] || PRESETS['Colorado alpine'] };
+  }
+
+  /** Encodes a frame into `encoder` (the caller submits). */
   encode(encoder, sim, timestampWrites) {
     if (!this.world) return;
-    const [w, h] = this._targets();
-    const { vp, eye } = this.camera.viewProj(w / h);
-    const u = this.u, N = this.world.N;
-    const tr = sim.terrainRange || { min: 0, max: 1, mean: 0 };
-    u.set(vp, 0);
-    u.set([eye[0], eye[1], eye[2], this.exaggeration], 16);
-    const sun = [0.55, 0.62, 0.35];
-    u.set([...sun, N], 20);
-    u.set([this.world.cellSize, OVERLAYS.indexOf(this.overlay), this.overlayScale[this.overlay] || 1, sim.lastPlan?.morph || 1], 24);
-    const col = sim.climate.preset.colors;
-    const hRef = tr.mean;
-    u.set([...col.soil, hRef], 28);
-    u.set([...col.veg, tr.min - 60 - 0.04 * N * this.world.cellSize / this.exaggeration], 32);
-    u.set([...col.rock, sim.climate.preset.gwMax], 36);
-    const pm = sim.climate.preset.pMean * sim.climate.precipMul;
-    u.set([this.showWater ? 1 : 0, performance.now() / 1000, Math.min(1, Math.max(0.05, (pm - 0.4) / 3.5)), 0], 40);
-    this.device.queue.writeBuffer(this.ubuf, 0, u);
+    const now = performance.now();
+    const dtWall = Math.min(0.1, (now - this.lastT) / 1000);
+    this.lastT = now;
+    this.time += dtWall;
+    this.frameCount++;
+    this.resize();
+    this.camera.update(dtWall);
+    const world = this.world;
+    const atm = this.atmosphere(sim);
+    const aspect = this.canvas.width / this.canvas.height;
+    // Shift the image right when the floating side panel covers the left of the canvas.
+    const panel = document.getElementById('panel');
+    const pw = panel && !panel.classList.contains('hidden') ? panel.getBoundingClientRect().right : 0;
+    const { eye, viewProj, invViewProj } = this.camera.matrices(aspect, pw / Math.max(1, this.canvas.clientWidth));
+    const u = this.u;
+    const pal = atm.preset.palette;
+    const extent = world.N * world.cellSize;
+    const tr = sim.terrainRange || { min: 0, max: 1 };
+    u.set(viewProj, 0);
+    u.set(invViewProj, 16);
+    u.set([eye[0], eye[1], eye[2], this.time], 32);
+    // Colours are authored in sRGB; lighting happens in linear space.
+    const lin = (c) => c.map((v) => Math.pow(v, 2.2));
+    u.set([atm.sun[0], atm.sun[1], atm.sun[2], 1.0], 36);
+    u.set([...lin(atm.sunColor), this.vex], 40);
+    u.set([...lin(atm.zenith), this.mode], 44);
+    u.set([...lin(atm.horizon), this.haze / extent], 48);
+    const c = sim.climate;
+    const tSeaMean = atm.preset.tSea + c.tempOffset;   // annual mean air temperature at sea level
+    u.set([world.N, world.cellSize, sim.datum, tSeaMean], 52);
+    u.set([...lin(pal.rock), pal.banding], 56);
+    u.set([...lin(pal.rock2), pal.vegAmount], 60);
+    u.set([...lin(pal.soil), atm.preset.lapse], 64);
+    u.set([...lin(pal.talus), (sim.lastClimate?.dayOfYear ?? 0) / 365], 68);
+    u.set([...lin(pal.veg), this.cloud], 72);
+    u.set([...lin(pal.sand), this.precipVis], 76);
+    u.set([this.snowVis, extent, tr.min, this.contours ? 1 : 0], 80);
+    this.device.queue.writeBuffer(this.ub, 0, u);
+
+    if (this.frameCount % 2 === 0 || this.lightDirty) {
+      this.lighting.update(encoder, atm.sun, this.vex);
+      this.lightDirty = false;
+    }
     const pass = encoder.beginRenderPass({
-      colorAttachments: [{ view: this.msaa.createView(), resolveTarget: this.ctx.getCurrentTexture().createView(), loadOp: 'clear', storeOp: 'discard', clearValue: { r: 0.8, g: 0.86, b: 0.92, a: 1 } }],
+      colorAttachments: [{ view: this.msaa.createView(), resolveTarget: this.ctx.getCurrentTexture().createView(), loadOp: 'clear', storeOp: 'discard', clearValue: { r: 0.6, g: 0.7, b: 0.8, a: 1 } }],
       depthStencilAttachment: { view: this.depth.createView(), depthLoadOp: 'clear', depthStoreOp: 'discard', depthClearValue: 1 },
       timestampWrites,
     });
-    pass.setPipeline(this.pSky); pass.draw(3);
-    pass.setBindGroup(0, this.bg[this.overlay] || this.bg.none);
+    pass.setPipeline(this.pSky);
+    pass.setBindGroup(0, this.bgSky);
+    pass.draw(3);
     pass.setIndexBuffer(this.index, 'uint32');
-    pass.setPipeline(this.pTerrain); pass.drawIndexed(this.indexCount);
-    pass.setPipeline(this.pSkirt); pass.draw(4 * (N - 1) * 6);
-    if (this.showWater) {
+    pass.setPipeline(this.pTerrain);
+    pass.setBindGroup(0, this.bgTerrain);
+    pass.drawIndexed(this.indexCount);
+    pass.setPipeline(this.pSkirt);
+    pass.setBindGroup(0, this.bgSkirt);
+    pass.draw(4 * (world.N - 1) * 6);
+    // The natural-looking water is hidden under the water/sediment overlays so their colours read cleanly.
+    if (this.showWater && this.mode !== 1 && this.mode !== 2) {
+      pass.setPipeline(this.pWater);
       pass.setBindGroup(0, this.bgWater);
-      pass.setPipeline(this.pWater); pass.drawIndexed(this.indexCount);
+      pass.drawIndexed(this.indexCount);
+    }
+    if (this.precipVis > 0.01) {
+      pass.setPipeline(this.pPrecip);
+      pass.setBindGroup(0, this.bgPrecip);
+      pass.draw(3);
     }
     pass.end();
   }

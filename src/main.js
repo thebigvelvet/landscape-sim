@@ -8,9 +8,10 @@ import { GpuTimer } from './gpuTimer.js';
 const $ = (id) => document.getElementById(id);
 
 function fatal(title, html) {
-  const f = $('fatal');
-  f.innerHTML = `<div class="box"><h2>${title}</h2>${html}</div>`;
-  f.hidden = false;
+  const f = $('error');
+  f.innerHTML = `<h2>${title}</h2>${html}`;
+  f.classList.remove('hidden');
+  $('loading').classList.add('hidden');
   window.__fatal = title;
 }
 
@@ -42,14 +43,18 @@ async function main() {
   const gpu = await initGPU();
   if (!gpu) return;
   const { device, adapter } = gpu;
-  const canvas = $('gpu');
+  const canvas = $('view');
   const sim = new Simulation(device);
   const renderer = new Renderer(device, canvas, navigator.gpu.getPreferredCanvasFormat());
   sim.onWorldChanged = (w) => renderer.setWorld(w);
   const timer = new GpuTimer(device);
   sim.timer = timer;
 
-  const busy = (msg) => { const b = $('busy'); b.textContent = msg || ''; b.hidden = !msg; };
+  const busy = (msg) => {
+    const b = $('loading');
+    if (msg) { $('loading-text').textContent = msg; b.classList.remove('hidden', 'fade'); }
+    else b.classList.add('fade');
+  };
   let panel = null;
   let stats = null;
   let fpsEMA = 60, gpuMs = 0, gpuPending = false, frames = 0, lastT = performance.now(), statsPending = false;
@@ -57,10 +62,11 @@ async function main() {
   const app = {
     sim, renderer, device,
     async load(scenario, opts = {}) {
-      busy('Generating terrain...');
-      await new Promise((r) => setTimeout(r, 20));
+      busy(scenario === 'random' ? 'Raising mountains...' : 'Shaping the land...');
+      await new Promise((r) => setTimeout(r, 30));   // let the overlay paint
       try {
         const res = await sim.load(scenario, opts);
+        renderer.frameTerrain(sim.terrainRange);
         panel?.syncTerrain(res);
         panel?.sync();
         stats = await sim.stats();
@@ -122,7 +128,7 @@ async function main() {
   if (q.has('speed')) sim.speed = +q.get('speed');
   if (q.has('paused')) sim.paused = q.get('paused') !== '0';
 
-  panel = new Panel($('panel'), app);
+  panel = new Panel(app);
   await app.load(scenario, { size, seed, preset });
 
   // ------------- sub-step governor -------------
@@ -175,6 +181,7 @@ async function main() {
       statsPending = true;
       sim.stats().then((s) => { stats = s; }).catch(() => {}).finally(() => { statsPending = false; });
     }
+    panel.updateHud();
     if (frames % 15 === 0) panel.update({ fps: fpsEMA, gpuMs, stats, timed: timer.ok, simMs: timer.simMs, renderMs: timer.renderMs, adapter: `${adapter.info?.vendor || ''} ${adapter.info?.architecture || ''}`.trim() });
     requestAnimationFrame(frame);
   }
@@ -188,6 +195,7 @@ async function main() {
     pause: () => app.pause(),
     play: () => app.play(),
     stats: () => sim.stats(),
+    setOverlay: (o) => panel.setOverlay(o),
     bench: (sizes) => app.bench(sizes),
     setPreset: (name) => { sim.climate.setPreset(name); sim.datum = sim.climate.preset.baseElevation; panel.sync(); },
     get engine() { return sim; },

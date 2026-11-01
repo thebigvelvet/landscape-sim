@@ -1,195 +1,289 @@
-// Side panel: climate, time (speed dial), terrain, view/overlays, live stats, benchmark.
-import { PRESET_NAMES } from '../sim/climate.js';
-import { SCENARIOS } from '../terrain.js';
-import { OVERLAYS } from '../render/renderer.js';
+// Side panel, date card, time bar and tooltips (layout from the Artist build, wired to the engine).
+import { PRESETS } from '../sim/climate.js';
+import { OVERLAYS, showLegend } from './legend.js';
 
-const el = (tag, attrs = {}, ...kids) => {
-  const e = document.createElement(tag);
-  for (const [k, v] of Object.entries(attrs)) {
-    if (k === 'class') e.className = v; else if (k.startsWith('on')) e.addEventListener(k.slice(2), v); else e.setAttribute(k, v);
-  }
-  for (const k of kids) e.append(k);
-  return e;
-};
+const $ = (id) => document.getElementById(id);
+const SPEED_MAX = 365000;
+const WEATHER_VISIBLE_SPEED = 36;
 
-// speed dial: slider 0..1000 -> 1 day/s .. 1000 yr/s (log)
-const SMIN = 1, SMAX = 365000;
-export const sliderToSpeed = (v) => SMIN * Math.pow(SMAX / SMIN, v / 1000);
-export const speedToSlider = (s) => (1000 * Math.log(Math.max(SMIN, s) / SMIN)) / Math.log(SMAX / SMIN);
-export function fmtSpeed(s) {
-  if (s < 30) return `${s.toFixed(s < 10 ? 1 : 0)} days/s`;
-  if (s < 365) return `${(s / 30.4).toFixed(1)} months/s`;
+export function speedToSlider(s) { return Math.round((Math.log10(Math.max(1, s)) / Math.log10(SPEED_MAX)) * 1000); }
+export function sliderToSpeed(v) { return Math.pow(10, (v / 1000) * Math.log10(SPEED_MAX)); }
+
+export function speedText(s) {
+  if (s < 1.5) return '1 day / second';
+  if (s < 30) return `${Math.round(s)} days / second`;
+  if (s < 365) { const m = s / 30.4; return `${m < 1.5 ? 1 : Math.round(m)} month${m < 1.5 ? '' : 's'} / second`; }
   const y = s / 365;
-  return `${y < 10 ? y.toFixed(1) : Math.round(y)} years/s`;
+  if (y < 1.5) return '1 year / second';
+  if (y < 20) return `${Math.round(y)} years / second`;
+  return `${(Math.round(y / 10) * 10).toLocaleString()} years / second`;
 }
-const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-const MDAYS = [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
-export function fmtDate(day) {
-  const y = Math.floor(day / 365);
-  let d = Math.floor(day - y * 365), m = 0;
-  while (m < 11 && d >= MDAYS[m]) { d -= MDAYS[m]; m++; }
-  return { year: y, text: `${MONTHS[m]} ${d + 1}`, season: ['Winter', 'Winter', 'Spring', 'Spring', 'Spring', 'Summer', 'Summer', 'Summer', 'Autumn', 'Autumn', 'Autumn', 'Winter'][m] };
-}
-const fmtVol = (v) => {
-  const a = Math.abs(v);
-  if (a >= 1e9) return (v / 1e9).toFixed(2) + ' km³';
-  if (a >= 1e6) return (v / 1e6).toFixed(2) + ' Mm³';
-  if (a >= 1e3) return (v / 1e3).toFixed(1) + ' k m³';
-  return v.toFixed(0) + ' m³';
-};
 
-const LEGENDS = {
-  water: ['Water depth', 'linear-gradient(90deg,#bfe6ff,#1a80f2,#0d0d73)', '0', '2 m+'],
-  sediment: ['Sediment in transport (bed-equivalent)', 'linear-gradient(90deg,#fff299,#f28c1a,#80260d)', '0', '0.5 m+'],
-  snow: ['Snow water equivalent', 'linear-gradient(90deg,#ccf2ff,#6699ff,#801ab3)', '0', '0.5 m+'],
-  frost: ['Frost depth', 'linear-gradient(90deg,#b3ffff,#33b3e6,#1a3399)', '0', '1 m+'],
-  change: ['Elevation change since start', 'linear-gradient(90deg,#cc1a0d,#f7f7f2,#0d4dd9)', 'eroded -5 m', '+5 m deposited'],
-};
+const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+const MONTH_START = [0, 31, 59, 90, 120, 151, 181, 212, 243, 273, 304, 334, 365];
+
+export function dateLabel(dayOfYear) {
+  const d = Math.floor(((dayOfYear % 365) + 365) % 365);
+  let m = 0;
+  while (d >= MONTH_START[m + 1]) m++;
+  return { month: MONTHS[m], monthIndex: m, day: d - MONTH_START[m] + 1 };
+}
+
+export function seasonOf(dayOfYear) {
+  const { monthIndex: m } = dateLabel(dayOfYear);
+  const name = m === 11 || m <= 1 ? 'Winter' : m <= 4 ? 'Spring' : m <= 7 ? 'Summer' : 'Autumn';
+  const phaseMonth = m === 11 ? 0 : m <= 1 ? m + 1 : (m - 2) % 3;
+  return { name, label: `${['Early', 'Mid', 'Late'][phaseMonth]} ${name.toLowerCase()}` };
+}
+
+function fmtVol(m3) {
+  const a = Math.abs(m3);
+  if (a >= 1e9) return `${(m3 / 1e9).toFixed(2)} billion m³`;
+  if (a >= 1e6) return `${(m3 / 1e6).toFixed(2)} million m³`;
+  if (a >= 1e3) return `${(m3 / 1e3).toFixed(1)} thousand m³`;
+  return `${m3.toFixed(0)} m³`;
+}
+
+function presetSwatch(p) {
+  const c = (a) => `rgb(${a.map((v) => Math.round(v * 255)).join(',')})`;
+  return `linear-gradient(90deg, ${c(p.palette.rock)}, ${c(p.palette.talus)}, ${c(p.palette.soil)}, ${c(p.palette.veg)})`;
+}
 
 export class Panel {
-  constructor(root, app) {
+  constructor(app) {
     this.app = app;
-    const sim = app.sim;
-    const r = (label, input, valEl) => el('div', { class: 'row' }, el('label', {}, label), input, ...(valEl ? [valEl] : []));
-    const slider = (min, max, step, value, oninput) => { const s = el('input', { type: 'range', min, max, step, value }); s.addEventListener('input', () => oninput(+s.value)); return s; };
-    const sel = (opts, value, onchange) => { const s = el('select', {}); for (const o of opts) s.append(el('option', { value: o }, o)); s.value = value; s.addEventListener('change', () => onchange(s.value)); return s; };
-
-    // ---- time ----
-    this.playBtn = el('button', { class: 'big primary', onclick: () => { sim.paused ? app.play() : app.pause(); this.sync(); } }, 'Pause');
-    this.speedLabel = el('span', { class: 'speed' });
-    this.speedSlider = slider(0, 1000, 1, speedToSlider(sim.speed), (v) => { app.setSpeed(sliderToSpeed(v)); this.sync(false); });
-    const chips = el('div', { class: 'chips' });
-    this.chipBtns = [['1 day/s', 1], ['1 wk/s', 7], ['1 mo/s', 30.4], ['1 yr/s', 365], ['10 yr/s', 3650], ['100 yr/s', 36500], ['1000 yr/s', 365000]].map(([t, v]) => {
-      const b = el('button', { onclick: () => { app.setSpeed(v); this.sync(); } }, t); b.dataset.v = v; chips.append(b); return b;
-    });
-    this.timeNote = el('div', { class: 'note' });
-
-    // ---- climate ----
-    const c = sim.climate;
-    this.presetSel = sel(PRESET_NAMES, c.presetName, (v) => { c.setPreset(v); sim.datum = c.preset.baseElevation; this.sync(); });
-    this.tempVal = el('span', { class: 'val' }); this.precipVal = el('span', { class: 'val' }); this.seasVal = el('span', { class: 'val' }); this.eroVal = el('span', { class: 'val' });
-    this.tempS = slider(-10, 10, 0.5, c.tempOffset, (v) => { c.tempOffset = v; this.sync(false); });
-    this.precipS = slider(0, 3, 0.05, c.precipMul, (v) => { c.precipMul = v; this.sync(false); });
-    this.seasS = slider(0, 2, 0.05, c.seasonality, (v) => { c.seasonality = v; this.sync(false); });
-    this.eroS = slider(-1, 1, 0.01, Math.log10(sim.erosionStrength), (v) => { sim.erosionStrength = Math.pow(10, v); this.sync(false); });
-    this.stormBtn = el('button', { onclick: () => { c.triggerStorm(3, 12); this.sync(false); } }, 'Big storm (3 days)');
-    this.weather = el('div', { class: 'note' });
-
-    // ---- terrain ----
-    this.scenSel = sel(SCENARIOS, 'random', () => {});
-    this.seedIn = el('input', { type: 'number', value: 1, min: 0, step: 1 });
-    this.sizeSel = sel(['256', '512', '1024'], '512', () => {});
-    this.cellSel = sel(['5', '10', '20', '30'], '10', () => {});
-    this.rugVal = el('span', { class: 'val' }); this.relVal = el('span', { class: 'val' });
-    this.rugS = slider(0, 1, 0.01, 0.5, (v) => { this.rugVal.textContent = v.toFixed(2); });
-    this.relS = slider(0.3, 2, 0.05, 1, (v) => { this.relVal.textContent = v.toFixed(2) + '×'; });
-    const gen = () => app.load(this.scenSel.value, { size: +this.sizeSel.value, cellSize: +this.cellSel.value, seed: +this.seedIn.value, ruggedness: +this.rugS.value, relief: +this.relS.value });
-    const genBtn = el('button', { class: 'primary', onclick: gen }, 'Generate');
-    const rndBtn = el('button', { onclick: () => { this.seedIn.value = Math.floor(Math.random() * 99999); this.scenSel.value = 'random'; gen(); } }, 'New random');
-    const resetBtn = el('button', { onclick: gen }, 'Restart');
-
-    // ---- view ----
-    const ovChips = el('div', { class: 'chips' });
-    this.ovBtns = OVERLAYS.map((o) => { const b = el('button', { onclick: () => { app.renderer.overlay = o; this.sync(); } }, o); b.dataset.o = o; ovChips.append(b); return b; });
-    this.exVal = el('span', { class: 'val' });
-    this.exS = slider(1, 4, 0.1, app.renderer.exaggeration, (v) => { app.renderer.exaggeration = v; this.sync(false); });
-    const wChk = el('input', { type: 'checkbox' }); wChk.checked = true; wChk.addEventListener('change', () => { app.renderer.showWater = wChk.checked; });
-
-    // ---- stats ----
-    this.statsTbl = el('table', { class: 'stats' });
-    this.benchOut = el('div', { class: 'note' });
-    const benchBtn = el('button', { onclick: async () => { this.benchOut.textContent = 'Benchmarking (about 20 s)...'; const r = await app.bench(); this.benchOut.innerHTML = Object.entries(r).map(([n, v]) => `${n}²: ${v.stepsPerSec.toFixed(0)} sub-steps/s, ${v.fps.toFixed(0)} fps @ ${v.substepsPerFrame} sub-steps/frame`).join('<br>'); } }, 'Run benchmark');
-
-    root.append(
-      el('h1', {}, 'Landscape Simulator'),
-      el('div', { class: 'row' }, this.playBtn, this.speedLabel),
-      el('div', { class: 'row' }, this.speedSlider), chips, this.timeNote,
-      el('h2', {}, 'Climate'),
-      r('Preset', this.presetSel),
-      r('Temperature', this.tempS, this.tempVal), r('Precipitation', this.precipS, this.precipVal),
-      r('Seasonality', this.seasS, this.seasVal), r('Erosion rate', this.eroS, this.eroVal),
-      el('div', { class: 'row' }, this.stormBtn), this.weather,
-      el('h2', {}, 'Terrain'),
-      r('Scenario', this.scenSel), r('Seed', this.seedIn), r('Ruggedness', this.rugS, this.rugVal), r('Relief', this.relS, this.relVal),
-      r('Grid size', this.sizeSel), r('Cell size (m)', this.cellSel),
-      el('div', { class: 'row' }, genBtn, rndBtn, resetBtn),
-      el('h2', {}, 'View'),
-      ovChips,
-      r('Vertical ×', this.exS, this.exVal),
-      el('div', { class: 'row' }, el('label', {}, 'Show water'), wChk),
-      el('div', { class: 'note' }, 'Drag to rotate · right-drag or shift-drag to pan · wheel to zoom'),
-      el('h2', {}, 'Engine'), this.statsTbl,
-      el('div', { class: 'row' }, benchBtn), this.benchOut,
-    );
-    this.rugVal.textContent = '0.50'; this.relVal.textContent = '1.00×';
+    this.buildPresets();
+    this.buildOverlays();
+    this.bindControls();
+    this.bindTooltips();
+    this.initialSolid = null;
+    this.syncPreset();
     this.sync();
   }
 
-  syncTerrain(opts) {
-    this.scenSel.value = opts.scenario; this.seedIn.value = opts.seed; this.sizeSel.value = String(opts.N); this.cellSel.value = String(opts.cellSize);
+  buildPresets() {
+    const wrap = $('presets');
+    wrap.innerHTML = '';
+    for (const [name, p] of Object.entries(PRESETS)) {
+      const b = document.createElement('button');
+      b.className = 'preset';
+      b.dataset.preset = name;
+      b.innerHTML = `<span class="sw" style="background:${presetSwatch(p)}"></span><span>${name}</span><small>${p.tagline || ''}</small>`;
+      b.addEventListener('click', () => this.setPreset(name));
+      wrap.appendChild(b);
+    }
   }
 
-  sync(sliders = true) {
-    const { sim, renderer } = this.app;
+  setPreset(name) {
+    const sim = this.app.sim;
+    sim.climate.setPreset(name);
+    sim.datum = sim.climate.preset.baseElevation;
+    this.syncPreset();
+  }
+
+  syncPreset() {
+    const name = this.app.sim.climate.presetName;
+    for (const b of document.querySelectorAll('.preset')) b.classList.toggle('active', b.dataset.preset === name);
+    $('preset-blurb').textContent = PRESETS[name].blurb;
+  }
+
+  buildOverlays() {
+    const wrap = $('overlays');
+    wrap.innerHTML = '';
+    for (const o of OVERLAYS) {
+      const d = document.createElement('div');
+      d.className = 'overlay-opt' + (o.id === 0 ? ' active' : '');
+      d.dataset.id = o.id;
+      d.innerHTML = `<span class="dot" style="background:${o.dot}"></span><span>${o.name}</span><small>${o.desc}</small>`;
+      d.addEventListener('click', () => this.setOverlay(o.id));
+      wrap.appendChild(d);
+    }
+  }
+
+  /** Accepts the shader mode number or the engine's overlay name ('water', 'change', ...). */
+  setOverlay(id) {
+    const r = this.app.renderer;
+    r.overlay = id;
+    for (const d of document.querySelectorAll('.overlay-opt')) d.classList.toggle('active', +d.dataset.id === r.mode);
+    showLegend(r.mode);
+  }
+
+  bindControls() {
+    const app = this.app;
+    const sim = app.sim;
     const c = sim.climate;
-    this.playBtn.textContent = sim.paused ? 'Play' : 'Pause';
-    this.speedLabel.textContent = fmtSpeed(sim.speed);
-    if (sliders) {
-      this.speedSlider.value = speedToSlider(sim.speed);
-      this.presetSel.value = c.presetName;
-      this.tempS.value = c.tempOffset; this.precipS.value = c.precipMul; this.seasS.value = c.seasonality;
-      this.eroS.value = Math.log10(sim.erosionStrength); this.exS.value = renderer.exaggeration;
+    const out = (id, text) => { $(id).textContent = text; };
+    const temp = () => {
+      const v = +$('temp').value;
+      c.tempOffset = v;
+      out('temp-out', v === 0 ? 'normal' : `${v > 0 ? '+' : ''}${v} °C ${v > 0 ? 'warmer' : 'colder'}`);
+    };
+    const precip = () => {
+      const k = Math.pow(2, +$('precip').value);
+      c.precipMul = k;
+      out('precip-out', Math.abs(k - 1) < 0.04 ? 'normal' : `${k.toFixed(2)}x`);
+    };
+    const seas = () => {
+      const v = +$('seas').value;
+      c.seasonality = v;
+      out('seas-out', Math.abs(v - 1) < 0.03 ? 'normal' : v < 0.05 ? 'none' : `${v.toFixed(2)}x`);
+    };
+    const ero = () => {
+      const k = Math.pow(2, +$('erosion').value);
+      sim.erosionStrength = k;
+      out('erosion-out', Math.abs(k - 1) < 0.04 ? 'normal' : `${k.toFixed(2)}x`);
+    };
+    for (const [id, fn] of [['temp', temp], ['precip', precip], ['seas', seas], ['erosion', ero]]) {
+      $(id).addEventListener('input', fn);
+      fn();
     }
-    for (const b of this.chipBtns) b.classList.toggle('on', Math.abs(Math.log(+b.dataset.v / sim.speed)) < 0.05);
-    for (const b of this.ovBtns) b.classList.toggle('on', b.dataset.o === renderer.overlay);
-    this.tempVal.textContent = (c.tempOffset >= 0 ? '+' : '') + c.tempOffset.toFixed(1) + ' °C';
-    this.precipVal.textContent = c.precipMul.toFixed(2) + '×';
-    this.seasVal.textContent = c.seasonality.toFixed(2) + '×';
-    this.eroVal.textContent = sim.erosionStrength.toFixed(2) + '×';
-    this.exVal.textContent = renderer.exaggeration.toFixed(1) + '×';
-    const L = LEGENDS[renderer.overlay];
-    const leg = document.getElementById('legend');
-    leg.innerHTML = L ? `<div>${L[0]}</div><div class="bar" style="background:${L[1]}"></div><div class="ends"><span>${L[2]}</span><span>${L[3]}</span></div>` : '';
+    $('storm').addEventListener('click', () => { c.triggerStorm(3, 12); });
+    $('rugged').addEventListener('input', () => out('rugged-out', (+$('rugged').value).toFixed(2)));
+    $('vex').addEventListener('input', () => {
+      app.renderer.exaggeration = +$('vex').value;
+      out('vex-out', `${(+$('vex').value).toFixed(2)}x`);
+    });
+    $('contours').addEventListener('change', () => { app.renderer.contours = $('contours').checked; });
+    $('spin').addEventListener('change', () => { app.renderer.camera.autoRotate = $('spin').checked; });
+    $('dice').addEventListener('click', () => {
+      $('seed').value = 1 + Math.floor(Math.random() * 99999);
+      $('scenario').value = 'random';
+      this.generate();
+    });
+    $('generate').addEventListener('click', () => this.generate());
+    $('speed').addEventListener('input', () => app.setSpeed(sliderToSpeed(+$('speed').value)));
+    for (const t of document.querySelectorAll('.ticks span')) {
+      t.addEventListener('click', () => app.setSpeed(+t.dataset.speed));
+    }
+    $('play').addEventListener('click', () => (sim.paused ? app.play() : app.pause()));
+    window.addEventListener('keydown', (e) => {
+      if (e.code === 'Space' && !['INPUT', 'SELECT'].includes(document.activeElement?.tagName)) {
+        e.preventDefault();
+        sim.paused ? app.play() : app.pause();
+      }
+    });
+    $('collapse').addEventListener('click', () => this.collapse(true));
+    $('expand').addEventListener('click', () => this.collapse(false));
   }
 
-  // called ~4x per second
+  collapse(on) {
+    $('panel').classList.toggle('hidden', on);
+    $('expand').classList.toggle('hidden', !on);
+    document.body.classList.toggle('collapsed', on);
+  }
+
+  generate() {
+    this.app.load($('scenario').value, {
+      size: +$('size').value,
+      seed: +$('seed').value,
+      ruggedness: +$('rugged').value,
+      preset: this.app.sim.climate.presetName,
+    });
+  }
+
+  /** Reflect the engine's terrain settings into the controls (after a URL/API load). */
+  syncTerrain(res) {
+    const sim = this.app.sim;
+    $('scenario').value = res.scenario;
+    $('size').value = String(res.N);
+    $('seed').value = res.seed;
+    $('rugged').value = sim.ruggedness;
+    $('rugged-out').textContent = (+sim.ruggedness).toFixed(2);
+    this.initialSolid = null;
+  }
+
+  /** Reflect speed, play state and climate preset. */
+  sync() {
+    const sim = this.app.sim;
+    $('speed').value = speedToSlider(sim.speed);
+    $('speed-text').textContent = speedText(sim.speed);
+    $('icon-pause').style.display = sim.paused ? 'none' : '';
+    $('icon-play').style.display = sim.paused ? '' : 'none';
+    this.syncPreset();
+  }
+
+  bindTooltips() {
+    const tip = document.createElement('div');
+    tip.id = 'tooltip';
+    tip.className = 'hidden';
+    document.body.appendChild(tip);
+    document.addEventListener('mouseover', (e) => {
+      const t = e.target.closest?.('.tip');
+      if (!t) return;
+      tip.textContent = t.dataset.tip;
+      tip.classList.remove('hidden');
+      const r = t.getBoundingClientRect();
+      const w = 260;
+      let x = r.right + 8;
+      if (x + w > window.innerWidth - 8) x = Math.max(8, r.left - w - 8);
+      tip.style.left = `${x}px`;
+      tip.style.top = `${Math.min(window.innerHeight - 140, Math.max(8, r.top - 10))}px`;
+    });
+    document.addEventListener('mouseout', (e) => {
+      if (e.target.closest?.('.tip')) tip.classList.add('hidden');
+    });
+  }
+
+  /** Date/weather card; called every frame. */
+  updateHud() {
+    const sim = this.app.sim;
+    const c = sim.lastClimate;
+    if (!c) return;
+    const cl = sim.climate;
+    const year = Math.floor(sim.day / 365) + 1;
+    const dl = dateLabel(c.dayOfYear);
+    const fast = !sim.paused && sim.speed > WEATHER_VISIBLE_SPEED;
+    $('hud-date').textContent = fast ? `Year ${year.toLocaleString()}` : `Year ${year.toLocaleString()} · ${dl.day} ${dl.month}`;
+    const season = seasonOf(c.dayOfYear);
+    const sEl = $('hud-season');
+    sEl.textContent = fast ? `${season.name} (${dl.month})` : season.label;
+    sEl.className = 'chip ' + season.name.toLowerCase();
+    const tr = sim.terrainRange || { min: 0, max: 0 };
+    const zLow = sim.datum + tr.min, zHigh = sim.datum + tr.max;
+    const tLow = cl.airTempAt(c.dayOfYear, zLow), tHigh = cl.airTempAt(c.dayOfYear, zHigh);
+    const rate = c.precipRate_mm_per_day;
+    let weather;
+    if (cl.stormDaysLeft > 0) weather = 'Big storm!';
+    else if (fast) weather = 'Weather averaged';
+    else if (rate < 0.3) weather = season.name === 'Summer' && tLow > 22 ? 'Hot and dry' : 'Clear';
+    else {
+      const heavy = rate > 15;
+      if (tLow < 0.5) weather = heavy ? 'Heavy snow' : 'Snowing';
+      else if (tHigh < 0.5) weather = heavy ? 'Storm: snow up high, rain below' : 'Snow up high, rain below';
+      else weather = heavy ? (season.name === 'Summer' ? 'Thunderstorm' : 'Heavy rain') : 'Raining';
+    }
+    $('hud-weather').textContent = weather;
+    const f = (t) => `${t >= 0 ? '' : '−'}${Math.abs(Math.round(t))} °C`;
+    $('hud-temps').textContent = `Valley ${f(tLow)} · Peaks ${f(tHigh)} · ${Math.round(zLow).toLocaleString()}–${Math.round(zHigh).toLocaleString()} m above sea level`;
+    $('hud-lapse').textContent = sim.running ? 'Fast-forwarding...'
+      : fast ? `Time-lapse: each second is about ${speedText(sim.speed).replace(' / second', '')}; seasons shown at about 1 year per 4 s` : '';
+  }
+
+  /** Running account; called a few times per second. */
   update(info) {
-    const { sim } = this.app;
-    const d = fmtDate(sim.day);
-    const hud = document.getElementById('hud');
-    const strobe = sim.strobe && !sim.paused;
-    hud.innerHTML = `<div class="date">Year ${d.year.toLocaleString()} · ${strobe ? 'seasons sampled' : d.text}</div>`
-      + `<div class="sub">${strobe ? '' : d.season + ' · '}${sim.climate.presetName} · ${sim.paused ? 'paused' : fmtSpeed(sim.speed)}${sim.running ? ' · fast-forward' : ''}</div>`
-      + (sim.climate.stormDaysLeft > 0 ? '<div class="tag">Storm!</div>' : '');
-    const lc = sim.lastClimate;
-    if (lc) {
-      const tm = sim.climate.airTempAt(lc.dayOfYear, sim.datum + (sim.terrainRange?.mean ?? 0));
-      this.weather.textContent = `Now at mean elevation (${Math.round(sim.datum + (sim.terrainRange?.mean ?? 0))} m): ${tm.toFixed(1)} °C, ${lc.precipRate_mm_per_day.toFixed(1)} mm/day ${tm < 0.5 ? 'snow' : 'rain'}`;
-    }
-    const p = sim.lastPlan || {};
-    this.timeNote.textContent = p.morph > 1.01
-      ? `Water routed at ${p.aW?.toFixed(0)}× real intensity; landscape change accelerated ${p.morph < 1e4 ? p.morph.toFixed(0) : p.morph.toExponential(1)}× (morphological factor).`
-      : 'Real-time hydrology (no morphological acceleration).';
-    const s = info.stats;
+    const t = info.stats;
+    if (!t) return;
+    const solid = t.totalSoil_m3 + t.totalBedrock_m3 + t.totalSediment_m3;
+    if (this.initialSolid === null || t.day === 0) this.initialSolid = solid;
+    const lost = this.initialSolid - solid;
+    const err = Math.abs(t.balanceErrorPct);
+    const ok = !t.hasNaN && err < 0.5;
     const rows = [
-      ['Frame rate', `${info.fps.toFixed(0)} fps`],
+      ['Water in streams & lakes', fmtVol(t.totalWater_m3)],
+      ['Water stored as snow', fmtVol(t.totalSnowSWE_m3)],
+      ['Water soaked into the ground', fmtVol(t.totalGroundwater_m3)],
+      ['Rain & snow that fell', fmtVol(t.cumPrecip_m3)],
+      ['Flowed off the map', fmtVol(t.cumOutflow_m3)],
+      ['Evaporated or used by plants', fmtVol(t.cumEvapLoss_m3)],
+      ['Water books balance', `<span class="${ok ? 'good' : 'bad'}">${t.hasNaN ? 'ERROR (NaN)' : err < 0.001 ? 'yes, exact' : `off by ${err.toFixed(3)}%`}</span>`],
+      'sep',
+      ['Rock & soil carried away', fmtVol(Math.max(0, lost))],
+      ['Highest point', `${Math.round(t.maxHeight).toLocaleString()} m`],
+      ['Lowest point', `${Math.round(t.minHeight).toLocaleString()} m`],
+      'sep',
+      ['Frames per second', `${Math.round(info.fps)}`],
       ['Graphics card', info.adapter || '?'],
-      ['GPU time: sim / render', info.timed ? `${info.simMs.toFixed(1)} / ${info.renderMs.toFixed(1)} ms` : `${info.gpuMs.toFixed(1)} ms (approx)`],
-      ['Hydraulic sub-steps / frame', `${sim.nSub}`],
-      ['Hydraulic dt', `${(p.dtH || 0).toFixed(2)} s`],
-      ['Grid', `${sim.N}² × ${sim.world?.cellSize} m`],
     ];
-    if (s) {
-      rows.push(
-        ['Surface water', fmtVol(s.totalWater_m3)], ['Snow (SWE)', fmtVol(s.totalSnowSWE_m3)], ['Groundwater', fmtVol(s.totalGroundwater_m3)],
-        ['Sediment moving', fmtVol(s.totalSediment_m3)], ['Total precipitation', fmtVol(s.cumPrecip_m3)],
-        ['Outflow / evaporation', `${fmtVol(s.cumOutflow_m3)} / ${fmtVol(s.cumEvapLoss_m3)}`],
-        ['Water balance error', `<span class="${Math.abs(s.balanceErrorPct) < 0.5 ? 'ok' : 'warn'}">${s.balanceErrorPct.toFixed(4)} %</span>`],
-        ['Elevation range', `${Math.round(s.minHeight)} – ${Math.round(s.maxHeight)} m`],
-        ['Deepest water', `${s.maxWaterDepth.toFixed(2)} m`],
-        ['NaN check', s.hasNaN ? '<span class="warn">NaN!</span>' : '<span class="ok">clean</span>'],
-      );
-    }
-    this.statsTbl.innerHTML = rows.map(([a, b]) => `<tr><td>${a}</td><td>${b}</td></tr>`).join('');
+    $('stats').innerHTML = rows.map((r) => (r === 'sep' ? '<div class="sep"></div>' : `<span class="k">${r[0]}</span><span class="v">${r[1]}</span>`)).join('');
   }
 }

@@ -38,11 +38,13 @@ export class World {
     mk('flux', 4);
     mk('acc', 4);
     mk('thermalDelta', 2);
+    mk('light', 2);   // renderer: (sun visibility, ambient occlusion), written by render/lighting.js
     this.buffers.statPartials = device.createBuffer({ size: STAT_GROUPS * STAT_STRIDE * 4, usage, label: 'statPartials' });
     this.buffers.accPartials = device.createBuffer({ size: STAT_GROUPS * 16, usage, label: 'accPartials' });
     this.buffers.fluxLog = device.createBuffer({ size: LOG_SIZE * 16, usage, label: 'fluxLog' });
     // expose layers directly too: world.bedrock etc.
     for (const k in this.buffers) this[k] = this.buffers[k];
+    this.height0 = this.buffers.initHeight;   // name used by the renderer shaders
     this.bytes = Object.values(this.buffers).reduce((s, b) => s + b.size, 0);
   }
 
