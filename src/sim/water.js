@@ -25,14 +25,21 @@ export const WATER_PARAMS = {
 
 export const WATER_VERTICAL_WGSL = /* wgsl */`
 // infiltration (capacity limited, frozen ground blocks it), ET from the shallow store, baseflow.
+// cap: groundwater capacity of this cell (soil depth, see gwCap). vg: plant cover 0..1, bn: burn 0..1.
+//   Plants open the soil (roots, litter): infiltration x(0.7 + 1.0 vg); fresh burn scars seal it
+//   (ash, water-repellent soil): x(1 - 0.6 bn).
+//   Plants transpire from the whole store: ET = PET x (0.4 + 0.8 vg) (bare ground only evaporates
+//   from the top). Transpiration is part of the ET flux, so it is logged as evap and the water
+//   balance stays exact.
 // returns (newGroundwater, runoff, evapotranspiration)
-fn soilStep(gw : f32, liquid : f32, T : f32, frozen : f32, dt : f32) -> vec3<f32> {
-  let space = max(P.gwMax - gw, 0.0);
-  let infil = min(liquid, min(P.ksat * dt * (1.0 - 0.92 * frozen), space));
+fn soilStep(gw : f32, liquid : f32, T : f32, frozen : f32, dt : f32, cap : f32, vg : f32, bn : f32) -> vec3<f32> {
+  let space = max(cap - gw, 0.0);
+  let kInf = P.ksat * (0.7 + 1.0 * vg) * (1.0 - 0.6 * bn);
+  let infil = min(liquid, min(kInf * dt * (1.0 - 0.92 * frozen), space));
   var g = gw + infil;
   var runoff = liquid - infil;
-  let pet = max(0.0, 0.00018 * (T + 3.0)) * P.etMul * dt;            // ~5 mm/day at 25 degC
-  let et = min(g, pet * clamp(g / (0.6 * P.gwMax), 0.0, 1.0));
+  let pet = max(0.0, 0.00018 * (T + 3.0)) * P.etMul * dt * (0.4 + 0.8 * vg);   // ~5 mm/day at 25 degC under full cover
+  let et = min(g, pet * clamp(g / (0.6 * cap), 0.0, 1.0));
   g = g - et;
   let base = g * (1.0 - exp(-P.kBase * dt)) * (1.0 - 0.8 * frozen);
   g = g - base;

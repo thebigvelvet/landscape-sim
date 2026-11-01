@@ -29,10 +29,12 @@ fn ftCycles(T : f32, dt : f32) -> f32 {
   let a = max(0.5 * P.dtr, 0.1);
   return dt * clamp(1.0 - abs(T) / a, 0.0, 1.0);
 }
-// metres of bedrock converted to soil; humped/exponential soil-production with soil cover
-fn weathering(cycles : f32, moisture : f32, soil : f32, dt : f32) -> f32 {
+// metres of bedrock converted to soil; humped/exponential soil-production with soil cover.
+// Plants (vg 0..1) insulate the ground, cutting frost shattering by up to 60%, and speed up
+// chemical/biological soil production (roots, acids, burrowing) by up to 3.5x.
+fn weathering(cycles : f32, moisture : f32, soil : f32, dt : f32, vg : f32) -> f32 {
   let shield = exp(-soil / 0.6);
-  return (P.kWeather * cycles * (0.3 + moisture) + P.kChem * dt / 365.0 * (0.2 + moisture)) * shield;
+  return (P.kWeather * cycles * (0.3 + moisture) * (1.0 - 0.6 * vg) + P.kChem * dt / 365.0 * (0.2 + moisture) * (1.0 + 2.5 * vg)) * shield;
 }
 `;
 
