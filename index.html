@@ -1,0 +1,22 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Landscape Simulator</title>
+  <link rel="stylesheet" href="./src/ui/style.css" />
+</head>
+<body>
+  <div id="app">
+    <div id="view">
+      <canvas id="gpu"></canvas>
+      <div id="hud"></div>
+      <div id="legend"></div>
+      <div id="busy" hidden></div>
+    </div>
+    <aside id="panel"></aside>
+  </div>
+  <div id="fatal" hidden></div>
+  <script type="module" src="./src/main.js"></script>
+</body>
+</html>

@@ -1,0 +1,19 @@
+{
+  "name": "landscape-sim",
+  "version": "1.0.0",
+  "description": "3D landscape process simulator (WebGPU compute): rain, runoff, erosion, snow, freeze/thaw",
+  "private": true,
+  "type": "module",
+  "main": "electron/main.cjs",
+  "scripts": {
+    "dev": "vite --port 5173 --strictPort",
+    "build": "vite build",
+    "preview": "vite preview --port 5173 --strictPort",
+    "app": "node scripts/launch.cjs",
+    "app:dev": "electron . --dev"
+  },
+  "devDependencies": {
+    "electron": "^45.2.1",
+    "vite": "^7.0.0"
+  }
+}

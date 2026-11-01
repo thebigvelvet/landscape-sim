@@ -1,0 +1,53 @@
+{
+  "cone / Utah desert": {
+    "slow": "nan=false bal=-3.6e-4% ero=0.7 dep=1.5 h=0.6 snow=0.00Mm3 out/P=1.57 z=1414..2324",
+    "fast": "nan=false bal=1.9e-6% ero=1.7 dep=5.8 h=0.4 snow=0.00Mm3 out/P=0.45 z=1414..2323"
+  },
+  "cone / Colorado alpine": {
+    "slow": "nan=false bal=-2.1e-6% ero=0.7 dep=1.5 h=0.5 snow=0.05Mm3 out/P=0.28 z=2914..3824",
+    "fast": "nan=false bal=-5.1e-7% ero=1.4 dep=5.4 h=0.5 snow=0.63Mm3 out/P=0.78 z=2914..3823"
+  },
+  "cone / Pacific NW wet": {
+    "slow": "nan=false bal=5.2e-5% ero=0.7 dep=1.5 h=0.7 snow=0.01Mm3 out/P=0.22 z=164..1074",
+    "fast": "nan=false bal=4.2e-7% ero=2.2 dep=5.3 h=0.3 snow=0.04Mm3 out/P=0.85 z=164..1073"
+  },
+  "cone / Temperate": {
+    "slow": "nan=false bal=-1.4e-4% ero=0.7 dep=1.5 h=0.7 snow=0.01Mm3 out/P=0.75 z=314..1224",
+    "fast": "nan=false bal=-4.6e-8% ero=1.1 dep=6.0 h=0.5 snow=0.02Mm3 out/P=0.71 z=314..1223"
+  },
+  "valley / Utah desert": {
+    "slow": "nan=false bal=4.3e-5% ero=0.0 dep=0.0 h=0.9 snow=0.00Mm3 out/P=3.52 z=1422..2113",
+    "fast": "nan=false bal=3.0e-8% ero=13.1 dep=5.2 h=0.4 snow=0.00Mm3 out/P=0.46 z=1423..2111"
+  },
+  "valley / Colorado alpine": {
+    "slow": "nan=false bal=-4.6e-6% ero=0.0 dep=0.0 h=0.3 snow=0.05Mm3 out/P=0.50 z=2922..3613",
+    "fast": "nan=false bal=-2.0e-7% ero=42.5 dep=2.4 h=1.6 snow=0.71Mm3 out/P=0.79 z=2923..3611"
+  },
+  "valley / Pacific NW wet": {
+    "slow": "nan=false bal=5.4e-6% ero=0.0 dep=0.0 h=1.5 snow=0.00Mm3 out/P=0.37 z=172..863",
+    "fast": "nan=false bal=-1.8e-7% ero=53.1 dep=3.2 h=5.3 snow=0.01Mm3 out/P=0.86 z=174..861"
+  },
+  "valley / Temperate": {
+    "slow": "nan=false bal=-4.0e-5% ero=0.0 dep=0.0 h=0.9 snow=0.01Mm3 out/P=1.38 z=322..1013",
+    "fast": "nan=false bal=-2.4e-7% ero=41.4 dep=2.5 h=1.8 snow=0.02Mm3 out/P=0.72 z=324..1011"
+  },
+  "random / Utah desert": {
+    "slow": "nan=false bal=1.6e-4% ero=1.5 dep=7.4 h=3.2 snow=0.00Mm3 out/P=0.43 z=1443..2521",
+    "fast": "nan=false bal=9.5e-7% ero=158.4 dep=86.1 h=1.4 snow=0.00Mm3 out/P=0.47 z=1449..2443"
+  },
+  "random / Colorado alpine": {
+    "slow": "nan=false bal=4.0e-4% ero=1.5 dep=7.4 h=2.8 snow=0.05Mm3 out/P=0.06 z=2943..4021",
+    "fast": "nan=false bal=-1.7e-7% ero=158.4 dep=86.1 h=2.3 snow=0.76Mm3 out/P=0.79 z=2945..3943"
+  },
+  "random / Pacific NW wet": {
+    "slow": "nan=false bal=7.2e-5% ero=1.5 dep=7.4 h=5.1 snow=0.03Mm3 out/P=0.05 z=193..1271",
+    "fast": "nan=false bal=5.6e-8% ero=158.4 dep=86.6 h=4.9 snow=0.10Mm3 out/P=0.87 z=196..1193"
+  },
+  "random / Temperate": {
+    "slow": "nan=false bal=1.8e-4% ero=1.5 dep=7.4 h=4.4 snow=0.02Mm3 out/P=0.17 z=343..1421",
+    "fast": "nan=false bal=-1.1e-6% ero=158.4 dep=86.1 h=2.1 snow=0.07Mm3 out/P=0.72 z=345..1343"
+  },
+  "gpuFeatureStatusWebGPU": "enabled",
+  "electron": "45.2.1",
+  "chrome": "156.0.8078.75"
+}

@@ -1,0 +1,44 @@
+{
+  "cone300y_batch10d": {
+    "sedOut_m3": 15140,
+    "maxErosion_m": 2.16,
+    "maxDeposition_m": 1,
+    "balanceErrPct": 0.00005321325656482496,
+    "solidsErr_m3": -1841.4,
+    "nan": false,
+    "outflowFrac": 0.7994,
+    "evapFrac": 0.2001,
+    "maxDepth_m": 5.48,
+    "morph": 90,
+    "sec": 39.8
+  },
+  "cone300y_batch60d": {
+    "sedOut_m3": 14263,
+    "maxErosion_m": 2.18,
+    "maxDeposition_m": 1.01,
+    "balanceErrPct": 0.000017632789258825566,
+    "solidsErr_m3": 160.8,
+    "nan": false,
+    "outflowFrac": 0.7995,
+    "evapFrac": 0.2,
+    "maxDepth_m": 5.32,
+    "morph": 540,
+    "sec": 6.4
+  },
+  "cone1000y_default": {
+    "sedOut_m3": 59332,
+    "maxErosion_m": 3.29,
+    "maxDeposition_m": 1.55,
+    "balanceErrPct": -0.000030626691277627596,
+    "solidsErr_m3": 254.5,
+    "nan": false,
+    "outflowFrac": 0.7956,
+    "evapFrac": 0.2042,
+    "maxDepth_m": 5.45,
+    "morph": 1095,
+    "sec": 10.6
+  },
+  "gpuFeatureStatusWebGPU": "enabled",
+  "electron": "45.2.1",
+  "chrome": "156.0.8078.75"
+}
