@@ -17,6 +17,7 @@ struct R {
   veg: vec4f,         // rgb, w = cloudiness 0..1
   sand: vec4f,        // rgb, w = precipitation intensity 0..1
   misc: vec4f,        // x = precip is snow (0..1), y = map extent (m), z = min height, w = show grid lines
+  brush: vec4f,       // event brush cursor: world x, world z, radius (m), tool (0 = off, 1 storm, 2 drought, 3 flood, 4 fire)
 };
 @group(0) @binding(0) var<uniform> R_: R;
 `;
@@ -101,7 +102,7 @@ const TERRAIN_DATA = /* wgsl */ `
 @group(0) @binding(4) var<storage, read> water: array<f32>;
 @group(0) @binding(5) var<storage, read> sediment: array<f32>;
 @group(0) @binding(6) var<storage, read> frostDepth: array<f32>;
-@group(0) @binding(7) var<storage, read> light: array<vec4f>;
+@group(0) @binding(7) var<storage, read> light: array<vec4f>;   // 2 per cell, see render/lighting.js
 @group(0) @binding(8) var<storage, read> height0: array<f32>;
 fn gi(x: i32, y: i32) -> u32 {
   let n = i32(R_.grid.x);
@@ -119,6 +120,7 @@ struct VO {
   @location(3) m1: vec4f,   // frost, sun visibility, ao, height change since start
   @location(4) m2: vec4f,   // ground height (m), grid x, grid y, ground slope (tan)
   @location(5) m3: vec2f,   // groundwater fill 0..1, spring discharge (m/day)
+  @location(6) m4: vec4f,   // plant cover, woody cover, burn severity, greenness (all 0..1)
 };
 @vertex fn vs(@builtin(vertex_index) vi: u32) -> VO {
   let n = u32(R_.grid.x);
@@ -142,10 +144,11 @@ struct VO {
   let gb = bedrock[gi(x, y + 1)] + soil[gi(x, y + 1)];
   let gslope = length(vec2f(gr - gl, gb - gt)) / (2.0 * dx);
   o.m0 = vec4f(soil[i], snowSWE[i], water[i], sediment[i]);
-  let L = light[i];
+  let L = light[2u * i];
   o.m1 = vec4f(frostDepth[i], L.x, L.y, ground - height0[i]);
   o.m2 = vec4f(ground, f32(x), f32(y), gslope);
   o.m3 = L.zw;
+  o.m4 = light[2u * i + 1u];
   return o;
 }
 
@@ -156,7 +159,7 @@ fn ramp3(t: f32, a: vec3f, b: vec3f, c: vec3f) -> vec3f {
 }
 
 // Overlay colour maps. Must match the legends drawn in src/ui/legend.js.
-fn overlay(mode: i32, m0: vec4f, m1: vec4f, m3: vec2f) -> vec4f {
+fn overlay(mode: i32, m0: vec4f, m1: vec4f, m3: vec2f, m4: vec4f) -> vec4f {
   if (mode == 1) { // water depth, log 1 mm .. 10 m
     let d = m0.z;
     if (d < 0.001) { return vec4f(0.0); }
@@ -198,6 +201,17 @@ fn overlay(mode: i32, m0: vec4f, m1: vec4f, m3: vec2f) -> vec4f {
     let g = clamp((m3.x - 0.2) / 0.6, 0.0, 1.0);
     return vec4f(ramp3(g, vec3f(0.93, 0.80, 0.55), vec3f(0.60, 0.75, 0.88), vec3f(0.10, 0.22, 0.62)), 0.85);
   }
+  if (mode == 7) { // plants: cover bare -> grass -> forest; trees shift to blue-green; burns orange -> dark red
+    let V = m4.x;
+    let burn = m4.z;
+    if (burn > 0.05) {
+      return vec4f(mix(vec3f(1.0, 0.62, 0.18), vec3f(0.50, 0.04, 0.04), clamp(burn * 1.3, 0.0, 1.0)), 0.92);
+    }
+    var c = ramp3(V, vec3f(0.93, 0.86, 0.70), vec3f(0.66, 0.84, 0.36), vec3f(0.12, 0.48, 0.16));
+    let woody = clamp(m4.y / max(V, 0.02), 0.0, 1.0) * smoothstep(0.1, 0.5, V);
+    c = mix(c, vec3f(0.04, 0.30, 0.24), woody * 0.65);
+    return vec4f(c, 0.88);
+  }
   return vec4f(0.0);
 }
 
@@ -233,19 +247,33 @@ fn overlay(mode: i32, m0: vec4f, m1: vec4f, m3: vec2f) -> vec4f {
   // Gravelly speckle so broad soil and talus areas are not flat colour.
   let grit = vnoise(p2 * 1.3) * 0.6 + vnoise(p2 * 3.7) * 0.4;
   looseC = looseC * (0.82 + 0.3 * grit);
-  // Vegetation: needs soil, moderate slope and a mild enough climate (below treeline).
-  let tMean = R_.grid.w - R_.soilC.w * elevAbs / 1000.0;
+  // Vegetation from the simulated plant layers (src/sim/vegetation.js): grasses and herbs take the
+  // preset's tint and turn straw-coloured when dormant or dry; trees and shrubs are drawn as clumps
+  // whose area matches the woody cover; fresh burns are charred black and grey ash.
   let season = R_.talus.w;
-  let summer = 0.5 + 0.5 * cos(6.2831853 * (season - 0.55));
-  let vegOk = smoothstep(-1.5, 3.0, tMean) * smoothstep(0.15, 0.6, soilD) * (1.0 - smoothstep(0.45, 0.9, slopeTan));
-  // Moist ground (high water table, springs) is greener even in dry climates.
-  let moist = smoothstep(0.35, 0.95, i.m3.x) + smoothstep(1e-4, 3e-3, i.m3.y);
-  let vegAmt = clamp(vegOk * (R_.rock2.w + 0.45 * moist * (1.0 - R_.rock2.w)) * (0.75 + 0.5 * nz), 0.0, 1.0);
-  let vegC = mix(R_.veg.rgb * vec3f(1.25, 1.05, 0.7), R_.veg.rgb, summer) * (0.8 + 0.4 * nzf);
-  let looseWithVeg = mix(looseC, vegC, vegAmt);
+  let vCov = i.m4.x;
+  let woodyC = min(i.m4.y, vCov);
+  let burn = i.m4.z;
+  let green = i.m4.w;
+  let herb = max(vCov - woodyC, 0.0);
+  let herbGreen = R_.veg.rgb * vec3f(1.05, 1.12, 0.85);
+  let herbDry = mix(srgb(vec3f(0.66, 0.58, 0.38)), R_.soilC.rgb, 0.25);
+  let herbC = mix(herbDry, herbGreen, green) * (0.82 + 0.36 * nzf);
+  let looseHerb = mix(looseC, herbC, clamp(herb / max(1.0 - woodyC, 0.05) * 1.15, 0.0, 1.0));
+  // tree clumps: noise thresholded so the canopy fraction roughly equals the woody cover
+  let canN = vnoise(p2 * 0.16) * 0.55 + vnoise(p2 * 0.47 + 9.1) * 0.30 + vnoise(p2 * 1.3) * 0.15;
+  let canopy = smoothstep(1.0 - woodyC - 0.06, 1.0 - woodyC + 0.06, canN) * step(0.004, woodyC);
+  let autumnTint = 0.5 + 0.5 * cos(6.2831853 * (season - 0.55));
+  let woodC = mix(R_.veg.rgb * vec3f(0.42, 0.62, 0.48), R_.veg.rgb * vec3f(0.55, 0.70, 0.45), autumnTint) * (0.7 + 0.5 * vnoise(p2 * 0.9));
+  let looseWithVeg = mix(looseHerb, woodC, canopy);
+  // charred ground and ash after a fire, fading as the burn heals
+  let ash = smoothstep(0.45, 0.75, vnoise(p2 * 0.35 + 3.0));
+  let charC = mix(srgb(vec3f(0.07, 0.065, 0.06)), srgb(vec3f(0.45, 0.44, 0.42)), ash * 0.6);
+  let burnVis = smoothstep(0.03, 0.5, burn);
 
-  let rockExpo = 1.0 - smoothstep(0.03, 0.35, soilD + (nzf - 0.5) * 0.1);
+  let rockExpo = (1.0 - smoothstep(0.03, 0.35, soilD + (nzf - 0.5) * 0.1)) * (1.0 - 0.8 * vCov);
   var albedo = mix(looseWithVeg, rockC, rockExpo);
+  albedo = mix(albedo, charC, burnVis * (1.0 - rockExpo * 0.5));
 
   // Wet ground darkens.
   let wet = max(smoothstep(0.0005, 0.02, wdep), smoothstep(1e-4, 2e-3, i.m3.y) * 0.7);
@@ -279,7 +307,7 @@ fn overlay(mode: i32, m0: vec4f, m1: vec4f, m3: vec2f) -> vec4f {
   col = applyHaze(col, wp);
   var outc = tonemap(col);
   // --- Overlay, blended in display space so colours match the legend.
-  let ov = overlay(i32(R_.skyZenith.w), i.m0, i.m1, i.m3);
+  let ov = overlay(i32(R_.skyZenith.w), i.m0, i.m1, i.m3, i.m4);
   if (i32(R_.skyZenith.w) > 0) {
     // Mute the natural colours so the overlay reads clearly.
     let g = dot(outc, vec3f(0.3, 0.55, 0.15));
@@ -294,6 +322,20 @@ fn overlay(mode: i32, m0: vec4f, m1: vec4f, m3: vec2f) -> vec4f {
   if (R_.misc.w > 0.5) {
     let cl = 1.0 - smoothstep(0.0, fw * 1.2, abs(fract(ground / 100.0 + 0.5) - 0.5) * 100.0);
     outc = mix(outc, outc * 0.5, cl * 0.6);
+  }
+  // Event brush cursor: a ring (and faint fill) on the ground, coloured by tool.
+  let tool = i32(R_.brush.w + 0.5);
+  if (tool > 0) {
+    let d = length(wp.xz - R_.brush.xy);
+    let r = R_.brush.z;
+    let fw = max(fwidth(d), 0.5);
+    let ringA = 1.0 - smoothstep(fw * 1.0, fw * 2.5, abs(d - r));
+    let fillA = (1.0 - smoothstep(r - fw, r, d)) * 0.13;
+    var kc = vec3f(0.35, 0.65, 1.0);
+    if (tool == 2) { kc = vec3f(1.0, 0.72, 0.22); }
+    if (tool == 3) { kc = vec3f(0.15, 0.95, 1.0); }
+    if (tool == 4) { kc = vec3f(1.0, 0.33, 0.08); }
+    outc = mix(outc, kc, max(ringA * 0.95, fillA));
   }
   return vec4f(outc, 1.0);
 }`;
@@ -395,7 +437,7 @@ struct VO {
   o.wpos = wp;
   o.nrm = normalize(vec3f((sl - sr) * vex, 2.0 * dx, (st - sb) * vex));
   o.d = vec4f(water[i], velX[i], velY[i], sediment[i]);
-  let L = light[i];
+  let L = light[2u * i];
   let g = bedrock[i] + soil[i];
   let gs = length(vec2f(bedrock[gi(x + 1, y)] + soil[gi(x + 1, y)] - bedrock[gi(x - 1, y)] - soil[gi(x - 1, y)],
                         bedrock[gi(x, y + 1)] + soil[gi(x, y + 1)] - bedrock[gi(x, y - 1)] - soil[gi(x, y - 1)])) / (2.0 * dx);

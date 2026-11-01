@@ -5,6 +5,9 @@ import { PARAMS_WGSL } from './params.js';
 // 2D locality for the 4-neighbour stencils).
 export const WG = 16;
 
+// JS mirror of gwCap() (used to set the initial groundwater state).
+export function gwCapJS(gwMax, soilDepth) { return gwMax * (0.2 + 0.8 * (1 - Math.exp(-Math.max(soilDepth, 0) / 0.5))); }
+
 export const COMMON_WGSL = /* wgsl */`
 ${PARAMS_WGSL}
 @group(0) @binding(0) var<uniform> P : Params;
@@ -16,6 +19,9 @@ fn idxc(x : i32, y : i32) -> u32 { return idx(cl(x), cl(y)); }
 fn isBad(v : f32) -> bool { return (bitcast<u32>(v) & 0x7f800000u) == 0x7f800000u; }
 fn finite(v : f32) -> f32 { return select(v, 0.0, isBad(v)); }
 const PI : f32 = 3.14159265;
+// Water the shallow store can hold, which depends on soil depth: bare fractured rock still holds ~20 %
+// of the preset's capacity (rock moisture, Rempe & Dietrich 2018), 0.5 m of soil ~70 %, 1.5 m ~96 %.
+fn gwCap(soilDepth : f32) -> f32 { return P.gwMax * (0.2 + 0.8 * (1.0 - exp(-max(soilDepth, 0.0) / 0.5))); }
 `;
 
 export function dispatchGrid(pass, N) {

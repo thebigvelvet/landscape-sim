@@ -46,6 +46,13 @@ export const OVERLAYS = [
     labels: ['drier (20% full)', 'half full', 'wet (80%+)'],
     note: 'Rain soaks in, creeps downhill underground, and fills the ground in hollows and valley bottoms. Bright teal spots are springs where it comes back out and feeds the streams.',
   },
+  {
+    id: 7, name: 'Plants', dot: 'linear-gradient(135deg,#a8d65c,#1f7a2a)',
+    desc: 'How much of the ground plants cover, from bare rock to closed forest, and where fires have burned.',
+    gradient: 'linear-gradient(90deg, rgb(237,219,179), rgb(168,214,92), rgb(31,122,41), rgb(10,77,61))',
+    labels: ['bare', 'sparse', 'grass & shrubs', 'forest'],
+    note: 'Plants grow where there is water, warmth and soil: watch for green stream banks, the treeline on the peaks, and greener north faces in dry country. Orange to dark red: burned in the last few years.',
+  },
 ];
 
 export function showLegend(id) {

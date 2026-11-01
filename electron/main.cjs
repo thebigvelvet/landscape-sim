@@ -34,7 +34,10 @@ protocol.registerSchemesAsPrivileged([
   { scheme: 'app', privileges: { standard: true, secure: true, supportFetchAPI: true, corsEnabled: true, stream: true } },
 ]);
 
-if (!app.requestSingleInstanceLock()) { app.quit(); }
+// Scripted runs (self-test / eval) get their own profile folder and skip the single-instance lock,
+// so a test can run while the app (or another test) is open.
+if (SCRIPTED) app.setPath('userData', path.join(require('os').tmpdir(), `landscape-eval-${process.pid}`));
+else if (!app.requestSingleInstanceLock()) { app.quit(); }
 
 let win = null;
 app.on('second-instance', () => { if (win) { if (win.isMinimized()) win.restore(); win.focus(); } });

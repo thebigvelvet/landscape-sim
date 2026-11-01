@@ -16,9 +16,20 @@
 //   initHeight         terrain height at load (for the erosion/deposition overlay).
 //   spring             recent spring discharge (m/day), for display; see sim/groundwater.js.
 //   statPartials, accPartials, fluxLog   reduction scratch / log ring.
+//
+// Round 2 (ecology, see sim/vegetation.js and sim/events.js):
+//   veg                total plant cover 0..1 (contract layer)
+//   eco                vec4: (woody cover 0..1, burn severity 0..1, greenness 0..1, ground height at the
+//                      last vegetation step - used to detect burial and stripping)
+//   clim               vec4 written by the column kernel: running one-year means over the growing
+//                      season of (PET x soil-moisture, PET, growing-season fraction, T x growing)
+//   evt                vec4 painted weather events: (storm water still to fall m, storm rate m/day,
+//                      drought days left, drought precipitation factor)
+//   fire               scratch for fire spread / flood masks (brush tool)
+//   rip                riparian water access 0..1 (streams / springs within ~20 m), 2-year running mean
 
 export const LAYERS = ['bedrock', 'soil', 'water', 'sediment', 'snowSWE', 'frostDepth', 'temp', 'velX', 'velY'];
-export const EXTRA1 = ['water2', 'sediment2', 'groundwater', 'slope', 'initHeight', 'spring'];
+export const EXTRA1 = ['water2', 'sediment2', 'groundwater', 'slope', 'initHeight', 'spring', 'veg', 'fire', 'rip'];
 export const STAT_GROUPS = 256;   // workgroups in the stats reduction
 export const STAT_STRIDE = 16;    // floats per partial
 export const LOG_SIZE = 4096;     // entries in the GPU flux log ring
@@ -40,7 +51,13 @@ export class World {
     mk('acc', 4);
     mk('thermalDelta', 2);
     mk('gwFlux', 4);  // groundwater transfers through the four faces (-x, +x, -y, +y)
-    mk('light', 4);   // renderer: (sun visibility, ambient occlusion, groundwater fill, springs), from render/lighting.js
+    mk('eco', 4);
+    mk('clim', 4);
+    mk('evt', 4);
+    // renderer: two vec4 per cell, from render/lighting.js:
+    //   [2i]   (sun visibility, ambient occlusion, groundwater fill, springs)
+    //   [2i+1] (plant cover, woody cover, burn severity, greenness)
+    mk('light', 8);
     this.buffers.statPartials = device.createBuffer({ size: STAT_GROUPS * STAT_STRIDE * 4, usage, label: 'statPartials' });
     this.buffers.accPartials = device.createBuffer({ size: STAT_GROUPS * 16, usage, label: 'accPartials' });
     this.buffers.fluxLog = device.createBuffer({ size: LOG_SIZE * 16, usage, label: 'fluxLog' });
@@ -54,7 +71,7 @@ export class World {
   upload(layers) {
     const q = this.device.queue;
     const zero = new Float32Array(this.cells * 4);
-    for (const name of [...LAYERS, ...EXTRA1, 'flux', 'acc', 'thermalDelta', 'gwFlux']) {
+    for (const name of [...LAYERS, ...EXTRA1, 'flux', 'acc', 'thermalDelta', 'gwFlux', 'eco', 'clim', 'evt']) {
       const buf = this.buffers[name];
       const src = layers[name];
       if (src) q.writeBuffer(buf, 0, src);

@@ -27,6 +27,9 @@ import climateModule from './climate.js';
 import { column } from './column.js';
 import { groundwater, GROUNDWATER_PARAMS } from './groundwater.js';
 import { Stats } from './stats.js';
+import { vegetation } from './vegetation.js';
+import { Events } from './events.js';
+import { gwCapJS } from './common.js';
 
 export const A_CAP = 150;              // max routing intensity (x real-time runoff rate)
 export const MAX_DAYS_PER_FRAME = 365000 / 60;
@@ -44,7 +47,8 @@ export class Simulation {
     this.nSub = 16;            // hydraulic sub-steps per frame (governor adjusts)
     this.maxSub = 64;
     this.world = null;
-    this.modules = [climateModule, snow, freezethaw, groundwater, water, erosion];
+    this.modules = [climateModule, snow, freezethaw, groundwater, water, erosion, vegetation];
+    this.events = new Events(device);
     this.day = 0;
     this.frame = 0;
     this.carry = 0;
@@ -79,6 +83,8 @@ export class Simulation {
       for (const m of [water, erosion]) m.init(this.device, this.world);
       column.init(this.device, this.world);
       groundwater.init(this.device, this.world);
+      vegetation.init(this.device, this.world);
+      this.events.init(this.device, this.world);
       this.statsK = new Stats(this.device, this.world);
       this.maxSub = N <= 256 ? 256 : N <= 512 ? 128 : 64;
       this.nSub = Math.min(this.nSub, this.maxSub);
@@ -87,8 +93,11 @@ export class Simulation {
     const { height, soil } = generateTerrain(scenario, { N, cellSize, seed, ruggedness: this.ruggedness, relief: this.relief, preErode: opts.preErode !== false });
     const bedrock = new Float32Array(N * N);
     for (let i = 0; i < N * N; i++) bedrock[i] = height[i] - soil[i];
-    const gw = new Float32Array(N * N).fill(0.3 * this.climate.preset.gwMax);
+    // groundwater starts 30 % full; the store's size depends on soil depth (gwCap)
+    const gw = new Float32Array(N * N);
+    for (let i = 0; i < N * N; i++) gw[i] = 0.3 * gwCapJS(this.climate.preset.gwMax, soil[i]);
     this.world.upload({ bedrock, soil, groundwater: gw, initHeight: height });
+    this.events.active = [];
     this.datum = this.climate.preset.baseElevation;
     let mn = Infinity, mx = -Infinity, sum = 0;
     for (let i = 0; i < N * N; i++) { const h = height[i]; if (h < mn) mn = h; if (h > mx) mx = h; sum += h; }
@@ -99,13 +108,43 @@ export class Simulation {
     this.climate.resetWeather(seed);
     this.world.params.set({ N, cellSize, cellArea: cellSize * cellSize, frame: 0, logSize: LOG_SIZE });
     this.world.params.upload();
+    this._spinupVegetation();
     const s0 = await this._readback();
     this.stored0 = (s0.water + s0.snow + s0.groundwater) * this.world.cellSize ** 2;
     this.onLoaded?.();
     return { N, cellSize, scenario, seed };
   }
 
-  // ---- one batch: column -> nSub x (flux, update, erosion) -> thermal -> accumulate ----
+  // Plants start near equilibrium with the climate: alternate a diagnostic climate year (the column
+  // kernel's spin-up mode writes only the growing-season indices, no water moves) with a relaxation
+  // of the cover toward its carrying capacity. Transpiration depends on the cover and the water
+  // index on transpiration, so a few rounds settle the two together. Nothing is logged.
+  _spinupVegetation(rounds = 6) {
+    const w = this.world, p = w.params;
+    const zRef = this.datum + (this.terrainRange?.mean ?? 0);
+    for (let k = 0; k < rounds; k++) {
+      p.set({
+        N: w.N, cellSize: w.cellSize, cellArea: w.cellSize ** 2, D: 730, dayStart: 0, spanDays: 365, yrs: 2, nInner: 48,
+        ...this.climate.uniforms(730, zRef), stormMul: 1,
+        ...SNOW_PARAMS, ...FREEZETHAW_PARAMS, kBase: WATER_PARAMS.kBase, datum: this.datum,
+        aW: 0, fR: 1, nSub: 2, dtH: 0.2 * w.cellSize, spinup: 1, vegYrs: 0,
+      });
+      p.upload();
+      const enc = this.device.createCommandEncoder({ label: 'veg spin-up' });
+      const pass = enc.beginComputePass();
+      column.record(pass);
+      vegetation.record(pass);
+      pass.end();
+      this.device.queue.submit([enc.finish()]);
+    }
+    p.set({ spinup: 0 });
+    p.upload();
+  }
+
+  /** Paint a weather event (see events.js). x, y, radius in grid cells. */
+  brush(type, opts = {}) { return this.events.brush(this, type, opts); }
+
+  // ---- one batch: column -> nSub x (flux, update, erosion) -> thermal -> vegetation -> accumulate ----
   _batch(Dcol, Deros, nSub, timed = false) {
     const w = this.world, dx = w.cellSize, p = w.params;
     const n = Math.max(2, nSub + (nSub & 1));
@@ -134,7 +173,7 @@ export class Simulation {
       ...SNOW_PARAMS, ...FREEZETHAW_PARAMS,
       kBase: WATER_PARAMS.kBase, eSurf: WATER_PARAMS.eSurf, kTrans: WATER_PARAMS.kTrans, hDry: WATER_PARAMS.hDry,
       manning: WATER_PARAMS.manning, datum: this.datum,
-      kGw: GROUNDWATER_PARAMS.kGw, gwPor: GROUNDWATER_PARAMS.gwPor, gwDt: Dcol * 86400,
+      kGw: GROUNDWATER_PARAMS.kGw, gwPor: GROUNDWATER_PARAMS.gwPor, gwDt: Dcol * 86400, vegYrs: Deros / 365, spinup: 0,
       kc: EROSION_PARAMS.kc * this.erosionStrength, ks: EROSION_PARAMS.ks, kd: EROSION_PARAMS.kd, kRock: EROSION_PARAMS.kRock,
       minSlope: EROSION_PARAMS.minSlope, dzMax: 0.02 * dx, vMax: 0.5 * dx / dtH,
       talusTan: EROSION_PARAMS.talusTan, rockTan: EROSION_PARAMS.rockTan,
@@ -152,6 +191,7 @@ export class Simulation {
     groundwater.record(pass);
     water.record(pass, n);
     erosion.recordThermal(pass);
+    vegetation.record(pass);
     this.statsK.recordAccumulate(pass);
     pass.end();
     this.device.queue.submit([enc.finish()]);
@@ -270,6 +310,8 @@ export class Simulation {
       hasNaN: s.nan > 0, nanCells: s.nan, fps: this.fps,
       N: this.world.N, cellSize: this.world.cellSize, substepsPerFrame: this.nSub,
       dtH: this.lastPlan.dtH, morph: this.lastPlan.morph, routingIntensity: this.lastPlan.aW,
+      meanVeg: s.vegSum / this.world.cells, vegCoveredFrac: s.vegCovered / this.world.cells,
+      burnedFrac: s.burned / this.world.cells,
     };
   }
 }

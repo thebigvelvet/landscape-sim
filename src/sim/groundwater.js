@@ -60,6 +60,7 @@ ${COMMON_WGSL}
 @group(0) @binding(3) var<storage, read_write> water : array<f32>;
 @group(0) @binding(4) var<storage, read_write> acc : array<vec4<f32>>;
 @group(0) @binding(5) var<storage, read_write> spring : array<f32>;
+@group(0) @binding(6) var<storage, read> soil : array<f32>;
 
 @compute @workgroup_size(16, 16)
 fn main(@builtin(global_invocation_id) gid : vec3<u32>) {
@@ -75,8 +76,9 @@ fn main(@builtin(global_invocation_id) gid : vec3<u32>) {
   if (y > 0)     { inW += gwFlux[idx(x, y - 1)].w; } else { edge += o.z; }
   if (y < N - 1) { inW += gwFlux[idx(x, y + 1)].z; } else { edge += o.w; }
   var g = max(groundwater[i] - (o.x + o.y + o.z + o.w) + inW, 0.0);
-  // springs: saturation excess emerges at the surface
-  let ex = max(g - P.gwMax, 0.0);
+  // springs: saturation excess emerges at the surface. The store's size depends on soil depth, so
+  // water also seeps out where thick soil thins over rock (and where erosion strips the soil).
+  let ex = max(g - gwCap(soil[i]), 0.0);
   g = g - ex;
   let routed = ex * P.fR;
   water[i] = water[i] + routed;
@@ -94,9 +96,9 @@ class GroundwaterKernel {
     this.device = device; this.world = world;
     const B = world.buffers;
     this.ko = makeKernel(device, 'groundwater.out', OUT_WGSL, ['r', 'r', 'r', 'r', 'rw']);
-    this.ka = makeKernel(device, 'groundwater.apply', APPLY_WGSL, ['rw', 'r', 'rw', 'rw', 'rw']);
+    this.ka = makeKernel(device, 'groundwater.apply', APPLY_WGSL, ['rw', 'r', 'rw', 'rw', 'rw', 'r']);
     this.bo = this.ko.bind(world.params.buffer, [B.bedrock, B.soil, B.groundwater, B.frostDepth, B.gwFlux]);
-    this.ba = this.ka.bind(world.params.buffer, [B.groundwater, B.gwFlux, B.water, B.acc, B.spring]);
+    this.ba = this.ka.bind(world.params.buffer, [B.groundwater, B.gwFlux, B.water, B.acc, B.spring, B.soil]);
   }
   record(pass) {
     pass.setPipeline(this.ko.pipeline); pass.setBindGroup(0, this.bo); dispatchGrid(pass, this.world.N);

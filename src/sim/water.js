@@ -24,20 +24,30 @@ export const WATER_PARAMS = {
 };
 
 export const WATER_VERTICAL_WGSL = /* wgsl */`
-// infiltration (capacity limited, frozen ground blocks it), ET from the shallow store, baseflow.
-// returns (newGroundwater, runoff, evapotranspiration)
-fn soilStep(gw : f32, liquid : f32, T : f32, frozen : f32, dt : f32) -> vec3<f32> {
-  let space = max(P.gwMax - gw, 0.0);
-  let infil = min(liquid, min(P.ksat * dt * (1.0 - 0.92 * frozen), space));
+// Potential evapotranspiration over dt days (m). ~5 mm/day at 25 degC on flat ground; sun-facing
+// slopes get more radiation and so more evaporative demand (sunF ~0.7 north .. 1.3 south).
+fn potET(T : f32, dt : f32, sunF : f32) -> f32 {
+  return max(0.0, 0.00018 * (T + 3.0)) * P.etMul * dt * sunF;
+}
+// Infiltration (capacity limited, frozen ground blocks it), ET from the shallow store, baseflow.
+//   cap   water the store can hold here (depends on soil depth, see gwCap)
+//   kInf  infiltration multiplier (plants raise it, burned hydrophobic ground lowers it)
+//   kEt   ET multiplier: bare soil only evaporates from its surface (~0.35 of PET), a full canopy
+//         transpires from the whole root zone (crop coefficient ~1.2, Allen et al. 1998 FAO-56)
+//   pet   potential ET over dt (m)
+// returns (newGroundwater, runoff, evapotranspiration, moisture 0..1)
+fn soilStep(gw : f32, liquid : f32, frozen : f32, dt : f32, cap : f32, kInf : f32, kEt : f32, pet : f32) -> vec4<f32> {
+  let space = max(cap - gw, 0.0);
+  let infil = min(liquid, min(P.ksat * kInf * dt * (1.0 - 0.92 * frozen), space));
   var g = gw + infil;
   var runoff = liquid - infil;
-  let pet = max(0.0, 0.00018 * (T + 3.0)) * P.etMul * dt;            // ~5 mm/day at 25 degC
-  let et = min(g, pet * clamp(g / (0.6 * P.gwMax), 0.0, 1.0));
+  let f = clamp(g / (0.6 * cap), 0.0, 1.0);
+  let et = min(g, pet * f * kEt);
   g = g - et;
   let base = g * (1.0 - exp(-P.kBase * dt)) * (1.0 - 0.8 * frozen);
   g = g - base;
   runoff = runoff + base;
-  return vec3<f32>(g, runoff, et);
+  return vec4<f32>(g, runoff, et, f);
 }
 `;
 

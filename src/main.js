@@ -4,6 +4,7 @@ import { Renderer } from './render/renderer.js';
 import { Panel } from './ui/panel.js';
 import { PRESETS } from './sim/climate.js';
 import { GpuTimer } from './gpuTimer.js';
+import { BrushTool } from './ui/brush.js';
 
 const $ = (id) => document.getElementById(id);
 
@@ -35,7 +36,11 @@ async function initGPU() {
   device.lost.then((info) => {
     if (info.reason !== 'destroyed') fatal('The graphics device was lost', `<p>${info.message || ''}</p><p>This can happen after a driver update or if the GPU ran out of memory. <button onclick="location.reload()">Reload</button></p>`);
   });
-  device.addEventListener('uncapturederror', (e) => { console.error('[WebGPU]', e.error?.message); window.__gpuErrors = (window.__gpuErrors || 0) + 1; });
+  device.addEventListener('uncapturederror', (e) => {
+    console.error('[WebGPU]', e.error?.message);
+    window.__gpuErrors = (window.__gpuErrors || 0) + 1;
+    (window.__gpuErrorMsgs ||= []).length < 5 && window.__gpuErrorMsgs.push(String(e.error?.message).slice(0, 600));
+  });
   return { adapter, device };
 }
 
@@ -128,6 +133,7 @@ async function main() {
   if (q.has('speed')) sim.speed = +q.get('speed');
   if (q.has('paused')) sim.paused = q.get('paused') !== '0';
 
+  app.brush = new BrushTool(app, canvas);
   panel = new Panel(app);
   await app.load(scenario, { size, seed, preset });
 
@@ -197,6 +203,11 @@ async function main() {
     stats: () => sim.stats(),
     setOverlay: (o) => panel.setOverlay(o),
     bench: (sizes) => app.bench(sizes),
+    // Paint a weather event, exactly like clicking with the tool. x, y, radius in grid cells.
+    brush: (type, opts = {}) => sim.brush(type, opts),
+    // pick the grid cell under a screen point (what a click there would hit)
+    pick: (clientX, clientY) => app.brush.pick(clientX, clientY),
+    setTool: (t) => panel.selectTool?.(t),
     setPreset: (name) => { sim.climate.setPreset(name); sim.datum = sim.climate.preset.baseElevation; panel.sync(); },
     get engine() { return sim; },
     get renderer() { return renderer; },
