@@ -1,9 +1,32 @@
-# Landscape Simulator ("The Engineer" build)
+# Landscape Time-Lapse
 
-A 3D landscape process simulator: generate terrain, set the climate, and watch rain, runoff,
-erosion and deposition, snowpack and freeze/thaw reshape it, from 1 day/s up to 1000 years/s.
-All simulation runs in WebGPU compute shaders. The renderer reads the simulation buffers directly,
-so there are no copies and no per-frame CPU readback.
+A 3D landscape you can rain on, freeze, thaw and erode, from 1 day per second up to 1000 years per
+second. All of the simulation runs on the graphics card (WebGPU compute shaders).
+
+**To run it, double-click `start.bat`** (or the "Landscape Time-Lapse" shortcut on the desktop).
+
+## Where the parts came from
+
+This is the round-1 combination of three competing builds:
+
+| Part | From | Why |
+|---|---|---|
+| Engine: water flow, erosion, time scaling, speed dial, launcher, self-test | Engineer | Carved real branching stream networks; fastest (1000 years in ~5 s, 1024² at 60 fps); most robust launcher |
+| Rendering: rock strata, talus, soil, vegetation, snow, translucent flowing water, shadows, sky, rain/snow | Artist | By far the best looking |
+| Control panel, place cards, tooltips, date/weather card, legends | Artist | Plain-language, easiest to use |
+| Lateral groundwater with springs (`src/sim/groundwater.js`) | Physicist | Water soaks in, creeps downhill underground, and emerges in hollows |
+| Sunny vs shady slopes for snowmelt and temperature | Physicist | Snow lingers on north faces into June |
+| Wet/dry storm spells (Markov weather) | Physicist | Rain comes in storms, not as a constant drizzle |
+
+Checks run on the combined build (RTX 4060 Ti, Electron 45):
+- Cone, Colorado alpine, 1000 years: water balance error -0.00004 %, no NaN, about 5 s.
+- Every review scenario (cone 1000 yr, valley, random 10,000 yr, Utah desert 2000 yr,
+  temperate 200 yr): water balance within 0.0004 %, no NaN.
+- 1024² random terrain at 1000 years/s: 60 fps.
+- Snow on the cone in mid-May: north faces 92 % covered, south faces 3 %. Mid-June: 20 % vs 0 %.
+- Groundwater in late summer: hollows 41 % full, ridges 32 %; about 1.6 % of the ground has springs.
+
+The rest of this file is the Engineer build's engine documentation, updated for the combined build.
 
 ## Running it
 
@@ -48,10 +71,11 @@ src/sim/snow.js        snow accumulation, degree-day melt (WGSL fn)
 src/sim/freezethaw.js  frost depth, F/T cycles, weathering, frozen-ground infiltration (WGSL fn)
 src/sim/column.js      fused per-cell kernel composed from climate/snow/freezethaw/water-vertical
 src/sim/water.js       virtual-pipe shallow water + conservative sediment transport
+src/sim/groundwater.js lateral Darcy flow of groundwater, springs where the ground saturates
 src/sim/erosion.js     capacity erosion/deposition (sub-step hook) + talus/creep/rock fall
 src/sim/stats.js       GPU reductions, flux log ring, async readback
-src/render/            raw WebGPU renderer (terrain, water, diorama sides, sky) + orbit camera
-src/ui/panel.js        side panel
+src/render/            raw WebGPU renderer from the Artist build (shaders.js, lighting.js for shadows/AO) + orbit camera
+src/ui/panel.js        side panel, date card, time bar (layout from the Artist build); legend.js
 electron/main.cjs      app:// protocol, GPU switches, self-test/eval harness
 scripts/launch.cjs     download Electron if needed, rebuild if stale, launch
 tests/                 harness scripts + their recorded outputs
@@ -168,7 +192,7 @@ years. No NaN in any case, and every balance error was below 5e-4 %.
 - Erosion constants are calibrated to look plausible (a few metres of incision per 1000 years), not
   fitted to field data. The "Erosion rate" slider scales them.
 - Snow does not redistribute (no wind drift or avalanches), and glaciers accumulate but do not flow.
-- Groundwater is a per-cell bucket with no lateral flow.
+- Groundwater flows only through a shallow store of fixed capacity per preset; there is no deep aquifer.
 - The f32 solids audit drifts slightly over very long runs (hundreds of m³ against 10⁵–10⁷ m³ of
   sediment moved).
 - At 1024², the per-sub-step cost exceeds L2 cache and becomes DRAM-bandwidth bound (5.4× the cost
@@ -181,4 +205,4 @@ years. No NaN in any case, and every balance error was below 5e-4 %.
   at 1024² by about 25%.
 - Generate terrain on the GPU or in a worker.
 - Stochastic storm sampling for the routed fraction, so floods are episodic rather than continuous.
-- Lateral groundwater flow, glacier flow (shallow-ice), and snow avalanching.
+- Glacier flow (shallow-ice) and snow avalanching (the Artist build has an avalanche kernel to port).
