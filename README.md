@@ -5,6 +5,29 @@ second. All of the simulation runs on the graphics card (WebGPU compute shaders)
 
 **To run it, double-click `start.bat`** (or the "Landscape Time-Lapse" shortcut on the desktop).
 
+## Round 2 (combined): what came from where
+
+Round 2 had three competing builds (branches `r2-ecologist`, `r2-showman`, `r2-engineer`). This
+version is the Showman build with these changes:
+
+| Part | From | Notes |
+|---|---|---|
+| Visuals, 3D trees, storm clouds, fire/smoke, tool row, messages, slow-motion speeds, exact water books at slow speed | Showman | the base; its own notes follow below |
+| Where plants can grow (`src/sim/vegetation.js`, carrying capacity) | Ecologist | growing season (days above 0.9 °C and their mean temperature) sets the treeline (Körner & Paulsen 2004); separate tree and grass ramps for warmth, water and soil depth; stream banks and springs count as well-watered (riparian corridors) |
+| Bare rock stays bare | combined | grasses need soil (12 % of capacity on bare rock, full at 15 cm); sparse cover is drawn as flecks on rock, not a green tint |
+| Debris flows on burn scars (`src/sim/erosion.js`, `debrisMul`) | combined | on fresh burns, flow gathered into rills and channels gets up to 21× the transport capacity (Cannon et al. 2001) |
+| Robustness | checked, nothing to port | the Engineer's crash fixes were for its own scheduler; this base passes the same stress tests (loading new maps mid-event and during `sim.run`) with no errors |
+
+Checks on this build (RTX 4060 Ti):
+- **Test suite:** `node scripts/launch.cjs --eval=tests/round2.js` passes 10/10 (water balance with every brush at 1 day/s and 1000 yr/s, no NaN, burned ground erodes more, recovery after fire, desert vs wet, treeline, brush lands where clicked, storm speed scaling, flood surge, drought). Two of Showman's checks were updated for the combined build:
+  - The treeline check now tests fixed elevations: trees below 3,000 m and none above 3,700 m.
+  - Fire recovery is now compared with an unburned control run, not with the load-time spin-up.
+- **Plant patterns:** the Colorado treeline is at about 3,450 m (the real one is ~3,500 m). Utah cover is 0.19 on north faces, 0.13 on south faces and 0.99 on stream banks.
+- **Burned vs unburned twin slopes on a cone** (two cloudbursts, 2 years): 1.7 mm mean lowering with channels cut 17 cm, against 0 on the unburned slope.
+- **Self-test and frame rate:** `--selftest` water balance is 1e-6 %, and 1024² runs at 60 fps at 1000 yr/s.
+- **One unexplained reading:** one 100-year review run showed a 0.23 % water-balance error that did not reappear in five reruns of the same script. It is noted here in case it shows up again.
+- The review probes are in `tools/review/r2/`.
+
 ## Round 2 (branch `r2-showman`): plants, soil and weather you paint on the map
 
 **What you can do now**

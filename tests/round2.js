@@ -97,7 +97,13 @@ const t0 = performance.now();
     series.push({ yrs, veg: discMean(await layer('veg'), N, x, y, r), woody: discMean(pl.filter((_, i) => i % 4 === 0), N, x, y, r), burn: discMean(await layer('burn'), N, x, y, r) });
   }
   const last = series[series.length - 1];
-  check('recoveryAfterFire', v1 < 0.5 * v0 && series[1].veg > v1 && last.veg > 0.85 * v0 && last.burn < 0.02, { before: { veg: v0, woody: w0 }, justAfter: { veg: v1, burn: b1 }, series });
+  // Combined build: compare with the same patch left unburned for the same time. The load-time
+  // spin-up sets cover to its target exactly, and the live equilibrium (with burial, stripping and
+  // weather) sits a little lower, so 'before' is not the level a full recovery returns to.
+  sim.pause(); await sim.load('random', { size: 256, seed: 3, preset: 'Temperate' }); sim.pause();
+  await e.run(60 * 365 + 2.5);
+  const vControl = discMean(await layer('veg'), N, x, y, r);
+  check('recoveryAfterFire', v1 < 0.5 * v0 && series[1].veg > v1 && last.veg > 0.9 * vControl && last.burn < 0.02, { before: { veg: v0, woody: w0 }, justAfter: { veg: v1, burn: b1 }, series, unburnedControlAt60yr: vControl });
 }
 
 // 5. Utah desert has less cover than the Pacific NW (and the other presets, for the record).
@@ -127,7 +133,11 @@ const t0 = performance.now();
     for (let i = 0; i < g.length; i++) if (g[i] >= lo && g[i] <= hi) { sv += v[i]; sw += v[i] * pl[4 * i]; n++; }
     bands.push({ elev_m: Math.round(lo + e.datum) + '-' + Math.round(hi + e.datum), cover: sv / n, treeCover: sw / n });
   }
-  check('treeline', bands[0].treeCover > 0.2 && bands[5].treeCover < 0.03 && bands[5].cover > 0.01, { bands });
+  // Combined build: trees stop near the real Colorado treeline (~3,500 m), so test fixed elevations
+  // rather than the top sixth of the cone: forest below 3,000 m, no trees above 3,700 m, tundra up high.
+  const at = (lo, hi) => { let sv = 0, sw = 0, n = 0; for (let i = 0; i < g.length; i++) { const z = g[i] + e.datum; if (z >= lo && z < hi) { sv += v[i]; sw += v[i] * pl[4 * i]; n++; } } return { cover: sv / n, treeCover: sw / n, n }; };
+  const low = at(0, 3000), high = at(3700, 9000);
+  check('treeline', low.treeCover > 0.2 && high.n > 0 && high.treeCover < 0.03 && high.cover > 0.01, { bands, below3000m: low, above3700m: high });
 }
 
 // 7. The brush lands where clicked. (a) Synthetic clicks on the canvas at the screen position of

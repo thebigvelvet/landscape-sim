@@ -24,7 +24,8 @@
 //   water   Wi from the climate's aridity index P/PET (drought lowers it at once) and the moisture
 //           memory (groundwater fill smoothed over ~1 year); trees need Wi 0.18 -> 0.60, grasses
 //           0.05 -> 0.70. Stream banks and springs count as Wi >= 0.8 (riparian corridors).
-//   soil    trees 35% on bare rock -> 100% at 0.6 m; grasses 45% -> 100% at 0.12 m
+//   soil    trees 15% on bare rock -> 100% at 0.6 m; grasses 12% -> 100% at 0.15 m (the Ecologist's
+//           35%/45% looked like green mountainsides in the Showman renderer)
 //   cliffs, channels, lakes and glaciers stay bare
 //   total V* = T* + G* (1 - T*), woody share W* = T* / V* (or desert shrubs where dry)
 //
@@ -174,8 +175,9 @@ fn main(@builtin(global_invocation_id) gid : vec3<u32>) {
   let tT = smoothstep(4.8, 7.6, Tgs) * smoothstep(60.0, 100.0, Lgs);
   let tG = smoothstep(1.0, 4.0, Tgs) * smoothstep(20.0, 55.0, Lgs);
   let fWarm = tG;
-  let sT = 0.35 + 0.65 * smoothstep(0.05, 0.6, so);
-  let sG = 0.45 + 0.55 * smoothstep(0.0, 0.12, so);
+  // bare rock carries only scattered plants in cracks; trees need deeper soil than grasses
+  let sT = 0.15 + 0.85 * smoothstep(0.05, 0.6, so);
+  let sG = 0.12 + 0.88 * smoothstep(0.0, 0.15, so);
   let fSlope = 1.0 - 0.85 * smoothstep(1.5, 3.0, slopeTan);     // only cliffs stay bare
   let fWet = 1.0 - 0.9 * smoothstep(0.08, 0.5, water[i]);       // channel beds and lakes
   let fIce = 1.0 - smoothstep(1.0, 3.0, snowSWE[i]);
