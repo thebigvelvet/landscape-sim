@@ -26,7 +26,7 @@
     "maxWaterDepth": 5.388765335083008,
     "hasNaN": false,
     "nanCells": 0,
-    "fps": 59.947985768479775,
+    "fps": 59.93909318279556,
     "N": 512,
     "cellSize": 10,
     "substepsPerFrame": 16,
@@ -37,30 +37,30 @@
     "vegCoveredFrac": 0.9888572692871094,
     "burnedFrac": 0,
     "events": [],
-    "wallSeconds": 5.6495
+    "wallSeconds": 5.6319000000059605
   },
   "bench": {
     "256": {
-      "stepsPerSec": 60377.35846793225,
-      "msPerSubstep": 0.01656250000620882,
-      "mcellUpdatesPerSec": 3956.8905645544082,
-      "fps": 59.62890169606638,
+      "stepsPerSec": 48000,
+      "msPerSubstep": 0.020833333333333332,
+      "mcellUpdatesPerSec": 3145.728,
+      "fps": 59.950041631973356,
       "substepsPerFrame": 256,
       "simDaysPerSecAt1yrPerSec": 365
     },
     "512": {
-      "stepsPerSec": 9125.475286205174,
-      "msPerSubstep": 0.1095833333209157,
-      "mcellUpdatesPerSec": 2392.188593426969,
-      "fps": 59.656723879353436,
-      "substepsPerFrame": 128,
+      "stepsPerSec": 9134.157945332483,
+      "msPerSubstep": 0.10947916666045784,
+      "mcellUpdatesPerSec": 2394.4647004212384,
+      "fps": 59.95802937955344,
+      "substepsPerFrame": 121,
       "simDaysPerSecAt1yrPerSec": 365
     },
     "1024": {
-      "stepsPerSec": 806.4516129193778,
-      "msPerSubstep": 1.2399999999751647,
-      "mcellUpdatesPerSec": 845.6258064685495,
-      "fps": 59.96402158740497,
+      "stepsPerSec": 774.9434936961268,
+      "msPerSubstep": 1.2904166666790844,
+      "mcellUpdatesPerSec": 812.5871488459098,
+      "fps": 59.900166389351085,
       "substepsPerFrame": 4,
       "simDaysPerSecAt1yrPerSec": 365
     }

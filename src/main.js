@@ -72,9 +72,9 @@ async function main() {
   const app = {
     sim, renderer, device, picker,
     /** Terrain under an NDC point of the last drawn frame: { x, y } in grid cells, or null. */
-    pickNDC(nx, ny) {
+    pickNDC(nx, ny, invViewProj = renderer.lastInvViewProj) {
       if (sim.loading || !sim.world) return Promise.resolve(null);
-      return picker.pick(nx, ny, renderer.lastInvViewProj, renderer.vex);
+      return picker.pick(nx, ny, invViewProj, renderer.vex);
     },
     async load(scenario, opts = {}) {
       busy(scenario === 'random' ? 'Raising mountains...' : 'Shaping the land...');
@@ -219,14 +219,14 @@ async function main() {
     setTool: (name) => brushes.setTool(name),
     // Picking: client (CSS pixel) or NDC coordinates of the current view -> grid cell under it.
     pick: (clientX, clientY) => app.pickNDC(...brushes.ndc(clientX, clientY)),
-    pickNDC: (nx, ny) => app.pickNDC(nx, ny),
+    pickNDC: (nx, ny, invViewProj) => app.pickNDC(nx, ny, invViewProj),
     // CPU float64 reference for the picker (tests only; reads the layers back).
-    async pickReference(nx, ny) {
+    async pickReference(nx, ny, invViewProj = renderer.lastInvViewProj) {
       const N = sim.world.N;
       const [b, s, w] = [await sim.readLayer('bedrock'), await sim.readLayer('soil'), await sim.readLayer('snowSWE')];
       const H = new Float64Array(N * N);
       for (let i = 0; i < N * N; i++) H[i] = b[i] + s[i] + w[i] / 0.33;
-      return pickReference(nx, ny, renderer.lastInvViewProj, N, sim.world.cellSize, H, renderer.vex);
+      return pickReference(nx, ny, invViewProj, N, sim.world.cellSize, H, renderer.vex);
     },
     bench: (sizes) => app.bench(sizes),
     setPreset: (name) => { sim.climate.setPreset(name); sim.datum = sim.climate.preset.baseElevation; panel.sync(); },

@@ -270,13 +270,15 @@ try {
     R.exaggeration = 3;
     R.camera.autoRotate = false;
     R.camera.pitch = 0.32; R.camera.yaw = 1.1; R.camera.dist = R.camera.extent * 0.9;
-    await sleep(400);
+    // wait until frames with the new camera have been drawn, then use ONE matrix for everything
+    const fc = R.frameCount; for (let k = 0; k < 200 && R.frameCount < fc + 4; k++) await sleep(25);
+    const IVP = R.lastInvViewProj, VP = R.lastViewProj;
     let maxErr = 0, hits = 0, misses = 0, agreeMiss = 0;
     let seed = 7; const rnd = () => ((seed = (seed * 16807) % 2147483647) / 2147483647);
     for (let k = 0; k < 40; k++) {
       const nx = rnd() * 1.6 - 0.8 + 0.15, ny = rnd() * 1.4 - 0.75;
-      const g = await sim.pickNDC(nx, ny);
-      const c = await sim.pickReference(nx, ny);
+      const g = await sim.pickNDC(nx, ny, IVP);
+      const c = await sim.pickReference(nx, ny, IVP);
       if (!g && !c) { agreeMiss++; continue; }
       if (!g || !c) { misses++; continue; }
       hits++;
@@ -284,7 +286,7 @@ try {
     }
     // round trip: project known surface vertices to the screen, pick there, compare
     const L = await layers(['bedrock', 'soil', 'snowSWE']);
-    const N = 512, vp = R.lastViewProj, cN = (N - 1) / 2, dx = e.world.cellSize;
+    const N = 512, vp = VP, cN = (N - 1) / 2, dx = e.world.cellSize;
     let rt = 0, rtMax = 0, rtVisible = 0, rtBad = 0;
     const eye = R.camera.eye();
     for (let k = 0; k < 40; k++) {
@@ -294,7 +296,7 @@ try {
       const cx = vp[0] * X + vp[4] * H + vp[8] * Z + vp[12], cy = vp[1] * X + vp[5] * H + vp[9] * Z + vp[13], cw = vp[3] * X + vp[7] * H + vp[11] * Z + vp[15];
       const nx = cx / cw, ny = cy / cw;
       if (Math.abs(nx) > 0.98 || Math.abs(ny) > 0.98) continue;
-      const g = await sim.pickNDC(nx, ny);
+      const g = await sim.pickNDC(nx, ny, IVP);
       if (!g) continue;
       rt++;
       const d = Math.hypot(g.x - gx, g.y - gy);
