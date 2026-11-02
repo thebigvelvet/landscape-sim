@@ -25,7 +25,7 @@ export const PARAM_FIELDS = [
   ['gwDt', 'f32'], ['spin', 'f32'], ['vegD', 'f32'], ['vegMode', 'f32'],
   // vegetation (round 2, see vegetation.js)
   ['vegTmin', 'f32'], ['vegR', 'f32'], ['vegM', 'f32'], ['burnTau', 'f32'],
-  ['vegSeed', 'f32'], ['etBoost', 'f32'], ['pad2', 'f32'], ['pad3', 'f32'],
+  ['vegSeed', 'f32'], ['etBoost', 'f32'], ['vegBurial', 'f32'], ['pad3', 'f32'],
 ];
 
 export const PARAMS_WGSL = `struct Params {\n${PARAM_FIELDS.map(([n, t]) => `  ${n} : ${t},`).join('\n')}\n};\n`;

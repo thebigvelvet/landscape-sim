@@ -16,11 +16,12 @@
 //   slope     1 - 0.85 smoothstep(0.9, 1.8, tan slope) (cliffs)
 //
 // Dynamics over a batch of D days, with K and the burial/stripping rate mu held constant:
-//   below K:  dV/dt = r V (1 - V/K) - mu V             (logistic growth from a seed floor)
-//   above K:  dV/dt = -m (V - K) - mu V                 (drought / cold dieback toward K)
-//   mu = (deposition / 0.3 m + erosion / 0.6 m) / D     (buried by sediment, stripped by gullies)
+//   below K:  dV/dt = r V (1 - V/K)                     (logistic growth from a seed floor)
+//   above K:  dV/dt = -m (V - K)                         (drought / cold dieback toward K)
 // Both have closed-form solutions, used here, so the update is exact for any D: the result does not
 // depend on the batch length, and 16-year frames at 1000 years/s are as stable as 1-minute frames.
+// Burial and stripping: once per year of sim time (or per batch when batches are a year or longer)
+// V *= exp(-(net deposition / 0.3 m + net erosion / 0.6 m)) over that window.
 // Burn severity decays as exp(-D / burnTau).
 //
 // Outputs for the other modules (each kernel stays within 8 storage bindings):
@@ -84,8 +85,17 @@ fn main(@builtin(global_invocation_id) gid : vec3<u32>) {
   let K = clamp(Kw * Kwat * Ks * Kl, 0.0, 0.97);
   let D = P.vegD;
   if (P.vegMode < 0.5 && D > 0.0) {
-    let dz = z - aux.w;
-    let mu = (max(dz, 0.0) / 0.3 + max(-dz, 0.0) / 0.6) / D;
+    // burial / stripping from the NET height change over a window of at least one year (the
+    // scheduler raises vegBurial once per year of sim time, or every batch of a year or more).
+    // Using the net change, not the per-batch change, matters: sediment settling and being picked up
+    // again makes the ground go up and down within a year, and counting every wiggle would make the
+    // loss grow with the number of batches.
+    if (P.vegBurial > 0.5) {
+      let dz = z - aux.w;
+      V = V * exp(-(max(dz, 0.0) / 0.3 + max(-dz, 0.0) / 0.6));
+      aux.w = z;
+    }
+    let mu = 0.0;
     let r = P.vegR * (0.25 + 0.75 * Kw);
     if (K > 0.02) { V = max(V, min(P.vegSeed, K)); }
     if (V <= K) {
@@ -104,7 +114,6 @@ fn main(@builtin(global_invocation_id) gid : vec3<u32>) {
       V = Vinf + (V - Vinf) * exp(-min(k * D, 60.0));
     }
     B = B * exp(-D / P.burnTau);
-    aux.w = z;
   }
   V = clamp(finite(V), 0.0, 1.0);
   B = clamp(finite(B), 0.0, 1.0);

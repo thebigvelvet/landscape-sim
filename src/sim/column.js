@@ -159,9 +159,11 @@ fn main(@builtin(global_invocation_id) gid : vec3<u32>) {
   snowSWE[i] = swe;
   frostDepth[i] = d;
   groundwater[i] = g;
-  // growing-season moisture for the plants: running mean over ~120 growing days
+  // growing-season moisture for the plants: running mean over ~365 growing days (2-3 years), slow
+  // enough that it carries no seasonal swing (K must not oscillate within a year, or short and long
+  // batches would disagree), fast enough that a multi-year drought shows
   var Wn = aux.x;
-  if (gsum > 1e-6) { Wn = mix(aux.x, wsum / gsum, 1.0 - exp(-gsum / 120.0)); }
+  if (gsum > 1e-6) { Wn = mix(aux.x, wsum / gsum, 1.0 - exp(-gsum / 365.0)); }
   vegAux[i] = vec4<f32>(finite(Wn), aux.y, aux.z, aux.w);
   acc[i] = acc[i] + vec4<f32>(aP + inj, fast, aET + e, 0.0);
 }

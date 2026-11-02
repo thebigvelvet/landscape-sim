@@ -68,6 +68,9 @@ export class Simulation {
 
   get N() { return this.world?.N ?? 0; }
 
+  /** Test hook: freeze the terrain (no fluvial erosion, talus or creep); water and plants still run. */
+  setLandscapeChange(on) { this.landscapeOn = !!on; erosion.enabled = !!on; }
+
   async load(scenario = 'random', opts = {}) {
     const N = [256, 512, 1024, 2048].includes(+opts.size) ? +opts.size : (this.world?.N || 512);
     const cellSize = +opts.cellSize || this.cellSize || 10;
@@ -126,7 +129,7 @@ export class Simulation {
       if (opts.spinUp !== false) this._spinUp(opts.spinYears ?? 400);
       await this.device.queue.onSubmittedWorkDone();
       await this._readback();
-      this.day = 0; this.carry = 0;
+      this.day = 0; this.carry = 0; this.burialClock = 0;
       this.cum = { precip: 0, outflow: 0, evap: 0, sedOut: 0 };
       this.climate.resetWeather(seed);
       const s0 = await this._readback();
@@ -185,7 +188,7 @@ export class Simulation {
       thermalRate: 0.25 * Math.min(1, Deros / 0.25),
       creepFrac: Math.min(0.1, EROSION_PARAMS.creepK * this.erosionStrength * yearsE / (dx * dx)),
       rockRate: Math.min(0.4, EROSION_PARAMS.rockFallPerYear * yearsE),
-      spin: spin ? 1 : 0, vegD: Dcol, vegMode: 0, etBoost: 1, ...VEG_PARAMS,
+      spin: spin ? 1 : 0, vegD: Dcol, vegMode: 0, etBoost: 1, vegBurial: 0, ...VEG_PARAMS,
     };
   }
 
@@ -195,6 +198,9 @@ export class Simulation {
     const p = this.world.params;
     this.climate.advanceWeather(this.day, Dcol);
     const plan = this._plan(Dcol, Deros, nSub, spin);
+    // plants' burial/stripping window: at least one year of sim time (see vegetation.js)
+    this.burialClock = (this.burialClock || 0) + Dcol;
+    if (this.burialClock >= 365 - 1e-6) { plan.vegBurial = 1; this.burialClock = 0; }
     const n = plan.nSub;
     p.set(plan);
     p.upload();
@@ -210,7 +216,7 @@ export class Simulation {
     groundwater.record(pass);
     if (!spin) {
       water.record(pass, n);
-      erosion.recordThermal(pass);
+      if (this.landscapeOn !== false) erosion.recordThermal(pass);
     }
     vegetation.record(pass);
     this.statsK.recordAccumulate(pass);
