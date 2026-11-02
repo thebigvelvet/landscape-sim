@@ -4,8 +4,17 @@ import { Renderer } from './render/renderer.js';
 import { Panel } from './ui/panel.js';
 import { PRESETS } from './sim/climate.js';
 import { GpuTimer } from './gpuTimer.js';
+import { Picker, pickReference } from './sim/pick.js';
+import { BrushController } from './ui/brushes.js';
 
 const $ = (id) => document.getElementById(id);
+
+// Keep the first console errors (WGSL compile messages, WebGPU validation) for the test harness.
+window.__errors = [];
+{
+  const ce = console.error.bind(console);
+  console.error = (...a) => { if (window.__errors.length < 50) window.__errors.push(a.map(String).join(' ').slice(0, 400)); ce(...a); };
+}
 
 function fatal(title, html) {
   const f = $('error');
@@ -46,7 +55,8 @@ async function main() {
   const canvas = $('view');
   const sim = new Simulation(device);
   const renderer = new Renderer(device, canvas, navigator.gpu.getPreferredCanvasFormat());
-  sim.onWorldChanged = (w) => renderer.setWorld(w);
+  const picker = new Picker();
+  sim.onWorldChanged = (w) => { renderer.setWorld(w); picker.init(device, w); };
   const timer = new GpuTimer(device);
   sim.timer = timer;
 
@@ -60,7 +70,12 @@ async function main() {
   let fpsEMA = 60, gpuMs = 0, gpuPending = false, frames = 0, lastT = performance.now(), statsPending = false;
 
   const app = {
-    sim, renderer, device,
+    sim, renderer, device, picker,
+    /** Terrain under an NDC point of the last drawn frame: { x, y } in grid cells, or null. */
+    pickNDC(nx, ny) {
+      if (sim.loading || !sim.world) return Promise.resolve(null);
+      return picker.pick(nx, ny, renderer.lastInvViewProj, renderer.vex);
+    },
     async load(scenario, opts = {}) {
       busy(scenario === 'random' ? 'Raising mountains...' : 'Shaping the land...');
       await new Promise((r) => setTimeout(r, 30));   // let the overlay paint
@@ -129,6 +144,9 @@ async function main() {
   if (q.has('paused')) sim.paused = q.get('paused') !== '0';
 
   panel = new Panel(app);
+  const brushes = new BrushController(app);
+  app.brushes = brushes;
+  panel.bindBrushes(brushes);
   await app.load(scenario, { size, seed, preset });
 
   // ------------- sub-step governor -------------
@@ -177,7 +195,7 @@ async function main() {
       timer.collect();
     } catch (e) { console.error(e); }
     governor();
-    if (frames % 15 === 0 && !statsPending && sim.world && !sim.running) {
+    if (frames % 15 === 0 && !statsPending && sim.world && !sim.running && !sim.loading) {
       statsPending = true;
       sim.stats().then((s) => { stats = s; }).catch(() => {}).finally(() => { statsPending = false; });
     }
@@ -196,6 +214,20 @@ async function main() {
     play: () => app.play(),
     stats: () => sim.stats(),
     setOverlay: (o) => panel.setOverlay(o),
+    // Weather brush, same as clicking with the tool. x, y, radius in grid cells.
+    brush: (type, opts = {}) => sim.brush(type, opts),
+    setTool: (name) => brushes.setTool(name),
+    // Picking: client (CSS pixel) or NDC coordinates of the current view -> grid cell under it.
+    pick: (clientX, clientY) => app.pickNDC(...brushes.ndc(clientX, clientY)),
+    pickNDC: (nx, ny) => app.pickNDC(nx, ny),
+    // CPU float64 reference for the picker (tests only; reads the layers back).
+    async pickReference(nx, ny) {
+      const N = sim.world.N;
+      const [b, s, w] = [await sim.readLayer('bedrock'), await sim.readLayer('soil'), await sim.readLayer('snowSWE')];
+      const H = new Float64Array(N * N);
+      for (let i = 0; i < N * N; i++) H[i] = b[i] + s[i] + w[i] / 0.33;
+      return pickReference(nx, ny, renderer.lastInvViewProj, N, sim.world.cellSize, H, renderer.vex);
+    },
     bench: (sizes) => app.bench(sizes),
     setPreset: (name) => { sim.climate.setPreset(name); sim.datum = sim.climate.preset.baseElevation; panel.sync(); },
     get engine() { return sim; },

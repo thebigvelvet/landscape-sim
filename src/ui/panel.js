@@ -202,6 +202,31 @@ export class Panel {
     this.syncPreset();
   }
 
+  /** Tool row and brush size (round 2). */
+  bindBrushes(brushes) {
+    this.brushes = brushes;
+    const hints = {
+      off: 'Pick a tool, then click on the land.',
+      storm: 'Click to start a 3-day storm there; hold and drag to steer it.',
+      drought: 'Click anywhere on the land to start a 5-year drought over the whole map.',
+      flood: 'Click a valley or stream to send a 100-year flood down it.',
+      wildfire: 'Click to light a fire; drag to light a line. Try a dry, forested slope.',
+    };
+    const sync = (t) => {
+      for (const b of document.querySelectorAll('.tool')) b.classList.toggle('active', b.dataset.tool === t);
+      $('tool-hint').textContent = hints[t] || hints.off;
+    };
+    brushes.onToolChanged = sync;
+    for (const b of document.querySelectorAll('.tool')) b.addEventListener('click', () => brushes.setTool(b.dataset.tool));
+    const size = () => {
+      brushes.radiusM = +$('brush-size').value;
+      $('brush-size-out').textContent = `${Math.round(brushes.radiusM).toLocaleString()} m`;
+    };
+    $('brush-size').addEventListener('input', size);
+    size();
+    sync('off');
+  }
+
   bindTooltips() {
     const tip = document.createElement('div');
     tip.id = 'tooltip';
@@ -244,6 +269,7 @@ export class Panel {
     const rate = c.precipRate_mm_per_day;
     let weather;
     if (cl.stormDaysLeft > 0) weather = 'Big storm!';
+    else if (c.drought && (fast || rate < 0.3)) weather = 'Drought';
     else if (fast) weather = 'Weather averaged';
     else if (rate < 0.3) weather = season.name === 'Summer' && tLow > 22 ? 'Hot and dry' : 'Clear';
     else {
@@ -255,6 +281,7 @@ export class Panel {
     $('hud-weather').textContent = weather;
     const f = (t) => `${t >= 0 ? '' : '−'}${Math.abs(Math.round(t))} °C`;
     $('hud-temps').textContent = `Valley ${f(tLow)} · Peaks ${f(tHigh)} · ${Math.round(zLow).toLocaleString()}–${Math.round(zHigh).toLocaleString()} m above sea level`;
+    $('hud-events').textContent = sim.events ? sim.events.describe().join(' · ') : '';
     $('hud-lapse').textContent = sim.running ? 'Fast-forwarding...'
       : fast ? `Time-lapse: each second is about ${speedText(sim.speed).replace(' / second', '')}; seasons shown at about 1 year per 4 s` : '';
   }
@@ -275,6 +302,8 @@ export class Panel {
       ['Rain & snow that fell', fmtVol(t.cumPrecip_m3)],
       ['Flowed off the map', fmtVol(t.cumOutflow_m3)],
       ['Evaporated or used by plants', fmtVol(t.cumEvapLoss_m3)],
+      ['Ground covered by plants', `${Math.round(100 * (t.vegCoveredFrac ?? 0))}% (average cover ${Math.round(100 * (t.meanVeg ?? 0))}%)`],
+      ['Recently burned', `${(100 * (t.burnedFrac ?? 0)).toFixed(1)}% of the map`],
       ['Water books balance', `<span class="${ok ? 'good' : 'bad'}">${t.hasNaN ? 'ERROR (NaN)' : err < 0.001 ? 'yes, exact' : `off by ${err.toFixed(3)}%`}</span>`],
       'sep',
       ['Rock & soil carried away', fmtVol(Math.max(0, lost))],

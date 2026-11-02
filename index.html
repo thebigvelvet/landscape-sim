@@ -15,6 +15,7 @@
     <div id="hud-sub"><span id="hud-season" class="chip">Mid autumn</span><span id="hud-weather" class="chip">Clear</span></div>
     <div id="hud-temps"></div>
     <div id="hud-lapse"></div>
+    <div id="hud-events"></div>
   </div>
 
   <!-- Time-lapse bar -->
@@ -68,6 +69,22 @@
         <input id="erosion" type="range" min="-1.5" max="2" step="0.05" value="0" /><output id="erosion-out">normal</output>
       </label>
       <button id="storm" class="ghost">Send a big storm (3 days) <span class="tip" data-tip="Drops three days of very heavy rain or snow, about twelve times the usual amount. Watch streams flood, carry mud and cut into their beds.">?</span></button>
+    </section>
+
+    <section>
+      <h2>Paint weather on the map <span class="tip" data-tip="Pick a tool, then click on the land. Storm and Flood: hold the button and drag to steer them. Wildfire: drag to light a line of fire. Right-drag still slides the view and scrolling still zooms. Press Esc or pick Look around to turn the view with the left button again.">?</span></h2>
+      <div id="tools" class="tools">
+        <button data-tool="off" class="tool active">Look around<span class="tip" data-tip="The left mouse button turns the view (no painting).">?</span></button>
+        <button data-tool="storm" class="tool t-storm">Storm<span class="tip" data-tip="A cloudburst over the circle for 3 days: many times the usual rain, or heavy snow where it is below freezing. Watch gullies run and streams flood. Drag to steer it.">?</span></button>
+        <button data-tool="drought" class="tool t-drought">Drought<span class="tip" data-tip="A 5-year drought over the whole map (real droughts cover whole regions). Rain and snow drop to 30 % and the air is thirstier. The ground dries out, streams shrink, and plants turn brown and die back, then slowly recover.">?</span></button>
+        <button data-tool="flood" class="tool t-flood">Flood<span class="tip" data-tip="A 100-year flood: a huge surge of water (150 cubic metres per second for 12 hours, about 3 million cubic metres) pours into the spot you click, like a flood wave arriving from upstream. Click a valley and watch it race downhill. Drag to move where it enters.">?</span></button>
+        <button data-tool="wildfire" class="tool t-fire">Wildfire<span class="tip" data-tip="Burns the plants in the circle. The fire spreads by itself through dry, thick vegetation and uphill, and stops at wet valleys, bare rock and sparse desert. Burned ground soaks up less rain and washes away easily, so the next storms cut gullies and send mud downhill until plants grow back (years to decades).">?</span></button>
+      </div>
+      <label class="slider">
+        <span>Brush size <span class="tip" data-tip="Radius of the circle the tool paints. The ring under the mouse shows it on the land.">?</span></span>
+        <input id="brush-size" type="range" min="50" max="2000" step="25" value="400" /><output id="brush-size-out">400 m</output>
+      </label>
+      <p class="hint" id="tool-hint">Pick a tool, then click on the land.</p>
     </section>
 
     <section>

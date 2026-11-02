@@ -34,7 +34,10 @@ protocol.registerSchemesAsPrivileged([
   { scheme: 'app', privileges: { standard: true, secure: true, supportFetchAPI: true, corsEnabled: true, stream: true } },
 ]);
 
-if (!app.requestSingleInstanceLock()) { app.quit(); }
+// Scripted runs (self-test / eval) get their own profile folder and skip the single-instance lock,
+// so a test can run while the desktop app (or another test) is open.
+if (SCRIPTED) app.setPath('userData', path.join(require('os').tmpdir(), `landscape-sim-test-${process.pid}`));
+else if (!app.requestSingleInstanceLock()) { app.quit(); }
 
 let win = null;
 app.on('second-instance', () => { if (win) { if (win.isMinimized()) win.restore(); win.focus(); } });
@@ -99,6 +102,11 @@ function runScript(body, out) {
       res.electron = process.versions.electron; res.chrome = process.versions.chrome;
     }
     fs.writeFileSync(out, JSON.stringify(res, null, 2));
+    // test suites return { report: ['PASS ...', 'FAIL ...'], ... }: print it and set the exit code
+    if (res && Array.isArray(res.report)) {
+      for (const line of res.report) console.log(line);
+      if (res.report.some((l) => /^FAIL/.test(l)) || res.error) process.exitCode = 1;
+    } else if (res && res.error) { console.log('ERROR', res.error); process.exitCode = 1; }
     const shot = args.find((a) => a.startsWith('--shot='));
     if (shot) {
       // capture what is on screen now; the script can leave the view set up (overlay, camera)
@@ -107,7 +115,7 @@ function runScript(body, out) {
       fs.writeFileSync(shot.slice(7), img.toPNG());
     }
     console.log('result written to', out);
-    app.quit();
+    app.exit(process.exitCode || 0);
   });
 }
 

@@ -8,7 +8,8 @@ import { OrbitCamera } from './camera.js';
 import { PRESETS } from '../sim/climate.js';
 
 // Overlay names, in the order of the shader's overlay modes (0 = natural view).
-export const OVERLAYS = ['none', 'water', 'sediment', 'snow', 'frost', 'change', 'groundwater'];
+export const OVERLAYS = ['none', 'water', 'sediment', 'snow', 'frost', 'change', 'groundwater', 'plants'];
+const UFLOATS = 108;   // must match struct R in shaders.js
 
 const SAMPLES = 4;
 const WEATHER_VISIBLE_SPEED = 36;   // days/s; above this rain particles and clouds are averaged out
@@ -31,8 +32,9 @@ export class Renderer {
     this.format = format;
     this.ctx.configure({ device, format, alphaMode: 'opaque' });
     this.camera = new OrbitCamera(canvas);
-    this.ub = device.createBuffer({ size: 84 * 4, usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST });
-    this.u = new Float32Array(84);
+    this.ub = device.createBuffer({ size: UFLOATS * 4, usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST });
+    this.u = new Float32Array(UFLOATS);
+    this.brush = null;          // { x, y, r (grid cells), tool 1..4 } or null
     this.mode = 0;
     this.vex = 1.25;
     this.haze = 0.12;
@@ -218,6 +220,13 @@ export class Renderer {
     u.set([...lin(pal.veg), this.cloud], 72);
     u.set([...lin(pal.sand), this.precipVis], 76);
     u.set([this.snowVis, extent, tr.min, this.contours ? 1 : 0], 80);
+    const b = this.brush;
+    u.set(b ? [b.x, b.y, b.r, b.tool] : [0, 0, 0, 0], 84);
+    const evs = (sim.events?.list || []).filter((e) => e.type !== 2).slice(-4);
+    for (let k = 0; k < 4; k++) { const e = evs[k]; u.set(e ? [e.x, e.y, e.r, e.type] : [0, 0, 0, 0], 88 + k * 4); }
+    u.set([evs.length, sim.events?.drought ? 1 : 0, 0, 0], 104);
+    // keep the matrices of the frame on screen for pixel-accurate picking
+    this.lastViewProj = viewProj; this.lastInvViewProj = invViewProj;
     this.device.queue.writeBuffer(this.ub, 0, u);
 
     if (this.frameCount % 2 === 0 || this.lightDirty) {

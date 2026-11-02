@@ -25,14 +25,16 @@ export const WATER_PARAMS = {
 
 export const WATER_VERTICAL_WGSL = /* wgsl */`
 // infiltration (capacity limited, frozen ground blocks it), ET from the shallow store, baseflow.
-// returns (newGroundwater, runoff, evapotranspiration)
-fn soilStep(gw : f32, liquid : f32, T : f32, frozen : f32, dt : f32) -> vec3<f32> {
-  let space = max(P.gwMax - gw, 0.0);
-  let infil = min(liquid, min(P.ksat * dt * (1.0 - 0.92 * frozen), space));
+// cap: the cell's groundwater capacity (soil depth), kMul: infiltration multiplier (plants raise
+// it, fresh burn scars lower it), etF: evapotranspiration factor (bare-soil evaporation plus plant
+// transpiration). returns (newGroundwater, runoff, evapotranspiration)
+fn soilStep(gw : f32, liquid : f32, T : f32, frozen : f32, dt : f32, cap : f32, kMul : f32, etF : f32) -> vec3<f32> {
+  let space = max(cap - gw, 0.0);
+  let infil = min(liquid, min(P.ksat * kMul * dt * (1.0 - 0.92 * frozen), space));
   var g = gw + infil;
   var runoff = liquid - infil;
-  let pet = max(0.0, 0.00018 * (T + 3.0)) * P.etMul * dt;            // ~5 mm/day at 25 degC
-  let et = min(g, pet * clamp(g / (0.6 * P.gwMax), 0.0, 1.0));
+  let pet = max(0.0, 0.00018 * (T + 3.0)) * P.etMul * etF * dt;      // ~5 mm/day at 25 degC
+  let et = min(g, pet * clamp(g / (0.6 * cap), 0.0, 1.0));
   g = g - et;
   let base = g * (1.0 - exp(-P.kBase * dt)) * (1.0 - 0.8 * frozen);
   g = g - base;
