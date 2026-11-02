@@ -4,12 +4,16 @@ import { OVERLAYS, showLegend } from './legend.js';
 
 const $ = (id) => document.getElementById(id);
 const SPEED_MAX = 365000;
+const SPEED_MIN = 0.01;   // ~15 minutes per second: slow motion for floods
 const WEATHER_VISIBLE_SPEED = 36;
 
-export function speedToSlider(s) { return Math.round((Math.log10(Math.max(1, s)) / Math.log10(SPEED_MAX)) * 1000); }
-export function sliderToSpeed(v) { return Math.pow(10, (v / 1000) * Math.log10(SPEED_MAX)); }
+const LMIN = Math.log10(SPEED_MIN), LMAX = Math.log10(SPEED_MAX);
+export function speedToSlider(s) { return Math.round(((Math.log10(Math.max(SPEED_MIN, s)) - LMIN) / (LMAX - LMIN)) * 1000); }
+export function sliderToSpeed(v) { return Math.pow(10, LMIN + (v / 1000) * (LMAX - LMIN)); }
 
 export function speedText(s) {
+  if (s < 0.04) return `${Math.max(5, Math.round((s * 1440) / 5) * 5)} minutes / second (slow motion)`;
+  if (s < 0.8) { const h = Math.round(s * 24); return `${h} hour${h === 1 ? '' : 's'} / second (slow motion)`; }
   if (s < 1.5) return '1 day / second';
   if (s < 30) return `${Math.round(s)} days / second`;
   if (s < 365) { const m = s / 30.4; return `${m < 1.5 ? 1 : Math.round(m)} month${m < 1.5 ? '' : 's'} / second`; }
@@ -145,6 +149,7 @@ export class Panel {
     });
     $('contours').addEventListener('change', () => { app.renderer.contours = $('contours').checked; });
     $('spin').addEventListener('change', () => { app.renderer.camera.autoRotate = $('spin').checked; });
+    $('trees').addEventListener('change', () => { app.renderer.showTrees = $('trees').checked; });
     $('dice').addEventListener('click', () => {
       $('seed').value = 1 + Math.floor(Math.random() * 99999);
       $('scenario').value = 'random';
@@ -153,6 +158,10 @@ export class Panel {
     $('generate').addEventListener('click', () => this.generate());
     $('speed').addEventListener('input', () => app.setSpeed(sliderToSpeed(+$('speed').value)));
     for (const t of document.querySelectorAll('.ticks span')) {
+      // place each label exactly under its speed on the (logarithmic) slider
+      const pct = speedToSlider(+t.dataset.speed) / 10;
+      t.style.left = `${pct}%`;
+      t.style.transform = pct < 3 ? 'none' : pct > 97 ? 'translateX(-100%)' : 'translateX(-50%)';
       t.addEventListener('click', () => app.setSpeed(+t.dataset.speed));
     }
     $('play').addEventListener('click', () => (sim.paused ? app.play() : app.pause()));
@@ -243,7 +252,12 @@ export class Panel {
     const tLow = cl.airTempAt(c.dayOfYear, zLow), tHigh = cl.airTempAt(c.dayOfYear, zHigh);
     const rate = c.precipRate_mm_per_day;
     let weather;
-    if (cl.stormDaysLeft > 0) weather = 'Big storm!';
+    const ev = sim.events;
+    if (ev.floods.length) weather = 'Flood wave coming down!';
+    else if (ev.storms.length) weather = 'Cloudburst on the map';
+    else if (ev.drought) weather = `Drought (${Math.max(0.1, ev.drought.left / 365).toFixed(1)} years left)`;
+    else if (ev.fireWeather > 0.05) weather = 'Wildfire burning';
+    else if (cl.stormDaysLeft > 0) weather = 'Big storm!';
     else if (fast) weather = 'Weather averaged';
     else if (rate < 0.3) weather = season.name === 'Summer' && tLow > 22 ? 'Hot and dry' : 'Clear';
     else {
@@ -276,6 +290,9 @@ export class Panel {
       ['Flowed off the map', fmtVol(t.cumOutflow_m3)],
       ['Evaporated or used by plants', fmtVol(t.cumEvapLoss_m3)],
       ['Water books balance', `<span class="${ok ? 'good' : 'bad'}">${t.hasNaN ? 'ERROR (NaN)' : err < 0.001 ? 'yes, exact' : `off by ${err.toFixed(3)}%`}</span>`],
+      'sep',
+      ['Ground covered by plants', `${Math.round(100 * (t.vegCoveredFrac ?? 0))}%`],
+      ['Recently burned', `${(100 * (t.burnedFrac ?? 0)).toFixed(1)}%`],
       'sep',
       ['Rock & soil carried away', fmtVol(Math.max(0, lost))],
       ['Highest point', `${Math.round(t.maxHeight).toLocaleString()} m`],

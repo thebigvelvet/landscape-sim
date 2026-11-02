@@ -1,0 +1,27 @@
+{
+  "preset": "Temperate",
+  "day": 11150.240058332984,
+  "meanVeg": 0.9791522328741848,
+  "vegCoveredFrac": 0.9989814758300781,
+  "woody": 0.9233543430455029,
+  "burnedFrac": 0,
+  "bal": 1.795405723335085e-7,
+  "nan": false,
+  "gpuErrors": 0,
+  "fps": 59.94711568948916,
+  "extra": {
+    "type": "flood",
+    "x": 256,
+    "y": 430,
+    "r": 14,
+    "intensity": 1,
+    "days": 0.5,
+    "id": 1,
+    "t0": 11638.90000000596,
+    "volume": 3240000,
+    "peak": 150
+  },
+  "gpuFeatureStatusWebGPU": "enabled",
+  "electron": "45.2.1",
+  "chrome": "156.0.8078.75"
+}

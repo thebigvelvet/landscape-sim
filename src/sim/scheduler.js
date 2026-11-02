@@ -26,6 +26,9 @@ import freezethaw, { FREEZETHAW_PARAMS } from './freezethaw.js';
 import climateModule from './climate.js';
 import { column } from './column.js';
 import { groundwater, GROUNDWATER_PARAMS } from './groundwater.js';
+import { vegetation } from './vegetation.js';
+import { Events } from './events.js';
+import { gwCapacity } from './common.js';
 import { Stats } from './stats.js';
 
 export const A_CAP = 150;              // max routing intensity (x real-time runoff rate)
@@ -44,7 +47,8 @@ export class Simulation {
     this.nSub = 16;            // hydraulic sub-steps per frame (governor adjusts)
     this.maxSub = 64;
     this.world = null;
-    this.modules = [climateModule, snow, freezethaw, groundwater, water, erosion];
+    this.modules = [climateModule, snow, freezethaw, groundwater, water, erosion, vegetation];
+    this.events = new Events();
     this.day = 0;
     this.frame = 0;
     this.carry = 0;
@@ -79,6 +83,8 @@ export class Simulation {
       for (const m of [water, erosion]) m.init(this.device, this.world);
       column.init(this.device, this.world);
       groundwater.init(this.device, this.world);
+      vegetation.init(this.device, this.world);
+      this.events.init(this.device, this.world);
       this.statsK = new Stats(this.device, this.world);
       this.maxSub = N <= 256 ? 256 : N <= 512 ? 128 : 64;
       this.nSub = Math.min(this.nSub, this.maxSub);
@@ -87,7 +93,8 @@ export class Simulation {
     const { height, soil } = generateTerrain(scenario, { N, cellSize, seed, ruggedness: this.ruggedness, relief: this.relief, preErode: opts.preErode !== false });
     const bedrock = new Float32Array(N * N);
     for (let i = 0; i < N * N; i++) bedrock[i] = height[i] - soil[i];
-    const gw = new Float32Array(N * N).fill(0.3 * this.climate.preset.gwMax);
+    const gw = new Float32Array(N * N);
+    for (let i = 0; i < N * N; i++) gw[i] = 0.3 * gwCapacity(soil[i], this.climate.preset.gwMax);
     this.world.upload({ bedrock, soil, groundwater: gw, initHeight: height });
     this.datum = this.climate.preset.baseElevation;
     let mn = Infinity, mx = -Infinity, sum = 0;
@@ -97,17 +104,19 @@ export class Simulation {
     this.cum = { precip: 0, outflow: 0, evap: 0, sedOut: 0 };
     this.climate.stormDaysLeft = 0;
     this.climate.resetWeather(seed);
+    this.events.reset();
     this.world.params.set({ N, cellSize, cellArea: cellSize * cellSize, frame: 0, logSize: LOG_SIZE });
     this.world.params.upload();
+    if (opts.spinUp !== false) await this._spinUp();
     const s0 = await this._readback();
     this.stored0 = (s0.water + s0.snow + s0.groundwater) * this.world.cellSize ** 2;
     this.onLoaded?.();
     return { N, cellSize, scenario, seed };
   }
 
-  // ---- one batch: column -> nSub x (flux, update, erosion) -> thermal -> accumulate ----
-  _batch(Dcol, Deros, nSub, timed = false) {
-    const w = this.world, dx = w.cellSize, p = w.params;
+  // Uniform plan for one batch of Dcol climate days / Deros landscape days / nSub sub-steps.
+  _plan(Dcol, Deros, nSub) {
+    const w = this.world, dx = w.cellSize;
     const n = Math.max(2, nSub + (nSub & 1));
     // Fixed hydraulic step: 0.2 dx seconds (2 s at 10 m). Velocity is capped at 0.5 dx/dt and the
     // pipe depth at (0.5 dx/dt)^2/g, so both the advective and gravity-wave Courant numbers stay
@@ -125,12 +134,16 @@ export class Simulation {
     const nInner = Math.min(48, Math.max(1, Math.ceil(span / 1.0)));
     const zRef = this.datum + (this.terrainRange?.mean ?? 0);
     const yearsE = Deros / 365;
-    this.climate.advanceWeather(this.day, Dcol);
+    const cu = this.climate.uniforms(Dcol, zRef);
+    // painted drought: map-wide climate change for the part of the batch it covers (sim/events.js)
+    const dm = this.events.climateMods(Dcol);
+    cu.tSea += dm.dT; cu.pMean *= dm.pMul; cu.etMul *= dm.etMul;
+    const ev = this.events.uniforms(Dcol, n, fR, dx * dx);
     const plan = {
       N: w.N, frame: this.frame, logSize: LOG_SIZE, nSub: n,
       cellSize: dx, cellArea: dx * dx, dtH, g: WATER_PARAMS.g,
       aW, fR, morph, D: Dcol, dayStart, spanDays: span, yrs, nInner,
-      ...this.climate.uniforms(Dcol, zRef),
+      ...cu,
       ...SNOW_PARAMS, ...FREEZETHAW_PARAMS,
       kBase: WATER_PARAMS.kBase, eSurf: WATER_PARAMS.eSurf, kTrans: WATER_PARAMS.kTrans, hDry: WATER_PARAMS.hDry,
       manning: WATER_PARAMS.manning, datum: this.datum,
@@ -141,10 +154,50 @@ export class Simulation {
       thermalRate: 0.25 * Math.min(1, Deros / 0.25),
       creepFrac: Math.min(0.1, EROSION_PARAMS.creepK * this.erosionStrength * yearsE / (dx * dx)),
       rockRate: Math.min(0.4, EROSION_PARAMS.rockFallPerYear * yearsE),
+      vegInit: 0,
+      ...ev.fields,
     };
+    return { plan, n, A, tau, dm, fastFloodM3: ev.fastFloodM3 };
+  }
+
+  // Bring groundwater, snow, moisture memory and the plant cover close to equilibrium with the
+  // climate after a load, so a new landscape starts green where it should be. Runs the column and
+  // lateral groundwater over a few representative years with fR = 0 (nothing is routed), then sets
+  // the cover to its equilibrium. The water accounting starts afterwards (stored0 is read after).
+  async _spinUp() {
+    const p = this.world.params, dev = this.device;
+    const round = (vegInit) => {
+      const { plan } = this._plan(3 * 365, 0, 2);
+      Object.assign(plan, { fR: 0, aW: 0, morph: 1, vegInit, fireWeather: 0, frame: 0 });
+      p.set(plan); p.upload();
+      const enc = dev.createCommandEncoder({ label: 'spinup' });
+      const pass = enc.beginComputePass();
+      if (vegInit) vegetation.recordGrow(pass);
+      else { column.record(pass); groundwater.record(pass); column.record(pass); groundwater.record(pass); }
+      pass.end();
+      dev.queue.submit([enc.finish()]);
+    };
+    round(0); round(1); round(0); round(1);
+    // discard the spin-up fluxes; the water layer is untouched (fR = 0)
+    dev.queue.writeBuffer(this.world.buffers.acc, 0, new Float32Array(this.world.cells * 4));
+    await dev.queue.onSubmittedWorkDone();
+  }
+
+  // ---- one batch: column -> nSub x (flux, update, erosion) -> thermal -> plants -> accumulate ----
+  _batch(Dcol, Deros, nSub, timed = false) {
+    const p = this.world.params;
+    const zRef = this.datum + (this.terrainRange?.mean ?? 0);
+    this.climate.advanceWeather(this.day, Dcol);
+    const { plan, n, A, tau, dm, fastFloodM3 } = this._plan(Dcol, Deros, nSub);
     p.set(plan);
     p.upload();
+    // flood water the routed solver cannot carry this batch: logged as precipitation and as fast
+    // outflow in float64 on the CPU (the two cancel exactly in the balance)
+    if (fastFloodM3 > 0) { this.cum.precip += fastFloodM3; this.cum.outflow += fastFloodM3; }
     const climateObj = this.climate.produce((this.day + Dcol) % 365, zRef, Dcol);
+    climateObj.precipRate_mm_per_day *= dm.pMul;
+    climateObj.airTempSeaLevel += dm.dT; climateObj.airTempAtRef += dm.dT;
+    climateObj.drought = !!this.events.drought;
     climateObj.plan = plan;
     const enc = this.device.createCommandEncoder({ label: 'sim' });
     const pass = enc.beginComputePass({ label: 'sim', timestampWrites: timed ? this.timer?.simPassTimestamps() : undefined });
@@ -152,15 +205,23 @@ export class Simulation {
     groundwater.record(pass);
     water.record(pass, n);
     erosion.recordThermal(pass);
+    vegetation.record(pass);
     this.statsK.recordAccumulate(pass);
     pass.end();
     this.device.queue.submit([enc.finish()]);
     this.climate.consume(Dcol);
+    this.events.consume(Dcol);
     this.day += Dcol;
     this.frame++;
     this.lastPlan = { ...plan, A, tau, Deros, climate: climateObj };
     this.lastClimate = climateObj;
     return n;
+  }
+
+  // Paint a weather event (brush). type: storm | drought | flood | wildfire; x, y in grid cells.
+  brush(type, opts = {}) {
+    if (!this.world) throw new Error('load() first');
+    return this.events.add(type, opts, { vegetation });
   }
 
   // Interactive frame. realDt in seconds. Returns sub-steps run (0 if paused).
@@ -182,7 +243,10 @@ export class Simulation {
       Dcol = target + this.carry; this.carry = 0; this.strobe = false;
     }
     if (Dcol <= 0) return 0;
-    const n = this._batch(Dcol, target, this.nSub, true);
+    // Slow motion (below ~1 day/s): never simulate more hydraulic seconds than clock seconds, so
+    // water moves at its real speed and a flood wave can be watched travelling down the valley.
+    const nClock = Math.max(2, 2 * Math.floor((Dcol * 86400) / (0.2 * this.world.cellSize) / 2));
+    const n = this._batch(Dcol, target, Math.min(this.nSub, nClock), true);
     if (this.frame % 30 === 0) this._readback();
     return n;
   }
@@ -258,6 +322,7 @@ export class Simulation {
     const c = this.cum;
     const err = c.precip - (stored - this.stored0) - c.outflow - c.evap;
     const solidsErr = s.solidsChange * A + c.sedOut;   // should be ~0: solids only leave via the boundary
+    const cells = this.world.cells;
     return {
       day: this.day, year: this.day / 365,
       totalWater_m3: s.water * A, totalSediment_m3: s.sediment * A, totalSoil_m3: s.soil * A,
@@ -270,6 +335,8 @@ export class Simulation {
       hasNaN: s.nan > 0, nanCells: s.nan, fps: this.fps,
       N: this.world.N, cellSize: this.world.cellSize, substepsPerFrame: this.nSub,
       dtH: this.lastPlan.dtH, morph: this.lastPlan.morph, routingIntensity: this.lastPlan.aW,
+      meanVeg: s.vegSum / cells, vegCoveredFrac: s.vegCovered / cells, burnedFrac: s.burned / cells,
+      meanWoodyCover: s.woodySum / cells,
     };
   }
 }

@@ -39,6 +39,30 @@ ${COMMON_WGSL}
 @group(0) @binding(5) var<storage, read_write> sediment : array<f32>;
 @group(0) @binding(6) var<storage, read_write> soil : array<f32>;
 @group(0) @binding(7) var<storage, read_write> bedrock : array<f32>;
+@group(0) @binding(8) var<storage, read> veg : array<f32>;
+@group(0) @binding(9) var<storage, read> burn : array<f32>;
+
+// Plants hold the ground: pickup x0.12 under full cover. A fresh burn scar (loose ash, dead roots,
+// water-repellent soil) erodes up to 7x faster than bare unburned ground.
+fn erodibility(i : u32) -> f32 {
+  let v = clamp(veg[i], 0.0, 1.0);
+  return mix(1.0, 0.12, v) * (1.0 + 6.0 * clamp(burn[i], 0.0, 1.0));
+}
+// Combined build: on a fresh burn, flow that gathers into rills and channels bulks up with ash, dead
+// roots and loose soil into debris flows that scour their beds (Cannon et al. 2001; Moody et al.
+// 2013). Extra capacity grows with the burn severity and the depth of the concentrated flow.
+fn debrisMul(i : u32, h : f32) -> f32 {
+  return 1.0 + 20.0 * clamp(burn[i], 0.0, 1.0) * smoothstep(0.005, 0.08, h);
+}
+// Plants also slow the water at the bed (stems, litter: rougher ground), so vegetated sheet flow
+// carries less (x0.35) and drops its load: grassy slopes and riparian strips trap sediment.
+// A fresh burn scar is covered in loose ash and dry ravel that even millimetre-deep sheetwash
+// picks up (up to 9x the capacity, and the thin-flow limiter relaxes, see below): this is what
+// makes post-fire rilling and debris flows when the first storms hit.
+fn capacityMul(i : u32) -> f32 {
+  let v = clamp(veg[i], 0.0, 1.0);
+  return mix(1.0, 0.35, v) * (1.0 + 8.0 * clamp(burn[i], 0.0, 1.0));
+}
 
 @compute @workgroup_size(16, 16)
 fn main(@builtin(global_invocation_id) gid : vec3<u32>) {
@@ -56,13 +80,14 @@ fn main(@builtin(global_invocation_id) gid : vec3<u32>) {
   let sp = length(vec2<f32>(velX[i], velY[i]));
   let sRaw = slope[i];
   let S = max(sRaw, P.minSlope);
-  let lim = smoothstep(0.0005, 0.03, h);          // thin sheet flow carries little
+  // thin sheet flow carries little - except loose ash on a fresh burn scar
+  let lim = mix(smoothstep(0.0005, 0.03, h), smoothstep(0.0001, 0.004, h), clamp(burn[i], 0.0, 1.0));
   let conc = min(P.kc * sp * S, 0.25);
-  let C = conc * min(h, 1.5) * lim * P.morph;     // bed-equivalent capacity (m)
+  let C = conc * min(h, 1.5) * lim * P.morph * capacityMul(i) * debrisMul(i, h);     // bed-equivalent capacity (m)
   if (C > s) {
     // local-relief limit: a sub-step can never dig a cell more than ~half the drop to its
     // downhill neighbour, so pits cannot self-deepen (second half of the morphological CFL)
-    let e = min(min(min(P.ks * P.dtH, 0.5) * (C - s), P.dzMax), 0.5 * sRaw * P.cellSize);
+    let e = min(min(min(P.ks * P.dtH * erodibility(i), 0.5) * (C - s), P.dzMax), 0.5 * sRaw * P.cellSize);
     let fromSoil = min(e, so);
     let rest = e - fromSoil;
     var br = bedrock[i];
@@ -89,11 +114,14 @@ ${COMMON_WGSL}
 @group(0) @binding(1) var<storage, read> bedrock : array<f32>;
 @group(0) @binding(2) var<storage, read> soil : array<f32>;
 @group(0) @binding(3) var<storage, read_write> delta : array<vec2<f32>>;
+@group(0) @binding(4) var<storage, read> veg : array<f32>;
 
-fn pairFlux(dz : f32, dist : f32, donorSoil : f32) -> f32 {
+// vm: mean plant cover of the pair (symmetric, so the gather stays exactly conservative).
+// Roots slow soil creep by up to 60% and stiffen loose slopes against slumping by up to 30%.
+fn pairFlux(dz : f32, dist : f32, donorSoil : f32, vm : f32) -> f32 {
   let excess = dz - P.talusTan * dist;
   let r = P.cellSize / dist;
-  var F = 0.5 * P.thermalRate * max(excess, 0.0) + P.creepFrac * r * r * dz;
+  var F = 0.5 * P.thermalRate * max(excess, 0.0) * (1.0 - 0.3 * vm) + P.creepFrac * r * r * dz * (1.0 - 0.6 * vm);
   F = min(F, 0.12 * dz);
   return min(F, donorSoil / 8.5);
 }
@@ -106,6 +134,7 @@ fn main(@builtin(global_invocation_id) gid : vec3<u32>) {
   let i = idx(x, y);
   let so = soil[i];
   let z = bedrock[i] + so;
+  let v0 = clamp(veg[i], 0.0, 1.0);
   var net = 0.0;
   var rockEx = 0.0;
   for (var dy = -1; dy <= 1; dy++) {
@@ -117,11 +146,12 @@ fn main(@builtin(global_invocation_id) gid : vec3<u32>) {
       let sn = soil[j];
       let dz = z - (bedrock[j] + sn);
       let dist = P.cellSize * select(1.0, 1.41421356, dx != 0 && dy != 0);
+      let vm = 0.5 * (v0 + clamp(veg[j], 0.0, 1.0));
       if (dz > 0.0) {
-        net -= pairFlux(dz, dist, so);
+        net -= pairFlux(dz, dist, so, vm);
         rockEx = max(rockEx, dz - P.rockTan * dist);
       } else if (dz < 0.0) {
-        net += pairFlux(-dz, dist, sn);
+        net += pairFlux(-dz, dist, sn, vm);
       }
     }
   }
@@ -160,12 +190,12 @@ class ErosionModule {
   init(device, world) {
     this.device = device; this.world = world;
     const B = world.buffers, prm = world.params.buffer;
-    this.kx = makeKernel(device, 'erosion.exchange', EXCHANGE_WGSL, ['r', 'r', 'r', 'r', 'rw', 'rw', 'rw']);
-    this.kg = makeKernel(device, 'erosion.thermalGather', THERMAL_GATHER_WGSL, ['r', 'r', 'rw']);
+    this.kx = makeKernel(device, 'erosion.exchange', EXCHANGE_WGSL, ['r', 'r', 'r', 'r', 'rw', 'rw', 'rw', 'r', 'r']);
+    this.kg = makeKernel(device, 'erosion.thermalGather', THERMAL_GATHER_WGSL, ['r', 'r', 'rw', 'r']);
     this.ka = makeKernel(device, 'erosion.thermalApply', THERMAL_APPLY_WGSL, ['rw', 'rw', 'r']);
     const W = [B.water, B.water2], S = [B.sediment, B.sediment2];
-    this.xBG = [0, 1].map((p) => this.kx.bind(prm, [W[p], B.velX, B.velY, B.slope, S[p], B.soil, B.bedrock]));
-    this.gBG = this.kg.bind(prm, [B.bedrock, B.soil, B.thermalDelta]);
+    this.xBG = [0, 1].map((p) => this.kx.bind(prm, [W[p], B.velX, B.velY, B.slope, S[p], B.soil, B.bedrock, B.veg, B.burn]));
+    this.gBG = this.kg.bind(prm, [B.bedrock, B.soil, B.thermalDelta, B.veg]);
     this.aBG = this.ka.bind(prm, [B.bedrock, B.soil, B.thermalDelta]);
     // register the per-sub-step exchange with the water module's hydraulic loop
     const hooks = world.substepHooks || (world.substepHooks = []);

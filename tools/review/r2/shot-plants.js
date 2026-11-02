@@ -1,0 +1,1 @@
+(async () => { const S = window.sim; S.pause(); await S.load('random', { size: 512, seed: 7, preset: 'Colorado alpine' }); S.pause(); await S.run(365 * 100 + 195); S.pause(); await new Promise(r => setTimeout(r, 2500)); return 'ok'; })()

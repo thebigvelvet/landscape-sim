@@ -87,6 +87,7 @@ export class OrbitCamera {
     let drag = null;
     c.addEventListener('contextmenu', (e) => e.preventDefault());
     c.addEventListener('pointerdown', (e) => {
+      if (this.blockLeft?.(e)) return;       // a brush tool owns the left button (src/ui/brush.js)
       drag = { x: e.clientX, y: e.clientY, pan: e.button === 2 || e.button === 1 || e.shiftKey };
       c.setPointerCapture(e.pointerId);
       this.autoRotate = false;

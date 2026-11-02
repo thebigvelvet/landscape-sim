@@ -1,0 +1,25 @@
+{
+  "preset": "Temperate",
+  "day": 12428.568499999732,
+  "meanVeg": 0.22760444559389725,
+  "vegCoveredFrac": 0.18864059448242188,
+  "woody": 0.11116474508889951,
+  "burnedFrac": 0,
+  "bal": 6.174051035967303e-7,
+  "nan": false,
+  "gpuErrors": 0,
+  "fps": 59.964840802794846,
+  "extra": {
+    "type": "drought",
+    "x": 256,
+    "y": 256,
+    "r": 1,
+    "intensity": 1,
+    "days": 1825,
+    "id": 1,
+    "t0": 11200.300000011921
+  },
+  "gpuFeatureStatusWebGPU": "enabled",
+  "electron": "45.2.1",
+  "chrome": "156.0.8078.75"
+}
