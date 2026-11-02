@@ -5,6 +5,62 @@ second. All of the simulation runs on the graphics card (WebGPU compute shaders)
 
 **To run it, double-click `start.bat`** (or the "Landscape Time-Lapse" shortcut on the desktop).
 
+## Round 3: shaping the land, and avalanches
+
+Built directly (no competing builds). Real Colorado/Utah terrain was dropped from this round.
+
+**What you can do now**
+- **Shape the land** (new panel section, keys Q W E R T): pick a tool, then hold and drag on the
+  land. It works while time runs or while paused, and it uses the same size and strength sliders
+  as the weather tools.
+  - **Raise** and **Lower** push the ground up or dig it down.
+  - **Smooth** softens peaks, cliffs and pits.
+  - **Flatten** levels the ground to the height of the spot you first pressed.
+  - **Channel** cuts a riverbed along the line you drag. The bed follows the ground as it was when
+    the stroke began, so going over a spot twice does not dig deeper.
+- **Undo** (button or Ctrl+Z) takes back the last stroke, up to 20 strokes. It removes only the
+  shaping, so any erosion that happened since then is kept.
+- **Avalanches**: snow slides off slopes where the snow surface is steeper than about 38° and
+  piles up at the foot. Steep faces and ridges show bare rock in winter, with the snow gathered in
+  the gullies. Where a lot of snow keeps running through, trees are knocked down.
+
+**How it works** (`src/sim/sculpt.js`, `src/sim/snow.js`)
+- Every shaping change also moves `initHeight`, the reference the erosion map, the solids books and
+  the map-edge base level all measure from. Three things follow:
+  - the erosion map shows only what nature did;
+  - the solids still balance;
+  - a dam raised on the edge of the map raises that edge's outlet too.
+- Only shaping writes `initHeight`, so a stroke's change is exactly "after minus before", which is
+  what undo puts back.
+- Raised ground is new rock under the existing soil. Plants on it are buried, as by a landslide,
+  and grow back.
+- Avalanches use the same race-free, exactly conserving scheme as the talus slides: four passes
+  per time step, after erosion. Snow is only moved, never made or lost, so the water books do not
+  change.
+
+**Checks** (RTX 4060 Ti)
+- `node scripts/launch.cjs --eval=tests/round3.js` passes 7/7:
+  - raise and lower are exact at the centre and change nothing outside the ring;
+  - the erosion map does not show sculpting;
+  - solids stay balanced through a year of weather;
+  - undo restores the reference heights exactly and keeps the erosion;
+  - flatten and smooth work;
+  - a carved channel carries about 1,000 times more storm water than the ground beside it;
+  - avalanches halve the snow on cliffs and add 26 % to the ground below them;
+  - 150 strokes while running at 1000 yr/s cause no NaN and no GPU errors.
+- `tests/ui-sculpt.js` drives the tools with real mouse events and the Undo button: 7/7.
+- `tests/round2.js` passes 10/10. One run showed a 42 % water-balance error in the
+  "storm at 1 day/s" case. It did not reappear in two reruns or in a direct probe of the same case,
+  with avalanches on or off. It looks like the same intermittent fault as the 0.23 % reading noted
+  below, and is worth hunting down on its own.
+- `--selftest`: water balance 1e-6 % over 1000 years, 60 fps.
+- Pictures:
+  - `tests/shot-r3-dam.png`: a ridge raised across a valley, then a flood fills the lake behind it;
+  - `tests/shot-r3-channel.png`: a spiral channel down a cone;
+  - `tests/shot-r3-avalanche.png` and `-off.png`: Colorado alpine after 50 years, in March, with
+    and without avalanches;
+  - `tests/shot-r3-ui.png`: the panel.
+
 ## Round 2 (combined): what came from where
 
 Round 2 had three competing builds (branches `r2-ecologist`, `r2-showman`, `r2-engineer`). This

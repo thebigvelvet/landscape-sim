@@ -13,7 +13,7 @@ import { PRESETS } from '../sim/climate.js';
 
 // Overlay names, in the order of the shader's overlay modes (0 = natural view).
 export const OVERLAYS = ['none', 'water', 'sediment', 'snow', 'frost', 'change', 'groundwater', 'plants'];
-export const TOOL_IDS = { none: 0, storm: 1, drought: 2, flood: 3, wildfire: 4 };
+export const TOOL_IDS = { none: 0, storm: 1, drought: 2, flood: 3, wildfire: 4, raise: 5, lower: 5, smooth: 5, flatten: 5, channel: 5 };
 const UB_FLOATS = 156;
 
 const SAMPLES = 4;

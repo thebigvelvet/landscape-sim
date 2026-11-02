@@ -1,0 +1,9 @@
+[
+  "PASS Q selects Raise",
+  "PASS dragging and holding raised the ground - 15.8 m at (308, 286)",
+  "PASS Undo button enabled",
+  "PASS Undo button put the ground back - 0.0e+0 m",
+  "PASS Undo button disabled again",
+  "PASS T selects Channel, help text shown",
+  "PASS no GPU errors - 0"
+]

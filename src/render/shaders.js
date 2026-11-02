@@ -78,7 +78,8 @@ fn toolColor(t: f32) -> vec3f {
   if (t < 1.5) { return vec3f(0.35, 0.70, 1.0); }      // storm: blue
   if (t < 2.5) { return vec3f(1.0, 0.72, 0.25); }      // drought: amber
   if (t < 3.5) { return vec3f(0.20, 0.95, 0.95); }     // flood: cyan
-  return vec3f(1.0, 0.38, 0.12);                       // fire: orange
+  if (t < 4.5) { return vec3f(1.0, 0.38, 0.12); }      // fire: orange
+  return vec3f(0.95, 0.95, 0.88);                      // sculpt tools: chalk white
 }
 // Voronoi edge distance (cracked mud)
 fn crackDist(p: vec2f) -> f32 {

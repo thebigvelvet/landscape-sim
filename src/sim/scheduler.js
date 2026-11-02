@@ -21,13 +21,14 @@ import { Climate } from './climate.js';
 import { generateTerrain } from '../terrain.js';
 import water, { WATER_PARAMS } from './water.js';
 import erosion, { EROSION_PARAMS } from './erosion.js';
-import snow, { SNOW_PARAMS } from './snow.js';
+import snow, { SNOW_PARAMS, avalanche } from './snow.js';
 import freezethaw, { FREEZETHAW_PARAMS } from './freezethaw.js';
 import climateModule from './climate.js';
 import { column } from './column.js';
 import { groundwater, GROUNDWATER_PARAMS } from './groundwater.js';
 import { vegetation } from './vegetation.js';
 import { Events } from './events.js';
+import { sculptor } from './sculpt.js';
 import { gwCapacity } from './common.js';
 import { Stats } from './stats.js';
 
@@ -84,7 +85,9 @@ export class Simulation {
       column.init(this.device, this.world);
       groundwater.init(this.device, this.world);
       vegetation.init(this.device, this.world);
+      avalanche.init(this.device, this.world);
       this.events.init(this.device, this.world);
+      sculptor.init(this.device, this.world);
       this.statsK = new Stats(this.device, this.world);
       this.maxSub = N <= 256 ? 256 : N <= 512 ? 128 : 64;
       this.nSub = Math.min(this.nSub, this.maxSub);
@@ -105,6 +108,7 @@ export class Simulation {
     this.climate.stormDaysLeft = 0;
     this.climate.resetWeather(seed);
     this.events.reset();
+    sculptor.reset();
     this.world.params.set({ N, cellSize, cellArea: cellSize * cellSize, frame: 0, logSize: LOG_SIZE });
     this.world.params.upload();
     if (opts.spinUp !== false) await this._spinUp();
@@ -205,6 +209,7 @@ export class Simulation {
     groundwater.record(pass);
     water.record(pass, n);
     erosion.recordThermal(pass);
+    avalanche.record(pass);
     vegetation.record(pass);
     this.statsK.recordAccumulate(pass);
     pass.end();
@@ -223,6 +228,30 @@ export class Simulation {
     if (!this.world) throw new Error('load() first');
     return this.events.add(type, opts, { vegetation });
   }
+
+  // Shape the ground with a brush (one dab; see sim/sculpt.js). op: raise | lower | smooth | flatten |
+  // channel; x, y, radius in grid cells. `ground` (optional) is the current ground height at the
+  // centre, used to keep terrainRange (picking box, framing) around the land.
+  sculpt(op, opts = {}) {
+    if (!this.world) throw new Error('load() first');
+    const box = sculptor.dab(op, opts);
+    const tr = this.terrainRange;
+    if (tr) {
+      const I = Math.max(0.05, +opts.intensity || 1), g = Number.isFinite(+opts.ground) ? +opts.ground : null;
+      if (op === 'raise') tr.max = Math.max(tr.max, (g ?? tr.max) + I * 1.0);
+      if (op === 'lower') tr.min = Math.min(tr.min, (g ?? tr.min) - I * 1.0);
+      if (op === 'channel') tr.min = Math.min(tr.min, Math.min(+opts.za, +opts.zb) - 6 * I);
+      if (op === 'flatten' && Number.isFinite(+opts.target)) { tr.min = Math.min(tr.min, +opts.target); tr.max = Math.max(tr.max, +opts.target); }
+    }
+    return { op, x: +opts.x, y: +opts.y, r: +opts.radius || 10, box };
+  }
+  beginStroke() { sculptor.beginStroke((n) => this.readLayer(n)); }
+  endStroke() { return sculptor.endStroke(); }
+  undoSculpt() { return sculptor.undo((n) => this.readLayer(n)); }
+  get canUndo() { return sculptor.canUndo; }
+  // snow avalanches on/off (sim/snow.js); on by default
+  get avalanches() { return avalanche.enabled; }
+  set avalanches(v) { avalanche.enabled = !!v; }
 
   // Interactive frame. realDt in seconds. Returns sub-steps run (0 if paused).
   tick(realDt) {

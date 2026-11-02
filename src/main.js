@@ -74,6 +74,7 @@ async function main() {
         renderer.frameTerrain(sim.terrainRange);
         renderer.visuals.clear();
         brushTool?.refreshHeights(true);
+        brushTool?.updateUndo();
         panel?.syncTerrain(res);
         panel?.sync();
         stats = await sim.stats();
@@ -211,6 +212,28 @@ async function main() {
       const N = sim.N;
       return brushTool.apply(type, opts.x ?? N / 2, opts.y ?? N / 2, opts);
     },
+    // Sculpting: one undoable stroke of `dabs` dabs along `points` ([{x, y}], grid cells). op: raise |
+    // lower | smooth | flatten | channel. opts: radius, intensity, target (flatten, default = ground
+    // at the first point). Heights for flatten/channel come from a fresh read of the ground.
+    sculptStroke: async (op, points, opts = {}) => {
+      const H = await sim.readLayer('bedrock'), S = await sim.readLayer('soil');
+      for (let i = 0; i < H.length; i++) H[i] += S[i];
+      const N = sim.N, at = (x, y) => H[Math.min(N - 1, Math.max(0, Math.round(y))) * N + Math.min(N - 1, Math.max(0, Math.round(x)))];
+      const dabs = opts.dabs ?? 1, target = opts.target ?? at(points[0].x, points[0].y);
+      sim.beginStroke();
+      let last = points[0];
+      for (const p of points) {
+        for (let k = 0; k < dabs; k++) {
+          const o = { x: p.x, y: p.y, radius: opts.radius ?? 15, intensity: opts.intensity ?? 1, ground: at(p.x, p.y), target };
+          if (op === 'channel') Object.assign(o, { ax: last.x, ay: last.y, za: at(last.x, last.y), zb: at(p.x, p.y) });
+          sim.sculpt(op, o);
+        }
+        last = p;
+      }
+      await sim.endStroke();
+      brushTool.updateUndo(); await brushTool.refreshHeights(true);
+    },
+    undo: () => brushTool.undo(),
     setTool: (t) => brushTool.setTool(t),
     pick: (clientX, clientY) => brushTool.pick(clientX, clientY),
     screenOf: (x, y) => brushTool.screenOf(x, y),

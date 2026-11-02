@@ -1,5 +1,5 @@
-// Weather brushes: the tool row, ray picking against the height field, the cursor ring, click and
-// drag painting, and the "what just happened" message.
+// Weather brushes and sculpt brushes: the tool rows, ray picking against the height field, the
+// cursor ring, click and drag painting, and the "what just happened" message.
 //
 // Picking runs on the CPU against a cached copy of the ground height (bedrock + soil), refreshed
 // from the GPU about once a second while a tool is selected (heights change slowly). The ray comes
@@ -22,6 +22,23 @@ export const TOOLS = [
     icon: '<svg viewBox="0 0 24 24"><path d="M12.3 2.2c.4 3-1.5 4.6-3 6.3-1.6 1.8-3 3.6-3 6.4A5.8 5.8 0 0 0 12 21a5.8 5.8 0 0 0 5.8-5.9c0-2.5-1.2-4.6-2.7-6.3-.3 1.4-1 2.6-2.2 3.2.6-3.2-.1-6.6-.6-9.8z"/><path d="M12 20.5c-1.6 0-2.8-1.2-2.8-2.8 0-1.6 1.3-2.6 2.2-3.8.2 1 .8 1.6 1.6 1.9.4-.6.5-1.2.6-1.8.9 1 1.2 2.2 1.2 3.4 0 1.7-1.2 3.1-2.8 3.1z" fill="#ffd27a"/></svg>' },
 ];
 
+// Shaping the land (sim/sculpt.js). Hold and drag; they share the size and strength sliders.
+export const SCULPT_TOOLS = [
+  { id: 'raise', name: 'Raise', key: 'q', kind: 'sculpt', tip: 'Hold and drag to push the ground up into hills, ridges or a dam. Water will pool behind it and find its way around.',
+    icon: '<svg viewBox="0 0 24 24"><path d="M2 20c4 0 5-9 10-9s6 9 10 9z" stroke="none"/><path d="M12 9V2M8.5 5.2L12 1.8l3.5 3.4" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none"/></svg>' },
+  { id: 'lower', name: 'Lower', key: 'w', kind: 'sculpt', tip: 'Hold and drag to dig the ground down: a basin fills into a lake, a dip catches the streams.',
+    icon: '<svg viewBox="0 0 24 24"><path d="M2 13c4 0 5 7 10 7s6-7 10-7v8H2z" stroke="none"/><path d="M12 2v8M8.5 6.6L12 10l3.5-3.4" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none"/></svg>' },
+  { id: 'smooth', name: 'Smooth', key: 'e', kind: 'sculpt', tip: 'Hold and drag to soften sharp peaks, cliffs and pits, like ages of weathering in a few seconds.',
+    icon: '<svg viewBox="0 0 24 24"><path d="M2 17c3.5 0 4-6 7-6s4 4 7 4 3.5-3 6-3v9H2z" stroke="none"/><path d="M3 7c3-3 5 0 8-2s5-2 9-.5" stroke-width="1.8" stroke-linecap="round" fill="none"/></svg>' },
+  { id: 'flatten', name: 'Flatten', key: 'r', kind: 'sculpt', tip: 'Press on the land to pick that height, then drag to level the ground to it: mesas, terraces, a flat valley floor.',
+    icon: '<svg viewBox="0 0 24 24"><path d="M2 21v-9h20v9z" stroke="none"/><path d="M2 8h20" stroke-width="2" stroke-linecap="round" stroke-dasharray="3 2.4" fill="none"/></svg>' },
+  { id: 'channel', name: 'Channel', key: 't', kind: 'sculpt', tip: 'Drag a line to cut a riverbed or ditch into the ground. Drag it downhill and the water will follow it.',
+    icon: '<svg viewBox="0 0 24 24"><path d="M2 9h7l3 8 3-8h7v12H2z" stroke="none"/></svg>' },
+];
+const ALL_TOOLS = [...TOOLS, ...SCULPT_TOOLS];
+const isSculpt = (id) => SCULPT_TOOLS.some((t) => t.id === id);
+const DAB_MS = 30;
+
 export class BrushTool {
   constructor(app) {
     this.app = app;
@@ -38,20 +55,25 @@ export class BrushTool {
   get sim() { return this.app.sim; }
 
   buildRow() {
-    const row = $('tools');
-    row.innerHTML = '';
-    for (const t of TOOLS) {
-      const b = document.createElement('button');
-      b.className = 'tool' + (t.id === 'none' ? ' active' : '');
-      b.dataset.tool = t.id;
-      b.innerHTML = `${t.icon}<span>${t.name}</span>`;
-      b.title = `${t.name} (key ${t.key})`;
-      b.addEventListener('click', () => this.setTool(t.id));
-      b.addEventListener('mouseenter', () => { $('tool-help').textContent = t.tip; });
-      b.addEventListener('mouseleave', () => { $('tool-help').textContent = TOOLS.find((q) => q.id === this.tool).tip; });
-      row.appendChild(b);
+    const rows = [[TOOLS, 'tools', 'tool-help'], [SCULPT_TOOLS, 'sculpt-tools', 'sculpt-help']];
+    for (const [list, rowId, helpId] of rows) {
+      const row = $(rowId);
+      if (!row) continue;
+      row.innerHTML = '';
+      for (const t of list) {
+        const b = document.createElement('button');
+        b.className = 'tool' + (t.id === 'none' ? ' active' : '');
+        b.dataset.tool = t.id;
+        b.innerHTML = `${t.icon}<span>${t.name}</span>`;
+        b.title = `${t.name} (key ${t.key.toUpperCase()})`;
+        b.addEventListener('click', () => this.setTool(t.id));
+        b.addEventListener('mouseenter', () => { $(helpId).textContent = t.tip; });
+        b.addEventListener('mouseleave', () => this.showHelp());
+        row.appendChild(b);
+      }
     }
-    $('tool-help').textContent = TOOLS[0].tip;
+    this.showHelp();
+    $('undo')?.addEventListener('click', () => this.undo());
     const rad = () => {
       this.radius = +$('brush-size').value;
       const m = this.radius * (this.sim.world?.cellSize || 10);
@@ -66,12 +88,21 @@ export class BrushTool {
     $('brush-strength').addEventListener('input', str); str();
   }
 
+  // help lines: the selected tool's tip in its own row; the sculpt row says how to start
+  showHelp() {
+    const sc = isSculpt(this.tool);
+    $('tool-help').textContent = (sc ? TOOLS[0] : TOOLS.find((t) => t.id === this.tool)).tip;
+    const sh = $('sculpt-help');
+    if (sh) sh.textContent = sc ? SCULPT_TOOLS.find((t) => t.id === this.tool).tip : 'Pick a tool (keys Q W E R T), then hold and drag on the land. Ctrl+Z undoes the last stroke.';
+  }
+
   setTool(id) {
     if (id === 'fire') id = 'wildfire';
-    if (!TOOLS.some((t) => t.id === id)) id = 'none';
+    if (!ALL_TOOLS.some((t) => t.id === id)) id = 'none';
+    this.endDrag();
     this.tool = id;
     for (const b of document.querySelectorAll('.tool')) b.classList.toggle('active', b.dataset.tool === id);
-    $('tool-help').textContent = TOOLS.find((t) => t.id === id).tip;
+    this.showHelp();
     document.body.classList.toggle('painting', id !== 'none');
     if (id === 'none') this.renderer.setCursor(false);
     else this.refreshHeights(true);
@@ -82,7 +113,8 @@ export class BrushTool {
     const sim = this.sim;
     if (!sim.world || this.hPending) return;
     const now = performance.now();
-    if (!force && now - this.hTime < 1200 && this.hN === sim.world.N) return;
+    const every = isSculpt(this.tool) ? 150 : 1200;   // sculpting changes the ground fast
+    if (!force && now - this.hTime < every && this.hN === sim.world.N) return;
     this.hPending = true;
     try {
       const [b, s, v] = await Promise.all([sim.readLayer('bedrock'), sim.readLayer('soil'), sim.readLayer('veg')]);
@@ -91,8 +123,8 @@ export class BrushTool {
     } finally { this.hPending = false; }
   }
 
-  heightAt(gx, gy) {
-    const N = this.hN, H = this.H;
+  heightAt(gx, gy, H = this.H) {
+    const N = this.hN;
     const x = Math.min(Math.max(gx, 0), N - 1.001), y = Math.min(Math.max(gy, 0), N - 1.001);
     const x0 = Math.floor(x), y0 = Math.floor(y), tx = x - x0, ty = y - y0;
     const i = y0 * N + x0;
@@ -168,7 +200,7 @@ export class BrushTool {
       this.refreshHeights();
       const p = this.pick(e.clientX, e.clientY);
       this.renderer.setCursor(!!p, p?.x, p?.y, this.radius, TOOL_IDS[this.tool]);
-      if (p && this.down) this.dragTo(p);
+      if (p && this.down) { if (this.down.sculpt) this.down.p = p; else this.dragTo(p); }
     });
     cv.addEventListener('pointerleave', () => this.renderer.setCursor(false));
     cv.addEventListener('pointerdown', (e) => {
@@ -176,16 +208,19 @@ export class BrushTool {
       const p = this.pick(e.clientX, e.clientY);
       if (!p) { this.toast('miss', 'Click on the land', 'That click missed the map. Point at the ground and try again.'); return; }
       cv.setPointerCapture(e.pointerId);
+      if (isSculpt(this.tool)) { this.startSculpt(p); return; }
       const ev = this.apply(this.tool, p.x, p.y);
       this.down = { id: ev?.id, last: performance.now(), x: p.x, y: p.y };
     });
-    const up = (e) => { this.down = null; cv.releasePointerCapture?.(e.pointerId); };
+    const up = (e) => { this.endDrag(); cv.releasePointerCapture?.(e.pointerId); };
     cv.addEventListener('pointerup', up);
     cv.addEventListener('pointercancel', up);
     window.addEventListener('keydown', (e) => {
       if (['INPUT', 'SELECT', 'TEXTAREA'].includes(document.activeElement?.tagName)) return;
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z') { e.preventDefault(); this.undo(); return; }
+      if (e.ctrlKey || e.metaKey || e.altKey) return;
       if (e.key === 'Escape') this.setTool('none');
-      const t = TOOLS.find((q) => q.key === e.key);
+      const t = ALL_TOOLS.find((q) => q.key === e.key.toLowerCase());
       if (t) this.setTool(t.id);
     });
   }
@@ -199,6 +234,64 @@ export class BrushTool {
       this.sim.events.log.pop();                 // a drag is one event for the markers
       this.down.last = now; this.down.x = p.x; this.down.y = p.y;
     }
+  }
+
+  // ---- sculpting: a held stroke dabs every DAB_MS at the pointer ----
+  startSculpt(p) {
+    const sim = this.sim;
+    if (!this.H || this.hN !== sim.world.N) return;
+    sim.beginStroke();
+    const d = this.down = { sculpt: true, tool: this.tool, p, last: p, H0: this.H.slice() };
+    if (this.tool === 'flatten') d.target = this.heightAt(p.x, p.y);
+    this.sculptDab();
+    d.timer = setInterval(() => this.sculptDab(), DAB_MS);
+    this.sculptHint(this.tool);
+  }
+
+  sculptDab() {
+    const d = this.down;
+    if (!d?.sculpt) return;
+    const p = d.p, o = { x: p.x, y: p.y, radius: this.radius, intensity: this.intensity, ground: this.heightAt(p.x, p.y) };
+    if (d.tool === 'flatten') o.target = d.target;
+    if (d.tool === 'channel') {
+      // the bed follows the ground as it was when the stroke began, so going over a spot twice is
+      // harmless; it only cuts when the pointer has moved (or on the first press)
+      if (d.started && Math.hypot(p.x - d.last.x, p.y - d.last.y) < Math.max(0.75, this.radius * 0.15)) return;
+      Object.assign(o, { ax: d.last.x, ay: d.last.y, za: this.heightAt(d.last.x, d.last.y, d.H0), zb: this.heightAt(p.x, p.y, d.H0) });
+      d.last = p; d.started = true;
+    }
+    this.sim.sculpt(d.tool, o);
+  }
+
+  endDrag() {
+    const d = this.down;
+    this.down = null;
+    if (!d?.sculpt) return;
+    clearInterval(d.timer);
+    this.sim.endStroke().then(() => { this.updateUndo(); this.refreshHeights(true); });
+    this.updateUndo(true);
+  }
+
+  async undo() {
+    if (this.down?.sculpt || !this.sim.canUndo) return false;
+    const box = await this.sim.undoSculpt();
+    this.updateUndo();
+    this.refreshHeights(true);
+    if (box) this.toast('undo', 'Undone', 'The last shaping stroke is gone. Any erosion since then is kept.');
+    return box;
+  }
+
+  updateUndo(force) {
+    const b = $('undo');
+    if (b) b.disabled = !(force || this.sim.canUndo);
+  }
+
+  // the first stroke with each tool explains what it does
+  sculptHint(tool) {
+    if (this.hinted?.[tool]) return;
+    (this.hinted ||= {})[tool] = true;
+    const t = SCULPT_TOOLS.find((q) => q.id === tool);
+    this.toast(tool, t.name, t.tip + ' Ctrl+Z undoes a stroke.');
   }
 
   /** Same as clicking: start the event, show the ripple and the message. */
@@ -262,7 +355,7 @@ export class BrushTool {
   // action: optional { label, speed } button that sets the speed dial (and plays)
   toast(kind, title, text, action = null) {
     const el = $('toast');
-    const icon = TOOLS.find((t) => t.id === kind)?.icon || '';
+    const icon = ALL_TOOLS.find((t) => t.id === kind)?.icon || '';
     el.className = `toast ${kind}`;
     el.innerHTML = `<div class="ticon">${icon}</div><div><b>${title}</b><p>${text}</p>${action ? `<button class="tact">${action.label}</button>` : ''}</div>`;
     void el.offsetWidth;

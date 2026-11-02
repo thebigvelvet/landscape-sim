@@ -13,7 +13,8 @@
 //   acc                vec4 per cell: (precip, outflow, evap, sedimentOut) in metres, accumulated over
 //                      one frame and folded into a GPU log by the reduction kernel.
 //   thermalDelta       vec2 per cell scratch for the race-free talus/creep kernel.
-//   initHeight         terrain height at load (for the erosion/deposition overlay).
+//   initHeight         terrain height at load, moved along by the sculpt brushes (erosion overlay,
+//                      solids balance and edge base level all measure from it).
 //   spring             recent spring discharge (m/day), for display; see sim/groundwater.js.
 //   veg                plant cover 0..1 (sim/vegetation.js).
 //   burn               recent burn severity 0..1, decays over a few years.
@@ -21,10 +22,11 @@
 //                      groundwater fill smoothed over ~1 year, ground height at the last batch,
 //                      active fire 0..1).
 //   fireNext           f32 scratch: next fire state (race-free fire spread).
+//   sculptScratch      f32 scratch for the sculpt brushes (smoothing copy, undo deltas), sim/sculpt.js.
 //   statPartials, accPartials, fluxLog   reduction scratch / log ring.
 
 export const LAYERS = ['bedrock', 'soil', 'water', 'sediment', 'snowSWE', 'frostDepth', 'temp', 'velX', 'velY'];
-export const EXTRA1 = ['water2', 'sediment2', 'groundwater', 'slope', 'initHeight', 'spring', 'veg', 'burn', 'fireNext'];
+export const EXTRA1 = ['water2', 'sediment2', 'groundwater', 'slope', 'initHeight', 'spring', 'veg', 'burn', 'fireNext', 'sculptScratch'];
 export const STAT_GROUPS = 256;   // workgroups in the stats reduction
 export const STAT_STRIDE = 16;    // floats per partial
 export const LOG_SIZE = 4096;     // entries in the GPU flux log ring

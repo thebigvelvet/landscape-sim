@@ -184,6 +184,10 @@ body.collapsed #timebar { width: min(620px, calc(100vw - 40px)); }
 .tool[data-tool=wildfire] svg path:last-child { stroke: none; }
 .tool[data-tool=storm] svg path:first-child, .tool[data-tool=drought] svg circle { stroke: none; }
 .tool[data-tool=none] svg { stroke: none; color: #d8dcd6; }
+.tool[data-tool=raise] svg, .tool[data-tool=lower] svg, .tool[data-tool=smooth] svg, .tool[data-tool=flatten] svg, .tool[data-tool=channel] svg { color: #efeee2; }
+.undo { width: 100%; padding: 6px; border-radius: 7px; border: 1px solid rgba(255,255,255,0.14); background: rgba(255,255,255,0.06); color: inherit; font: inherit; font-size: 12px; cursor: pointer; }
+.undo:hover:not(:disabled) { background: rgba(255,255,255,0.12); }
+.undo:disabled { opacity: 0.4; cursor: default; }
 .toolhelp { color: var(--muted); font-size: 12px; line-height: 1.4; margin: 7px 0 2px; min-height: 50px; }
 body.painting canvas#view { cursor: crosshair; }
 
