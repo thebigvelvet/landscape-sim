@@ -1,26 +1,26 @@
 {
   "report": [
-    "PASS balance_plants_1000y: cone 512 Colorado 1000 yr: balance -0.0000330479 %, NaN false, meanVeg 0.901, 9.6 s",
+    "PASS balance_plants_1000y: cone 512 Colorado 1000 yr: balance -0.0000329768 %, NaN false, meanVeg 0.901, 12.4 s",
     "PASS balance_each_brush: balance error % per brush @ batch length: {\"storm@0.02d\":-0.00359764,\"storm@365d\":0.000171888,\"flood@0.02d\":-0.000879482,\"flood@365d\":0.0000367891,\"drought@0.02d\":-0.00293036,\"drought@365d\":0.00000883813,\"wildfire@0.02d\":-0.00358187,\"wildfire@365d\":9.33402e-7}",
-    "PASS nan_speeds: {\"1\":{\"years\":0.00109589,\"nan\":false,\"balance\":-0.00000534998,\"meanVeg\":0.52721},\"365000\":{\"years\":133.017,\"nan\":false,\"balance\":-4.95299e-7,\"meanVeg\":0.570526}}",
+    "PASS nan_speeds: {\"1\":{\"years\":0.0109682,\"nan\":false,\"balance\":0.000184158,\"meanVeg\":0.527},\"365000\":{\"years\":4003,\"nan\":false,\"balance\":-4.31534e-7,\"meanVeg\":0.549971}}",
     "PASS event_volume_speed_independent: {\"storm_expected_m3\":24767,\"storm_m3_by_batch(1min,12h,5d,1y,16.7y)\":[24767,24767,24767,24767,24767],\"storm_maxDev\":0.0000124261,\"flood_expected_m3\":6480000,\"flood_m3_by_batch(1min,12h,5d,1y,16.7y)\":[6480000,6480000,6480000,6480000,6480000],\"flood_maxDev\":0}",
-    "PASS scenario_batch_consistency: 20 yr with fire+storm+2yr drought, terrain frozen, batch 30/365/6083 d (1000 yr/s frames are 6083 d): relative spread {\"meanVeg\":0.00432575,\"burned\":0,\"gw\":0.0146371,\"outFrac\":0.00665333,\"etFrac\":0.0208049,\"precip\":0.0000212633}; [info, not gated: vs 30-day batches, 3-day batches differ by -10.0 % cover, -10.5 % groundwater, 1-day batches (round-1 daily wet/dry weather) by -20.4 % cover, -43.5 % groundwater]; rows {\"1\":{\"meanVeg\":0.275036,\"burned\":0,\"gw\":270974,\"outFrac\":0.783805,\"etFrac\":0.202851,\"precip\":100186000,\"bal\":0.0000454787,\"sec\":5.2211},\"3\":{\"meanVeg\":0.310927,\"burned\":0,\"gw\":429193,\"outFrac\":0.75679,\"etFrac\":0.237631,\"precip\":97862000,\"bal\":0.0000591315,\"sec\":1.7422},\"30\":{\"meanVeg\":0.345335,\"burned\":0,\"gw\":479549,\"outFrac\":0.733284,\"etFrac\":0.265884,\"precip\":97917000,\"bal\":0.0000546017,\"sec\":0.1831},\"365\":{\"meanVeg\":0.346114,\"burned\":0,\"gw\":473390,\"outFrac\":0.729175,\"etFrac\":0.270667,\"precip\":97917000,\"bal\":0.00000537604,\"sec\":0.0299},\"6083\":{\"meanVeg\":0.346832,\"burned\":0,\"gw\":472594,\"outFrac\":0.728425,\"etFrac\":0.271488,\"precip\":97919100,\"bal\":0.00000217965,\"sec\":0.0135}}",
+    "PASS scenario_batch_consistency: 20 yr with fire+storm+2yr drought, terrain frozen, batch 30/365/6083 d (1000 yr/s frames are 6083 d): relative spread {\"meanVeg\":0.00432575,\"burned\":0,\"gw\":0.0146371,\"outFrac\":0.00665333,\"etFrac\":0.0208049,\"precip\":0.0000212633}; [info, not gated: vs 30-day batches, 3-day batches differ by -10.0 % cover, -10.5 % groundwater, 1-day batches (round-1 daily wet/dry weather) by -20.4 % cover, -43.5 % groundwater]; rows {\"1\":{\"meanVeg\":0.275036,\"burned\":0,\"gw\":270974,\"outFrac\":0.783805,\"etFrac\":0.202851,\"precip\":100186000,\"bal\":0.0000454787,\"sec\":5.8017},\"3\":{\"meanVeg\":0.310927,\"burned\":0,\"gw\":429193,\"outFrac\":0.75679,\"etFrac\":0.237631,\"precip\":97862000,\"bal\":0.0000591315,\"sec\":1.9209},\"30\":{\"meanVeg\":0.345335,\"burned\":0,\"gw\":479549,\"outFrac\":0.733284,\"etFrac\":0.265884,\"precip\":97917000,\"bal\":0.0000546017,\"sec\":0.2083},\"365\":{\"meanVeg\":0.346114,\"burned\":0,\"gw\":473390,\"outFrac\":0.729175,\"etFrac\":0.270667,\"precip\":97917000,\"bal\":0.00000537604,\"sec\":0.033},\"6083\":{\"meanVeg\":0.346832,\"burned\":0,\"gw\":472594,\"outFrac\":0.728425,\"etFrac\":0.271488,\"precip\":97919100,\"bal\":0.00000217965,\"sec\":0.016}}",
     "PASS fire_erosion: 5 yr after fire + identical 3-day storms: burned flank mean erosion 0.26 mm vs unburned twin 0.03 mm (x7.5); net lowering 0.23 vs 0.03 mm; balance -0.0000260627 %",
     "PASS fire_recovery: burned patch cover: before 0.859 (twin 0.854), right after fire 0.090, after 5 yr 0.242, after 60 yr 0.859 (twin 0.854); burn severity left 0.000",
     "PASS desert_vs_pnw: mean cover after 50 yr (random 512): Utah desert 0.188 (22% >30% cover), Colorado alpine 0.448 (53% >30% cover), Pacific NW wet 0.564 (56% >30% cover), Temperate 0.549 (56% >30% cover)",
     "PASS treeline: Colorado cover by 200 m band (m: cover): {\"2800\":0.908,\"3000\":0.762,\"3200\":0.52,\"3400\":0.34,\"3600\":0.156,\"3800\":0.048}",
-    "PASS drought_response: mean cover 0.233 -> 0.198 after 5-yr drought -> 0.270 60 yr later; groundwater 0.35 -> 0.11 million m3; mean drought stress 0.089; balance 0.0000448345 %",
+    "PASS drought_response: mean cover 0.233 -> 0.198 after 5-yr drought -> 0.270 60 yr later; groundwater 0.35 -> 0.11 million m3; mean drought stress 0.089; balance 0.000044781 %",
     "PASS equilibrium_batch_independent: Colorado, 3 C warmer after spin-up, terrain frozen, 150 yr: mean cover by batch length {\"10\":0.499337,\"365\":0.534789,\"6083\":0.536656} (spread 7.47 %)",
-    "FAIL pick_accuracy: vex 3, pitch 18 deg, rugged terrain: 26 hits, max GPU-vs-float64 difference 180.6585 cells, 0 disagreements, 14 sky; vertex round trip: 5/33 land back on their own vertex (max error 0.0088 cells), the other 28 are hidden behind ridges and hit terrain nearer the camera (0 wrong)",
+    "PASS pick_accuracy: vex 3, pitch 18 deg, rugged terrain: 40 hits, max GPU-vs-float64 difference 0.0000 cells, 0 disagreements, 0 sky; vertex round trip: 5/33 land back on their own vertex (max error 0.0088 cells), the other 28 are hidden behind ridges and hit terrain nearer the camera (0 wrong)",
     "PASS brush_lands_where_clicked: clicked the screen pixel of cell (333, 233) with the Storm tool: storm placed at (333.00, 233.00), 0.001 cells away",
     "PASS robust_switching: 512->256->1024->512 loads while playing with storm+flood+drought+fire running, plus load during sim.run(): GPU errors 0, console errors 0, NaN false, balance after -0.000266829 %",
-    "FAIL fps_1024: 1024x1024 random at 1000 yr/s, plants on: 1.2 fps (min 1.2), hydraulic sub-steps/frame 23, GPU sim 24.55 ms + render 4.86 ms, 366.046 years simulated, NaN false",
-    "FAIL SUMMARY: 13/15 checks passed in 127 s on nvidia lovelace"
+    "PASS fps_1024: 1024x1024 random at 1000 yr/s, plants on: 58.7 fps (min 57.2), hydraulic sub-steps/frame 6, GPU sim 7.34 ms + render 6.34 ms, 10557.5 years simulated, NaN false",
+    "PASS SUMMARY: 15/15 checks passed in 134 s on nvidia lovelace"
   ],
   "results": {
     "balance_plants_1000y": {
       "ok": true,
-      "detail": "cone 512 Colorado 1000 yr: balance -0.0000330479 %, NaN false, meanVeg 0.901, 9.6 s"
+      "detail": "cone 512 Colorado 1000 yr: balance -0.0000329768 %, NaN false, meanVeg 0.901, 12.4 s"
     },
     "balance_each_brush": {
       "ok": true,
@@ -28,7 +28,7 @@
     },
     "nan_speeds": {
       "ok": true,
-      "detail": "{\"1\":{\"years\":0.00109589,\"nan\":false,\"balance\":-0.00000534998,\"meanVeg\":0.52721},\"365000\":{\"years\":133.017,\"nan\":false,\"balance\":-4.95299e-7,\"meanVeg\":0.570526}}"
+      "detail": "{\"1\":{\"years\":0.0109682,\"nan\":false,\"balance\":0.000184158,\"meanVeg\":0.527},\"365000\":{\"years\":4003,\"nan\":false,\"balance\":-4.31534e-7,\"meanVeg\":0.549971}}"
     },
     "event_volume_speed_independent": {
       "ok": true,
@@ -36,7 +36,7 @@
     },
     "scenario_batch_consistency": {
       "ok": true,
-      "detail": "20 yr with fire+storm+2yr drought, terrain frozen, batch 30/365/6083 d (1000 yr/s frames are 6083 d): relative spread {\"meanVeg\":0.00432575,\"burned\":0,\"gw\":0.0146371,\"outFrac\":0.00665333,\"etFrac\":0.0208049,\"precip\":0.0000212633}; [info, not gated: vs 30-day batches, 3-day batches differ by -10.0 % cover, -10.5 % groundwater, 1-day batches (round-1 daily wet/dry weather) by -20.4 % cover, -43.5 % groundwater]; rows {\"1\":{\"meanVeg\":0.275036,\"burned\":0,\"gw\":270974,\"outFrac\":0.783805,\"etFrac\":0.202851,\"precip\":100186000,\"bal\":0.0000454787,\"sec\":5.2211},\"3\":{\"meanVeg\":0.310927,\"burned\":0,\"gw\":429193,\"outFrac\":0.75679,\"etFrac\":0.237631,\"precip\":97862000,\"bal\":0.0000591315,\"sec\":1.7422},\"30\":{\"meanVeg\":0.345335,\"burned\":0,\"gw\":479549,\"outFrac\":0.733284,\"etFrac\":0.265884,\"precip\":97917000,\"bal\":0.0000546017,\"sec\":0.1831},\"365\":{\"meanVeg\":0.346114,\"burned\":0,\"gw\":473390,\"outFrac\":0.729175,\"etFrac\":0.270667,\"precip\":97917000,\"bal\":0.00000537604,\"sec\":0.0299},\"6083\":{\"meanVeg\":0.346832,\"burned\":0,\"gw\":472594,\"outFrac\":0.728425,\"etFrac\":0.271488,\"precip\":97919100,\"bal\":0.00000217965,\"sec\":0.0135}}"
+      "detail": "20 yr with fire+storm+2yr drought, terrain frozen, batch 30/365/6083 d (1000 yr/s frames are 6083 d): relative spread {\"meanVeg\":0.00432575,\"burned\":0,\"gw\":0.0146371,\"outFrac\":0.00665333,\"etFrac\":0.0208049,\"precip\":0.0000212633}; [info, not gated: vs 30-day batches, 3-day batches differ by -10.0 % cover, -10.5 % groundwater, 1-day batches (round-1 daily wet/dry weather) by -20.4 % cover, -43.5 % groundwater]; rows {\"1\":{\"meanVeg\":0.275036,\"burned\":0,\"gw\":270974,\"outFrac\":0.783805,\"etFrac\":0.202851,\"precip\":100186000,\"bal\":0.0000454787,\"sec\":5.8017},\"3\":{\"meanVeg\":0.310927,\"burned\":0,\"gw\":429193,\"outFrac\":0.75679,\"etFrac\":0.237631,\"precip\":97862000,\"bal\":0.0000591315,\"sec\":1.9209},\"30\":{\"meanVeg\":0.345335,\"burned\":0,\"gw\":479549,\"outFrac\":0.733284,\"etFrac\":0.265884,\"precip\":97917000,\"bal\":0.0000546017,\"sec\":0.2083},\"365\":{\"meanVeg\":0.346114,\"burned\":0,\"gw\":473390,\"outFrac\":0.729175,\"etFrac\":0.270667,\"precip\":97917000,\"bal\":0.00000537604,\"sec\":0.033},\"6083\":{\"meanVeg\":0.346832,\"burned\":0,\"gw\":472594,\"outFrac\":0.728425,\"etFrac\":0.271488,\"precip\":97919100,\"bal\":0.00000217965,\"sec\":0.016}}"
     },
     "fire_erosion": {
       "ok": true,
@@ -56,15 +56,15 @@
     },
     "drought_response": {
       "ok": true,
-      "detail": "mean cover 0.233 -> 0.198 after 5-yr drought -> 0.270 60 yr later; groundwater 0.35 -> 0.11 million m3; mean drought stress 0.089; balance 0.0000448345 %"
+      "detail": "mean cover 0.233 -> 0.198 after 5-yr drought -> 0.270 60 yr later; groundwater 0.35 -> 0.11 million m3; mean drought stress 0.089; balance 0.000044781 %"
     },
     "equilibrium_batch_independent": {
       "ok": true,
       "detail": "Colorado, 3 C warmer after spin-up, terrain frozen, 150 yr: mean cover by batch length {\"10\":0.499337,\"365\":0.534789,\"6083\":0.536656} (spread 7.47 %)"
     },
     "pick_accuracy": {
-      "ok": false,
-      "detail": "vex 3, pitch 18 deg, rugged terrain: 26 hits, max GPU-vs-float64 difference 180.6585 cells, 0 disagreements, 14 sky; vertex round trip: 5/33 land back on their own vertex (max error 0.0088 cells), the other 28 are hidden behind ridges and hit terrain nearer the camera (0 wrong)"
+      "ok": true,
+      "detail": "vex 3, pitch 18 deg, rugged terrain: 40 hits, max GPU-vs-float64 difference 0.0000 cells, 0 disagreements, 0 sky; vertex round trip: 5/33 land back on their own vertex (max error 0.0088 cells), the other 28 are hidden behind ridges and hit terrain nearer the camera (0 wrong)"
     },
     "brush_lands_where_clicked": {
       "ok": true,
@@ -75,8 +75,8 @@
       "detail": "512->256->1024->512 loads while playing with storm+flood+drought+fire running, plus load during sim.run(): GPU errors 0, console errors 0, NaN false, balance after -0.000266829 %"
     },
     "fps_1024": {
-      "ok": false,
-      "detail": "1024x1024 random at 1000 yr/s, plants on: 1.2 fps (min 1.2), hydraulic sub-steps/frame 23, GPU sim 24.55 ms + render 4.86 ms, 366.046 years simulated, NaN false"
+      "ok": true,
+      "detail": "1024x1024 random at 1000 yr/s, plants on: 58.7 fps (min 57.2), hydraulic sub-steps/frame 6, GPU sim 7.34 ms + render 6.34 ms, 10557.5 years simulated, NaN false"
     }
   },
   "gpuErrors": 0,
