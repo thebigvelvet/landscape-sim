@@ -126,6 +126,16 @@ fn main(@builtin(global_invocation_id) gid : vec3<u32>) {
     aR = outT - aET;
     aP = pT;
     aW = a2.w * P.yrs;
+  } else {
+    // Exact per-cell closure (same idea as the multi-year path): with very short batches the
+    // stores change by far less than their own f32 rounding steps, so the summed fluxes and the
+    // actual change in storage drift apart. Take the outputs as P - dStorage (exact by Sterbenz)
+    // and split them between runoff and ET in the integrated ratio.
+    let outT = max(0.0, aP - (swe - swe0) - (g - g0));
+    let out1 = aET + aR;
+    let rET = select(0.0, aET / out1, out1 > 1e-20);
+    aET = outT * rET;
+    aR = outT - aET;
   }
   let fr = st.fr;
   let d = st.d;
@@ -139,7 +149,8 @@ fn main(@builtin(global_invocation_id) gid : vec3<u32>) {
   // runoff: routed part to the surface layer, the rest leaves as fast event flow
   let routed = aR * P.fR;
   let fast = aR - routed;
-  var h = water[i] + routed;
+  let h0 = water[i];
+  var h = h0 + routed;
   // open-water evaporation and channel transmission loss over the climate time the routed water
   // represents (aW * nSub * dtH seconds)
   let tau = P.aW * f32(P.nSub) * P.dtH;
@@ -150,14 +161,17 @@ fn main(@builtin(global_invocation_id) gid : vec3<u32>) {
   h = h - e;
   let tl = min(h, min(P.kTrans * tau * (1.0 - 0.9 * fr) * clamp(h / 0.02, 0.0, 1.0), max(c.cap - g, 0.0)));
   h = h - tl;
+  let gPre = g;
   g = g + tl;
+  // f32 rounding of the surface-water and transmission updates, logged so the books stay exact
+  let roundoff = ((h - h0) - (routed - e - tl)) + ((g - gPre) - tl);
   water[i] = h;
   snowSWE[i] = swe;
   frostDepth[i] = d;
   groundwater[i] = g;
   plant[i] = vec4<f32>(pl.x, clamp(st.m, 0.0, 1.0), pl.z, pl.w);
   // (air temperature 'temp' is written by the vegetation kernel, which runs later in the batch)
-  acc[i] = acc[i] + vec4<f32>(aP, fast, aET + e, 0.0);
+  acc[i] = acc[i] + vec4<f32>(aP, fast - roundoff, aET + e, 0.0);
 }
 `;
 
