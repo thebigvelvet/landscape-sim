@@ -189,6 +189,7 @@ const TERRAIN_DATA = /* wgsl */ `
 @group(0) @binding(6) var<storage, read> frostDepth: array<f32>;
 @group(0) @binding(7) var<storage, read> light: array<vec4u>;
 @group(0) @binding(8) var<storage, read> height0: array<f32>;
+@group(0) @binding(9) var<storage, read> windF: array<vec4f>;   // sim/wind.js: (.., .., local wind speed, shelter)
 fn gi(x: i32, y: i32) -> u32 {
   let n = i32(R_.grid.x);
   return u32(clamp(y, 0, n - 1) * n + clamp(x, 0, n - 1));
@@ -207,6 +208,7 @@ struct VO {
   @location(5) m3: vec2f,   // groundwater fill 0..1, spring discharge (m/day)
   @location(6) m4: vec4f,   // plant cover, woody share, burn, fire
   @location(7) m5: vec4f,   // moisture memory, sediment bed thickness (sqrt(t/16 m)), top bed grain, top bed hash
+  @location(8) m6: vec2f,   // local wind speed, shelter (0 = in the lee), sim/wind.js
 };
 @vertex fn vs(@builtin(vertex_index) vi: u32) -> VO {
   let n = u32(R_.grid.x);
@@ -238,6 +240,7 @@ struct VO {
   o.m3 = vec2f(lb.x, springDecode(lb.y));
   o.m4 = unpack4x8unorm(L.z);
   o.m5 = unpack4x8unorm(L.w);
+  o.m6 = windF[i].zw;
   return o;
 }
 
@@ -248,7 +251,16 @@ fn ramp3(t: f32, a: vec3f, b: vec3f, c: vec3f) -> vec3f {
 }
 
 // Overlay colour maps. Must match the legends drawn in src/ui/legend.js.
-fn overlay(mode: i32, m0: vec4f, m1: vec4f, m3: vec2f, m4: vec4f, m5: vec4f) -> vec4f {
+fn overlay(mode: i32, m0: vec4f, m1: vec4f, m3: vec2f, m4: vec4f, m5: vec4f, m6: vec2f) -> vec4f {
+  if (mode == 9) { // wind & sand: local wind speed, the sheltered lee hatched dark, wind-laid sand on top
+    let u = m6.x;
+    var c = ramp3(u / 2.0, vec3f(0.85, 0.92, 0.98), vec3f(0.35, 0.65, 0.95), vec3f(0.55, 0.15, 0.70));
+    c = mix(c, vec3f(0.20, 0.24, 0.35), (1.0 - m6.y) * 0.75);
+    let t = m5.y * m5.y * 16.0;
+    let sandTop = smoothstep(0.45, 0.5, m5.z) * (1.0 - smoothstep(0.8, 0.85, m5.z)) * smoothstep(0.05, 0.5, t);
+    c = mix(c, vec3f(0.98, 0.80, 0.30), sandTop * 0.7);
+    return vec4f(c, 0.9);
+  }
   if (mode == 8) { // sediment beds: top bed grain, stronger where the fill is thicker
     let t = m5.y * m5.y * 16.0;
     if (t < 0.01) { return vec4f(0.0); }
@@ -346,6 +358,11 @@ fn overlay(mode: i32, m0: vec4f, m1: vec4f, m3: vec2f, m4: vec4f, m5: vec4f) -> 
   let gravelS = smoothstep(0.7, 1.0, i.m5.z) * (vnoise(p2 * 2.1) - 0.5) * 0.5;
   let bedC = bedColor(i.m5.z, i.m5.w) * (0.9 + 0.2 * nzf + gravelS);
   looseC = mix(looseC, bedC, smoothstep(0.02, 0.3, depM) * 0.85);
+  // Loose sand (a sand top bed, e.g. a dune) shows faint wind ripples running across the wind.
+  let sandTop = smoothstep(0.45, 0.5, i.m5.z) * (1.0 - smoothstep(0.8, 0.85, i.m5.z)) * smoothstep(0.05, 0.4, depM);
+  let wdir = vec2f(R_.camRight.w, R_.camUp.w);
+  let rip = sin(dot(p2, wdir) * 1.9 + 2.0 * vnoise(p2 * 0.3)) * 0.5 + 0.5;
+  looseC = looseC * (1.0 + sandTop * (rip - 0.5) * 0.12);
   // Gravelly speckle so broad soil and talus areas are not flat colour.
   let grit = vnoise(p2 * 1.3) * 0.6 + vnoise(p2 * 3.7) * 0.4;
   looseC = looseC * (0.82 + 0.3 * grit);
@@ -435,7 +452,7 @@ fn overlay(mode: i32, m0: vec4f, m1: vec4f, m3: vec2f, m4: vec4f, m5: vec4f) -> 
   col = applyHaze(col, wp);
   var outc = tonemap(col);
   // --- Overlay, blended in display space so colours match the legend.
-  let ov = overlay(i32(R_.skyZenith.w), i.m0, i.m1, i.m3, i.m4, i.m5);
+  let ov = overlay(i32(R_.skyZenith.w), i.m0, i.m1, i.m3, i.m4, i.m5, i.m6);
   if (i32(R_.skyZenith.w) > 0) {
     // Mute the natural colours so the overlay reads clearly.
     let g = dot(outc, vec3f(0.3, 0.55, 0.15));

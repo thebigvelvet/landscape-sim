@@ -1,0 +1,22 @@
+{
+  "1 day/s": {
+    "fpsMin": 59.94084270059059,
+    "fpsAvg": 59.94923944357661,
+    "simMs": 5.613167590284722,
+    "renderMs": 5.3924089422413,
+    "nSub": 6
+  },
+  "1000 yr/s": {
+    "fpsMin": 59.93671875223881,
+    "fpsAvg": 59.94927283401136,
+    "simMs": 6.2445950550153215,
+    "renderMs": 5.397939215231534,
+    "nSub": 4
+  },
+  "nan": false,
+  "bal": 5.946076488576825e-7,
+  "gpuErrors": 0,
+  "gpuFeatureStatusWebGPU": "enabled",
+  "electron": "45.2.1",
+  "chrome": "156.0.8078.75"
+}

@@ -1,0 +1,174 @@
+{
+  "checks": {
+    "dunesForm": {
+      "pass": true,
+      "relief_m": 27.585715770721436
+    },
+    "dunesTravelDownwind": {
+      "pass": true,
+      "cellsIn50yr": 9
+    },
+    "slipFaces": {
+      "pass": true,
+      "leeP90deg": 33.3908754459552,
+      "stossP90deg": 25.57208665026655
+    },
+    "crestsAcrossSteadyWind": {
+      "pass": true,
+      "gradientAngleToWind": 5.480078500933888,
+      "coherence": 0.5473569592255841
+    },
+    "booksSand": {
+      "pass": true,
+      "solidsError_m3": -115.49525585956872,
+      "sedOut_m3": 7527604.84623584,
+      "balPct": 5.246591135179297e-9
+    },
+    "linearDunesAlongWind": {
+      "pass": true,
+      "gradientAngleToWind": 89.8038081636126,
+      "coherence": 0.855962420912533
+    },
+    "directionDial": {
+      "pass": true,
+      "gradientAngleToWind": 5.585787176311101,
+      "travelSouthCells": 9
+    },
+    "protectedSurfaces": {
+      "pass": true,
+      "wetGreen": 0.08407974243164062,
+      "pavementMeanChange_m": 0.0007241464985741509,
+      "pavementRelief": 0.004436492919921875
+    },
+    "sandblastingDifferential": {
+      "pass": true,
+      "hard_m": 0.03712889401630557,
+      "soft_m": 0.18089012285721137,
+      "cells": {
+        "hard": 7783,
+        "soft": 29977
+      },
+      "stack": "27 beds, dipping 0.4° to the S; a monocline drops them 444 m at up to 16°; a broad syncline arches them 11 m."
+    },
+    "snowDrifts": {
+      "pass": true,
+      "leeGain": 1.4041174685536282,
+      "exposedLoss": 0.24544655942544288,
+      "leeCells": 30540,
+      "exposedCells": 18906,
+      "balOn": 0.000001007307686230768,
+      "snowOn_m3": 1680614.5601272583,
+      "snowOff_m3": 1597635.1430892944
+    },
+    "booksSnow": {
+      "pass": true,
+      "balPct": 0.000001007307686230768
+    },
+    "booksLandscape": {
+      "pass": true,
+      "solidsError_m3": -84.81538463523611,
+      "sedOut_m3": 2600077.25851368,
+      "balPct": -1.4713513153175076e-8,
+      "nan": false,
+      "maxErosion_m": 115.36602783203125,
+      "meanWind": 0.7167385556021292,
+      "shelteredFrac": 0.52789306640625,
+      "sandCoverFrac": 0.2403564453125,
+      "topSandVolume_m3": 509017.90032200515,
+      "lastBatch": {
+        "K": 1,
+        "eSand": 4.38469887491035e-12,
+        "eDust": 1.0961747187275873e-13,
+        "eSnow": 1.6004150893422775e-10,
+        "dirs": [
+          190.77054312918335
+        ]
+      }
+    }
+  },
+  "runs": {
+    "steady": {
+      "relief": 27.585715770721436,
+      "leeP90deg": 33.3908754459552,
+      "stossP90deg": 25.57208665026655,
+      "leeMedDeg": 21.130954961341082,
+      "stossMedDeg": 14.266033090439178,
+      "crestAngleToWind": 5.480078500933888,
+      "coherence": 0.5473569592255841,
+      "travelCells50yr": 9,
+      "solidsError_m3": -115.49525585956872,
+      "sedOut_m3": 7527604.84623584,
+      "balPct": 5.246591135179297e-9,
+      "nan": false
+    },
+    "bimodal": {
+      "relief": 24.27985715866089,
+      "leeP90deg": 5.133681313389299,
+      "stossP90deg": 6.605101684302418,
+      "leeMedDeg": 1.3180649833128193,
+      "stossMedDeg": 1.304421998287293,
+      "crestAngleToWind": 89.8038081636126,
+      "coherence": 0.855962420912533
+    },
+    "north": {
+      "relief": 27.384077072143555,
+      "leeP90deg": 32.039595419511976,
+      "stossP90deg": 22.653732916197963,
+      "leeMedDeg": 18.957349477915034,
+      "stossMedDeg": 12.743304797075492,
+      "crestAngleToWind": 5.585787176311101,
+      "coherence": 0.21440808859946997,
+      "travelCells50yr": 9
+    },
+    "protected": {
+      "wetGreen": 0.08407974243164062,
+      "pavementMeanChange_m": 0.0007241464985741509,
+      "pavementRelief": 0.004436492919921875
+    },
+    "abrasion": {
+      "hard_m": 0.03712889401630557,
+      "soft_m": 0.18089012285721137,
+      "cells": {
+        "hard": 7783,
+        "soft": 29977
+      },
+      "stack": "27 beds, dipping 0.4° to the S; a monocline drops them 444 m at up to 16°; a broad syncline arches them 11 m."
+    },
+    "snow": {
+      "leeGain": 1.4041174685536282,
+      "exposedLoss": 0.24544655942544288,
+      "leeCells": 30540,
+      "exposedCells": 18906,
+      "balOn": 0.000001007307686230768,
+      "snowOn_m3": 1680614.5601272583,
+      "snowOff_m3": 1597635.1430892944
+    },
+    "utah1000": {
+      "solidsError_m3": -84.81538463523611,
+      "sedOut_m3": 2600077.25851368,
+      "balPct": -1.4713513153175076e-8,
+      "nan": false,
+      "maxErosion_m": 115.36602783203125,
+      "meanWind": 0.7167385556021292,
+      "shelteredFrac": 0.52789306640625,
+      "sandCoverFrac": 0.2403564453125,
+      "topSandVolume_m3": 509017.90032200515,
+      "lastBatch": {
+        "K": 1,
+        "eSand": 4.38469887491035e-12,
+        "eDust": 1.0961747187275873e-13,
+        "eSnow": 1.6004150893422775e-10,
+        "dirs": [
+          190.77054312918335
+        ]
+      }
+    }
+  },
+  "passed": 12,
+  "total": 12,
+  "minutes": 0.3400400000000993,
+  "gpuErrors": 0,
+  "gpuFeatureStatusWebGPU": "enabled",
+  "electron": "45.2.1",
+  "chrome": "156.0.8078.75"
+}

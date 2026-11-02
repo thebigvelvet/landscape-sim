@@ -60,6 +60,13 @@ export const OVERLAYS = [
     labels: ['clay', 'silt', 'sand', 'gravel'],
     note: 'Fast channels drop gravel, spreading floodwater drops silt and sand, still ponds drop clay. Stronger colour means a thicker fill. The beds stack up over time and show as bands on the block sides and wherever a stream cuts back down.',
   },
+  {
+    id: 9, name: 'Wind & sand', dot: 'linear-gradient(135deg,#d9ebfa,#59a6f2,#fad14d)',
+    desc: 'How hard the wind blows over each spot, where the land shelters it, and where wind-blown sand lies.',
+    gradient: 'linear-gradient(90deg, rgb(217,235,250), rgb(89,166,242), rgb(140,38,179))',
+    labels: ['calm', 'the prevailing wind', '2x'],
+    note: 'Wind speeds up over crests and windward slopes and drops in the lee (dark) behind ridges and dunes, where sand and snow pile up. Gold marks loose wind-blown sand: dunes and sand sheets.',
+  },
 ];
 
 export function showLegend(id) {

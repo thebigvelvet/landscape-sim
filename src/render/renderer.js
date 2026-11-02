@@ -13,7 +13,7 @@ import { PRESETS } from '../sim/climate.js';
 import { MAX_BEDS } from '../sim/strata.js';
 
 // Overlay names, in the order of the shader's overlay modes (0 = natural view).
-export const OVERLAYS = ['none', 'water', 'sediment', 'snow', 'frost', 'change', 'groundwater', 'plants', 'beds'];
+export const OVERLAYS = ['none', 'water', 'sediment', 'snow', 'frost', 'change', 'groundwater', 'plants', 'beds', 'wind'];
 export const TOOL_IDS = { none: 0, storm: 1, drought: 2, flood: 3, wildfire: 4, raise: 5, lower: 5, smooth: 5, flatten: 5, channel: 5 };
 const UB_FLOATS = 156 + 16 + 2 * 4 * MAX_BEDS;
 
@@ -138,7 +138,7 @@ export class Renderer {
     const w = world;
     this.bgSky = bg(this.pSky, [this.ub]);
     this.bgPrecip = bg(this.pPrecip, [this.ub]);
-    this.bgTerrain = bg(this.pTerrain, [this.ub, w.bedrock, w.soil, w.snowSWE, w.water, w.sediment, w.frostDepth, w.light, w.height0]);
+    this.bgTerrain = bg(this.pTerrain, [this.ub, w.bedrock, w.soil, w.snowSWE, w.water, w.sediment, w.frostDepth, w.light, w.height0, w.wind]);
     this.bgSkirt = bg(this.pSkirt, [this.ub, w.bedrock, w.soil, w.deposit]);
     this.bgWater = bg(this.pWater, [this.ub, w.bedrock, w.soil, w.water, w.velX, w.velY, w.sediment, w.light, w.snowSWE]);
     this.lighting = new Lighting(d, world);

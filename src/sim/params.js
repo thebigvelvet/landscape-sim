@@ -23,12 +23,13 @@ export const PARAM_FIELDS = [
   ['minSlope', 'f32'], ['dzMax', 'f32'], ['vMax', 'f32'], ['manning', 'f32'],
   ['talusTan', 'f32'], ['rockTan', 'f32'], ['thermalRate', 'f32'], ['creepFrac', 'f32'],
   ['rockRate', 'f32'], ['hDry', 'f32'], ['kGw', 'f32'], ['gwPor', 'f32'],
-  // groundwater; snow avalanches (sim/snow.js)
-  ['gwDt', 'f32'], ['avalTan', 'f32'], ['avalKill', 'f32'], ['pad3', 'f32'],
+  // groundwater; snow avalanches (sim/snow.js); sand angle of repose (sim/wind.js)
+  ['gwDt', 'f32'], ['avalTan', 'f32'], ['avalKill', 'f32'], ['sandTan', 'f32'],
   // plants and fire (see sim/vegetation.js)
   ['vegInit', 'f32'], ['fireWeather', 'f32'], ['windX', 'f32'], ['windY', 'f32'],
-  // sediment beds (sim/deposits.js): current epoch (mod 8192), on/off
-  ['depEpoch', 'f32'], ['depOn', 'f32'], ['depPad1', 'f32'], ['depPad2', 'f32'],
+  // sediment beds (sim/deposits.js): current epoch (mod 8192), on/off; wind (sim/wind.js): sand share
+  // of plain soil, on/off
+  ['depEpoch', 'f32'], ['depOn', 'f32'], ['windSandy', 'f32'], ['windOn', 'f32'],
   // painted weather events (see sim/events.js): 4 local storms (centre x, y in cells, radius in
   // cells, extra precipitation at the centre in m/day averaged over the batch) and 2 flood sources
   // (centre, radius, water depth added per cell per hydraulic sub-step)

@@ -89,9 +89,11 @@ const t0 = performance.now();
 
 // 6. Avalanches: snow leaves cliffs (ground steeper than 45 deg) and piles up on the gentler ground
 //    right below them (within 4 cells); the water books still balance. Same map and weather, with
-//    and without avalanches.
+//    and without avalanches. The wind is off here: drifting snow (sim/wind.js) also strips cliffs and
+//    fills their lee, which would hide the avalanches' own share.
 {
   const res = {};
+  e.windOn = false;
   for (const on of [false, true]) {
     e.avalanches = on;
     sim.pause(); await sim.load('random', { size: 256, seed: 3, preset: 'Colorado alpine' });
@@ -115,6 +117,7 @@ const t0 = performance.now();
     res[on ? 'on' : 'off'] = { cliffSWE_m: steep / Math.max(ns, 1), cliffCells: ns, footSWE_m: foot / Math.max(nf, 1), footCells: nf, totalSnow_m3: s.totalSnowSWE_m3, meanWoody: woody / (N * N), balPct: s.balanceErrorPct, nan: s.hasNaN };
   }
   e.avalanches = true;
+  e.windOn = true;
   check('avalanches', res.on.cliffSWE_m < 0.5 * res.off.cliffSWE_m && res.on.footSWE_m > 1.1 * res.off.footSWE_m && Math.abs(res.on.balPct) < 0.01 && !res.on.nan, res);
 }
 

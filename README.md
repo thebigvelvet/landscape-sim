@@ -5,6 +5,65 @@ second. All of the simulation runs on the graphics card (WebGPU compute shaders)
 
 **To run it, double-click `start.bat`** (or the "Landscape Time-Lapse" shortcut on the desktop).
 
+## Round 6: wind
+
+Built directly, on branch `r6-wind` (cut from `r5-sediment`).
+
+**What you can do now**
+- A new **Wind** panel section.
+  - "Wind shapes the land" turns the wind on or off.
+  - A compass dial sets where the wind blows from. The arrow shows where it blows to.
+  - **Strength** sets how hard it blows. Sand starts moving at about 0.6.
+  - **Steadiness** sets the dune type:
+    - steady: ridges and crescents across the wind;
+    - two winds 160° apart: long straight dunes along the mean wind;
+    - wind from all around: star and dome dunes.
+- Each climate brings its own wind:
+  - Utah: a strong SW wind;
+  - Colorado: strong westerlies;
+  - Pacific NW: gentle;
+  - Temperate: moderate and changeable.
+- A new **Wind & sand** view shows wind speed, the sheltered lee (dark) and wind-blown sand (gold).
+- Wildfires and their smoke now follow the prevailing wind.
+
+**How it works** (`src/sim/wind.js`)
+- Each step, every cell works out its local wind.
+  - Wind speeds up on windward slopes and crests (up to 1.8x).
+  - It drops to nothing in the wind shadow behind ground that rises more than ~15° upwind.
+  - Plants slow it.
+- **Sand** follows a Werner-style hop model.
+  - Dry, bare, unfrozen, snow-free ground gives up sand as (u² − ut²)·u.
+  - The sand hops downwind one cell at a time.
+  - It settles readily on sand, in the lee and among plants, and hardly at all on bare rock.
+  - Dunes grow out of that, and their lee faces slide at sand's 33° angle of repose (a new rule in the slope step of `erosion.js`).
+  - Wind-laid sand is recorded as sand beds.
+- **Dust** is the fine part of the soil.
+  - It travels far and settles where plants or damp ground catch it, or leaves the map.
+  - Winnowing leaves the coarse part behind as a gravel top bed. That desert pavement armours bare slopes after a few centimetres, so sand then comes mostly from washes and fans.
+- **Sandblasting**: sand passing over bare rock wears it down, soft beds about 5x faster than hard ones. The worn rock becomes sand.
+- **Drifting snow** is moved off exposed ground into the lee and hollows when it is cold.
+- **Conservation:** every parcel is split exactly the same way by the cells that receive it, so soil and snow are exactly conserved.
+  - Sand and dust blown off the map are logged as sediment out.
+  - Snow blown off the map is logged as water outflow.
+- **Limitation:** each step lifts at most 8 cm per cell. At more than about a year per frame, dunes travel slower than real ones. On High detail maps (1024) the step count per frame is halved to hold 60 fps.
+
+**Checks** (RTX 4060 Ti)
+- `tests/wind.js` passes 12/12:
+  - dunes grow about 28 m out of a flat 4 m sand sheet in 300 years and travel downwind 9 cells in 50 years;
+  - lee faces are 33° and windward slopes 26° (90th percentiles);
+  - a steady wind builds crests 5° from square to the wind, two winds build ridges 90° to it (along the wind), and a north wind turns both the crests and the travel;
+  - the wet, green Pacific NW and a gravel pavement barely change (less than 0.1 m of relief);
+  - soft beds wear 0.18 m and hard beds 0.04 m in 200 years of sandblasting;
+  - lee snow is 40 % deeper, and exposed ground keeps 25 % of its snow;
+  - solids and water balance (1e-6 %).
+- Regression: `round2` 10/10, `strata` 7/7, `deposits` 5/5, `round3` 7/7. The `round3` avalanche comparison now runs with the wind off, because drifting snow also strips cliffs and would hide the avalanches' share. `--selftest`: balance 1e-6 % over 1000 years.
+- Frame cost (`tests/perf-wind.js`, everything on, 1000 yr/s): 60 fps at 512 (+0.9 ms) and at 1024 (+2.8 ms).
+- Pictures:
+  - `tests/shot-wind-desert.png` and `-desert-off.png`: Utah after 500 years, with and without wind;
+  - `tests/shot-wind-overlay.png`: the same Utah run in the Wind & sand view;
+  - `tests/shot-wind-sea-{steady,linear,star}.png`: a flat sand sheet after 400 years at the three steadiness settings;
+  - `tests/shot-wind-snow.png` and `-snow-off.png`: Colorado alpine in March.
+
 ## Round 3: shaping the land, and avalanches
 
 Built directly (no competing builds). Real Colorado/Utah terrain was dropped from this round.
@@ -429,7 +488,7 @@ years. No NaN in any case, and every balance error was below 5e-4 %.
   Closed basins therefore under-fill at high speed: in reality fast runoff would pond there.
 - Erosion constants are calibrated to look plausible (a few metres of incision per 1000 years), not
   fitted to field data. The "Erosion rate" slider scales them.
-- Snow does not redistribute (no wind drift or avalanches), and glaciers accumulate but do not flow.
+- Glaciers accumulate but do not flow.
 - Groundwater flows only through a shallow store of fixed capacity per preset; there is no deep aquifer.
 - The f32 solids audit drifts slightly over very long runs (hundreds of m³ against 10⁵–10⁷ m³ of
   sediment moved).

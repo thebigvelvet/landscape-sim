@@ -36,12 +36,12 @@ export function dispatchGrid(pass, N) {
 }
 
 // Helper to create a compute pipeline + bind group layout from (params + storage buffers).
-// `bindings` is a list of 'r' (read-only storage) / 'rw' (storage) flags, binding i+1.
+// `bindings` is a list of 'r' (read-only storage) / 'rw' (storage) / 'u' (uniform) flags, binding i+1.
 export function makeKernel(device, label, code, bindings, entryPoint = 'main') {
   const entries = [{ binding: 0, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'uniform' } }];
   bindings.forEach((m, i) => entries.push({
     binding: i + 1, visibility: GPUShaderStage.COMPUTE,
-    buffer: { type: m === 'r' ? 'read-only-storage' : 'storage' },
+    buffer: { type: m === 'r' ? 'read-only-storage' : m === 'u' ? 'uniform' : 'storage' },
   }));
   const layout = device.createBindGroupLayout({ label, entries });
   const module = device.createShaderModule({ label, code });

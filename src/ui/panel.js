@@ -89,6 +89,24 @@ export class Panel {
     const name = this.app.sim.climate.presetName;
     for (const b of document.querySelectorAll('.preset')) b.classList.toggle('active', b.dataset.preset === name);
     $('preset-blurb').textContent = PRESETS[name].blurb;
+    this.syncWind();
+  }
+
+  /** Reflect the wind settings (the preset's own wind unless changed) into the wind controls. */
+  syncWind() {
+    const sim = this.app.sim, w = sim.climate.windSettings();
+    $('wind-on').checked = sim.windOn;
+    $('wind-section').classList.toggle('wind-off', !sim.windOn);
+    $('wind-arrow').style.transform = `rotate(${w.from}deg)`;
+    const names = ['N', 'NNE', 'NE', 'ENE', 'E', 'ESE', 'SE', 'SSE', 'S', 'SSW', 'SW', 'WSW', 'W', 'WNW', 'NW', 'NNW'];
+    $('wind-from').textContent = `from the ${names[Math.round(w.from / 22.5) % 16]}`;
+    $('wind-speed').value = w.speed;
+    $('wind-speed-out').textContent = w.speed < 0.05 ? 'calm' : w.speed.toFixed(2);
+    $('wind-steady').value = w.steady;
+    $('wind-steady-out').textContent = w.steady >= 0.7 ? 'steady' : w.steady >= 0.35 ? 'two seasons' : 'shifting';
+    $('wind-dunes').textContent = w.speed < 0.6 ? 'Too gentle to move sand; it still drifts snow.'
+      : w.steady >= 0.7 ? 'Builds crescent dunes and ridges across the wind.'
+      : w.steady >= 0.35 ? 'Builds long straight dunes along the wind.' : 'Piles sand into star dunes.';
   }
 
   buildOverlays() {
@@ -164,6 +182,26 @@ export class Panel {
     $('spin').addEventListener('change', () => { app.renderer.camera.autoRotate = $('spin').checked; });
     $('trees').addEventListener('change', () => { app.renderer.showTrees = $('trees').checked; });
     $('strata').addEventListener('change', () => { app.sim.strata = $('strata').checked; });
+    // wind: on/off, a compass dial for where it blows from, strength and steadiness
+    $('wind-on').addEventListener('change', () => { app.sim.windOn = $('wind-on').checked; this.syncWind(); });
+    $('wind-speed').addEventListener('input', () => { c.windSpeed = +$('wind-speed').value; this.syncWind(); });
+    $('wind-steady').addEventListener('input', () => { c.windSteady = +$('wind-steady').value; this.syncWind(); });
+    const dial = $('wind-dial');
+    const setFrom = (e) => {
+      const r = dial.getBoundingClientRect();
+      const dx = e.clientX - (r.left + r.width / 2), dy = e.clientY - (r.top + r.height / 2);
+      if (dx * dx + dy * dy < 4) return;
+      // the arrow points where the wind blows TO; the wind comes from the opposite side
+      const to = (Math.atan2(dx, -dy) * 180) / Math.PI;
+      c.windFrom = Math.round(((to + 180) % 360 + 360) % 360 / 5) * 5;
+      this.syncWind();
+    };
+    dial.addEventListener('pointerdown', (e) => { dial.setPointerCapture(e.pointerId); setFrom(e); });
+    dial.addEventListener('pointermove', (e) => { if (dial.hasPointerCapture(e.pointerId)) setFrom(e); });
+    dial.addEventListener('keydown', (e) => {
+      const d = e.key === 'ArrowLeft' || e.key === 'ArrowDown' ? -15 : e.key === 'ArrowRight' || e.key === 'ArrowUp' ? 15 : 0;
+      if (d) { e.preventDefault(); c.windFrom = (((c.windSettings().from + d) % 360) + 360) % 360; this.syncWind(); }
+    });
     $('dice').addEventListener('click', () => {
       $('seed').value = 1 + Math.floor(Math.random() * 99999);
       $('scenario').value = 'random';

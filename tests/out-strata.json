@@ -1,0 +1,120 @@
+{
+  "checks": {
+    "irregularThickness": {
+      "pass": true,
+      "medianCV": 0.7645191768709783,
+      "samePairFrac": 0.032539921663151554
+    },
+    "gentleDips": {
+      "pass": true,
+      "range": [
+        0.30063237973253787,
+        3.9060070000359115
+      ]
+    },
+    "monoclines": {
+      "pass": true,
+      "frac": 0.34,
+      "steepLimb": [
+        10.251064589247108,
+        48.41995476745069
+      ]
+    },
+    "stackDeepEnough": {
+      "pass": true,
+      "frac": 1
+    },
+    "sandstoneCliffs": {
+      "pass": true,
+      "layers": 2.7944285067190093,
+      "uniform": 1.0005912459430095
+    },
+    "shaleWearsFaster": {
+      "pass": true,
+      "extraRockLowering_m": {
+        "hard": 23.97581369475563,
+        "soft": 30.08801784544648
+      },
+      "totalShaleMinusSandstone_m": {
+        "layers": -4.093901512356872,
+        "uniform": -3.942563418269385
+      }
+    },
+    "books": {
+      "pass": true,
+      "solidsError_m3": [
+        -327.5870084762573,
+        -232.2645664215088
+      ],
+      "balPct": [
+        1.302504782838129e-7,
+        2.30908676754472e-8
+      ]
+    }
+  },
+  "runs": {
+    "layers": {
+      "slopeP90": {
+        "hard": 3.16290283203125,
+        "soft": 1.1318603515625
+      },
+      "meanLowering_m": {
+        "hard": 7.746565379968109,
+        "soft": 3.6526638676112366
+      },
+      "maxErosion_m": 341.9434814453125,
+      "solidsError_m3": -327.5870084762573,
+      "balPct": 1.302504782838129e-7,
+      "hasNaN": false,
+      "cells": {
+        "hardFaces": 4798,
+        "softFaces": 8293
+      }
+    },
+    "uniform": {
+      "slopeP90": {
+        "hard": 2.194964599609375,
+        "soft": 2.1936676025390627
+      },
+      "meanLowering_m": {
+        "hard": 5.510129740686412,
+        "soft": 1.5675663224170269
+      },
+      "maxErosion_m": 252.52313232421875,
+      "solidsError_m3": -232.2645664215088,
+      "balPct": 2.30908676754472e-8,
+      "hasNaN": false,
+      "cells": {
+        "hardFaces": 10100,
+        "softFaces": 22153
+      }
+    }
+  },
+  "generator": {
+    "medianCV": 0.7645191768709783,
+    "minCV": 0.4229770263081879,
+    "samePairFrac": 0.032539921663151554,
+    "dipRange": [
+      0.30063237973253787,
+      3.9060070000359115
+    ],
+    "monoclineFrac": 0.34,
+    "foldFrac": 0.335,
+    "coveredFrac": 1,
+    "bedsRange": [
+      9,
+      29
+    ],
+    "thisLandscape": "27 beds, dipping 0.4° to the S; a monocline drops them 444 m at up to 16°; a broad syncline arches them 11 m."
+  },
+  "extraRockLowering_m": {
+    "hard": 23.97581369475563,
+    "soft": 30.08801784544648
+  },
+  "allPass": true,
+  "failed": [],
+  "wallSeconds": 6.155300000011921,
+  "gpuFeatureStatusWebGPU": "enabled",
+  "electron": "45.2.1",
+  "chrome": "156.0.8078.75"
+}

@@ -32,6 +32,7 @@ import { sculptor } from './sculpt.js';
 import { gwCapacity } from './common.js';
 import { makeStrata, packStrata, STRATA_PARAM_FIELDS } from './strata.js';
 import { deposits, DEP_EPOCHS } from './deposits.js';
+import { wind, towardVector, WIND_PARAMS } from './wind.js';
 import { Stats } from './stats.js';
 
 export const A_CAP = 150;              // max routing intensity (x real-time runoff rate)
@@ -89,6 +90,7 @@ export class Simulation {
       vegetation.init(this.device, this.world);
       avalanche.init(this.device, this.world);
       deposits.init(this.device, this.world);
+      wind.init(this.device, this.world);
       this.events.init(this.device, this.world);
       sculptor.init(this.device, this.world);
       this.statsK = new Stats(this.device, this.world);
@@ -114,6 +116,7 @@ export class Simulation {
     this.cum = { precip: 0, outflow: 0, evap: 0, sedOut: 0 };
     this.climate.stormDaysLeft = 0;
     this.climate.resetWeather(seed);
+    wind.reset(seed);
     this.events.reset();
     sculptor.reset();
     this.world.params.set({ N, cellSize, cellArea: cellSize * cellSize, frame: 0, logSize: LOG_SIZE });
@@ -172,6 +175,8 @@ export class Simulation {
       rockRate: Math.min(0.4, EROSION_PARAMS.rockFallPerYear * yearsE),
       vegInit: 0,
       depEpoch: this.depEpoch % DEP_EPOCHS, depOn: this.sedimentBeds ? 1 : 0,
+      windOn: wind.enabled ? 1 : 0, windSandy: this.climate.windSettings().sandy,
+      sandTan: wind.enabled ? WIND_PARAMS.sandTan : EROSION_PARAMS.talusTan,
       ...stFields,
       ...ev.fields,
     };
@@ -211,6 +216,11 @@ export class Simulation {
     const { plan, n, A, tau, dm, fastFloodM3 } = this._plan(Dcol, Deros, nSub);
     p.set(plan);
     p.upload();
+    // wind: this batch's iterations (directions, gusts) go into their own small uniforms; fire and
+    // smoke follow the prevailing wind
+    const ws = this.climate.windSettings();
+    wind.plan(Deros, Dcol, this.day, ws);
+    this.events.prevailing = wind.enabled && ws.speed > 0.01 ? towardVector(ws.from) : null;
     // flood water the routed solver cannot carry this batch: logged as precipitation and as fast
     // outflow in float64 on the CPU (the two cancel exactly in the balance)
     if (fastFloodM3 > 0) { this.cum.precip += fastFloodM3; this.cum.outflow += fastFloodM3; }
@@ -227,6 +237,7 @@ export class Simulation {
     water.record(pass, n);
     deposits.record(pass);
     erosion.recordThermal(pass);
+    wind.record(pass);
     avalanche.record(pass);
     vegetation.record(pass);
     this.statsK.recordAccumulate(pass);
@@ -272,6 +283,11 @@ export class Simulation {
   // sediment beds on/off (sim/deposits.js), and the sim time between new beds (set from the speed)
   sedimentBeds = true;
   bedDays = 7;
+
+  // wind on/off (sim/wind.js): dunes, dust, sandblasting, drifting snow; on by default
+  get windOn() { return wind.enabled; }
+  set windOn(v) { wind.enabled = !!v; }
+  get windPlan() { return wind.last; }
 
   // snow avalanches on/off (sim/snow.js); on by default
   get avalanches() { return avalanche.enabled; }

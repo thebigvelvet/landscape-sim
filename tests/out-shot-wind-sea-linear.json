@@ -1,0 +1,27 @@
+{
+  "mode": "sea",
+  "day": 146000,
+  "bal": -1.3164926204707014e-7,
+  "solidsErr": -63.650596912018955,
+  "nan": false,
+  "sedOut": 3925229.514609997,
+  "wind": {
+    "meanWind": 1.1431658352744347,
+    "shelteredFrac": 0.17578125,
+    "sandCoverFrac": 0.2061920166015625,
+    "topSandVolume_m3": 620122.5426528603,
+    "lastBatch": {
+      "K": 1,
+      "eSand": 1.233891527764882e-12,
+      "eDust": 3.084728819412205e-14,
+      "eSnow": 4.5037040763418194e-11,
+      "dirs": [
+        205.9560980470851
+      ]
+    }
+  },
+  "gpuErrors": 0,
+  "gpuFeatureStatusWebGPU": "enabled",
+  "electron": "45.2.1",
+  "chrome": "156.0.8078.75"
+}

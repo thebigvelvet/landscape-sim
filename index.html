@@ -70,6 +70,26 @@
       <button id="storm" class="ghost">Send a big storm (3 days) <span class="tip" data-tip="Drops three days of very heavy rain or snow, about twelve times the usual amount. Watch streams flood, carry mud and cut into their beds.">?</span></button>
     </section>
 
+    <section id="wind-section">
+      <h2>Wind <span class="tip" data-tip="The prevailing wind. On dry, bare ground it lifts sand into dunes, blows fine dust away (leaving a gravel pavement behind), sandblasts bare rock and drifts snow into the lee of ridges. Plants, damp ground, snow cover and frozen ground protect the surface. At the fastest speeds dunes travel slower than real ones would.">?</span></h2>
+      <label class="check"><input id="wind-on" type="checkbox" checked /> Wind shapes the land</label>
+      <div class="wind-row">
+        <div id="wind-dial" class="wind-dial" role="slider" aria-label="Wind direction" tabindex="0" title="Drag to set where the wind blows from">
+          <span class="nesw n">N</span><span class="nesw e">E</span><span class="nesw s">S</span><span class="nesw w">W</span>
+          <div id="wind-arrow" class="wind-arrow"></div>
+        </div>
+        <div class="wind-text"><b id="wind-from">from the SW</b><span id="wind-dunes" class="hint"></span></div>
+      </div>
+      <label class="slider">
+        <span>Strength <span class="tip" data-tip="How hard the wind blows on average. Sand starts moving above about 0.6 and the amount moved climbs steeply with speed, so a stronger wind builds and moves dunes much faster.">?</span></span>
+        <input id="wind-speed" type="range" min="0" max="2" step="0.05" value="1" /><output id="wind-speed-out">1.00</output>
+      </label>
+      <label class="slider">
+        <span>Steadiness <span class="tip" data-tip="How steady the wind direction is. Steady wind (right) builds ridges and crescent dunes across the wind. Two winds trading off by season (middle) build long straight dunes along the average wind. Wind from all around (left) piles sand into star dunes.">?</span></span>
+        <input id="wind-steady" type="range" min="0" max="1" step="0.05" value="0.75" /><output id="wind-steady-out">steady</output>
+      </label>
+    </section>
+
     <section id="events">
       <h2>Weather events <span class="tip" data-tip="Pick a tool, then click (or drag) on the land to make it happen there. Storms, droughts, floods and fires all follow the same physics as the normal weather, and every drop of water is counted.">?</span></h2>
       <div id="tools" class="tools"></div>

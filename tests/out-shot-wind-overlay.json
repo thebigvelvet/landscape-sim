@@ -1,0 +1,27 @@
+{
+  "mode": "overlay",
+  "day": 182660,
+  "bal": 1.59504854812263e-7,
+  "solidsErr": -58.14753508940339,
+  "nan": false,
+  "sedOut": 2180440.052500006,
+  "wind": {
+    "meanWind": 0.8037567992150507,
+    "shelteredFrac": 0.3929595947265625,
+    "sandCoverFrac": 0.13053512573242188,
+    "topSandVolume_m3": 443229.6259224415,
+    "lastBatch": {
+      "K": 1,
+      "eSand": 1.884881048806152e-12,
+      "eDust": 4.71220262201538e-14,
+      "eSnow": 6.879815828142455e-11,
+      "dirs": [
+        257.4033377170563
+      ]
+    }
+  },
+  "gpuErrors": 0,
+  "gpuFeatureStatusWebGPU": "enabled",
+  "electron": "45.2.1",
+  "chrome": "156.0.8078.75"
+}

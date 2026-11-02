@@ -81,6 +81,7 @@ export class Events {
     this.drought = null;   // {days, left, pMul, etMul, dT}
     this.fireWeather = 0;
     this.wind = [1, 0];
+    this.prevailing = null;   // the prevailing wind (blowing toward, grid units) when wind is on
     this.seq = 0;
     this.log = [];         // recent events for the renderer / UI: {type, x, y, r, t0 (performance.now()), id, ...}
     this.fastFlood = 0;    // m3 of flood water logged directly as precip + fast outflow (CPU, float64)
@@ -123,6 +124,7 @@ export class Events {
    * fR: routed fraction of runoff (scheduler). Returns { fields, fastFloodM3 }.
    */
   uniforms(D, n, fR, cellArea) {
+    if (this.prevailing) this.wind = [...this.prevailing];
     const u = { fireWeather: this.fireWeather, windX: this.wind[0], windY: this.wind[1] };
     for (let k = 0; k < 4; k++) {
       const s = this.storms[k];
@@ -189,7 +191,7 @@ export class Events {
       ctx.vegetation.ignite(x, y, r, Math.min(1, I));
       this.fireWeather = Math.min(1.5, 0.8 + 0.4 * I);
       const a = Math.random() * Math.PI * 2;
-      this.wind = [Math.cos(a), Math.sin(a)];
+      this.wind = this.prevailing ? [...this.prevailing] : [Math.cos(a), Math.sin(a)];
     }
     this.log.push(ev);
     if (this.log.length > 24) this.log.shift();

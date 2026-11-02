@@ -18,6 +18,9 @@ export const PRESETS = {
     palette: { rock: [0.70, 0.40, 0.25], rock2: [0.80, 0.62, 0.45], soil: [0.72, 0.50, 0.33], talus: [0.68, 0.48, 0.36], veg: [0.45, 0.45, 0.30], vegAmount: 0.10, sand: [0.86, 0.70, 0.52], banding: 0.6 },
     // trees drawn by the renderer: conifer share, autumn colour (0 gold, 1 red), pinyon-juniper share
     forest: { conifer: 0.35, autumn: 0, shrub: 0.9 },
+    // prevailing wind (sim/wind.js): bearing it blows FROM, strength (1 = a windy desert), steadiness
+    // (1 one direction .. 0 all around the compass), sand share of the plain soil
+    wind: { from: 225, speed: 1.1, steady: 0.75, sandy: 0.6 },
   },
   'Colorado alpine': {
     tSea: 20, tAmp: 11, lapse: 6.5, pMean: 2.2, pSeas: 0.3, pPeakDay: 60, tPeakDay: 200, dtr: 15,
@@ -28,6 +31,7 @@ export const PRESETS = {
     // display palette (sRGB) used by the renderer
     palette: { rock: [0.47, 0.46, 0.45], rock2: [0.36, 0.35, 0.36], soil: [0.40, 0.34, 0.27], talus: [0.58, 0.56, 0.53], veg: [0.24, 0.30, 0.17], vegAmount: 0.35, sand: [0.56, 0.53, 0.48], banding: 0.15 },
     forest: { conifer: 0.5, autumn: 0, shrub: 0 },        // spruce-fir with golden aspen groves
+    wind: { from: 270, speed: 1.0, steady: 0.8, sandy: 0.25 },   // strong westerlies over the divide
   },
   'Pacific NW wet': {
     tSea: 11, tAmp: 7, lapse: 6.0, pMean: 6.0, pSeas: 0.75, pPeakDay: 350, tPeakDay: 205, dtr: 8,
@@ -38,6 +42,7 @@ export const PRESETS = {
     // display palette (sRGB) used by the renderer
     palette: { rock: [0.30, 0.30, 0.31], rock2: [0.24, 0.24, 0.26], soil: [0.28, 0.22, 0.16], talus: [0.42, 0.41, 0.40], veg: [0.14, 0.26, 0.12], vegAmount: 0.85, sand: [0.46, 0.43, 0.37], banding: 0.05 },
     forest: { conifer: 0.9, autumn: 0.7, shrub: 0 },      // Douglas fir and cedar, a few maples
+    wind: { from: 225, speed: 0.5, steady: 0.6, sandy: 0.2 },
   },
   'Temperate': {
     tSea: 12, tAmp: 10, lapse: 6.5, pMean: 2.5, pSeas: 0.15, pPeakDay: 180, tPeakDay: 200, dtr: 10,
@@ -48,6 +53,7 @@ export const PRESETS = {
     // display palette (sRGB) used by the renderer
     palette: { rock: [0.50, 0.47, 0.42], rock2: [0.42, 0.40, 0.37], soil: [0.36, 0.28, 0.20], talus: [0.55, 0.52, 0.47], veg: [0.25, 0.34, 0.16], vegAmount: 0.7, sand: [0.58, 0.53, 0.43], banding: 0.25 },
     forest: { conifer: 0.2, autumn: 1, shrub: 0 },        // oak-maple-beech, red and orange in October
+    wind: { from: 260, speed: 0.7, steady: 0.5, sandy: 0.3 },
   },
 };
 
@@ -80,6 +86,8 @@ export class Climate {
     this.wxDay = -1;
     this.wet = false;
     this.rng = 12345;
+    // wind overrides from the panel (null = the preset's own wind)
+    this.windFrom = null; this.windSpeed = null; this.windSteady = null;
   }
   rand() {
     // mulberry32
@@ -105,7 +113,12 @@ export class Climate {
     this.wx = this.wet ? this.size / p.wetFrac : 0;
   }
   get preset() { return PRESETS[this.presetName] || PRESETS['Colorado alpine']; }
-  setPreset(name) { if (PRESETS[name]) this.presetName = name; }
+  setPreset(name) { if (PRESETS[name]) { this.presetName = name; this.windFrom = this.windSpeed = this.windSteady = null; } }
+  // prevailing wind: { from (bearing deg), speed, steady 0..1, sandy }
+  windSettings() {
+    const w = this.preset.wind;
+    return { from: this.windFrom ?? w.from, speed: this.windSpeed ?? w.speed, steady: this.windSteady ?? w.steady, sandy: w.sandy };
+  }
   triggerStorm(days = 3, mul = 12) { this.stormDaysLeft = days; this.stormMul = mul; }
 
   // Day-to-day weather multiplier. A forced "big storm" replaces the day's weather (wet or dry)

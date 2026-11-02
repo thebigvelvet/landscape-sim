@@ -1,0 +1,19 @@
+{
+  "mode": "desert",
+  "day": 182660,
+  "bal": 8.827735526422527e-8,
+  "solidsErr": 12.313197146308255,
+  "nan": false,
+  "sedOut": 132.0025663479684,
+  "wind": {
+    "meanWind": 0,
+    "shelteredFrac": 1,
+    "sandCoverFrac": 0.032802581787109375,
+    "topSandVolume_m3": 71726.22277922928,
+    "lastBatch": null
+  },
+  "gpuErrors": 0,
+  "gpuFeatureStatusWebGPU": "enabled",
+  "electron": "45.2.1",
+  "chrome": "156.0.8078.75"
+}

@@ -251,6 +251,27 @@ async function main() {
     // sediment beds (sim/deposits.js): one cell's stack (top bed first) and a whole-map summary
     bedsAt: async (x, y) => bedsAt(await sim.readLayer('deposit'), y * sim.N + x),
     depositStats: async () => depositSummary(await sim.readLayer('deposit'), sim.world.cells, sim.world.cellSize ** 2),
+    // wind (sim/wind.js): settings (from = compass bearing it blows from, speed, steady 0..1, on) and
+    // a whole-map summary of the wind field and the wind-blown sand
+    get wind() { return { ...sim.climate.windSettings(), on: sim.windOn }; },
+    setWind: (o = {}) => {
+      if (o.from !== undefined) sim.climate.windFrom = +o.from;
+      if (o.speed !== undefined) sim.climate.windSpeed = +o.speed;
+      if (o.steady !== undefined) sim.climate.windSteady = +o.steady;
+      if (o.on !== undefined) sim.windOn = !!o.on;
+      panel.syncWind();
+      return window.sim.wind;
+    },
+    windStats: async () => {
+      const w = await sim.readLayer('wind'), dep = await sim.readLayer('deposit'), cells = sim.world.cells;
+      let u = 0, lee = 0, sandCells = 0, sandVol = 0;
+      for (let i = 0; i < cells; i++) {
+        u += w[4 * i + 2]; if (w[4 * i + 3] < 0.5) lee++;
+        const th = dep[16 * i], g = (dep[16 * i + 8] % 1) / 0.99;
+        if (th > 0.05 && g >= 0.45 && g <= 0.85) { sandCells++; sandVol += th; }
+      }
+      return { meanWind: u / cells, shelteredFrac: lee / cells, sandCoverFrac: sandCells / cells, topSandVolume_m3: sandVol * sim.world.cellSize ** 2, lastBatch: sim.windPlan };
+    },
     get engine() { return sim; },
     get renderer() { return renderer; },
     get gpuTimes() { return { timed: timer.ok, simMs: timer.simMs, renderMs: timer.renderMs, nSub: sim.nSub }; },

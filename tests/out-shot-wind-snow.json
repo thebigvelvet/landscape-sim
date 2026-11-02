@@ -1,0 +1,27 @@
+{
+  "mode": "snow",
+  "day": 11015,
+  "bal": 2.1345889567259483e-8,
+  "solidsErr": 82.0981310089926,
+  "nan": false,
+  "sedOut": 1024.9065921982626,
+  "wind": {
+    "meanWind": 0.4070884769342764,
+    "shelteredFrac": 0.43138885498046875,
+    "sandCoverFrac": 0.0034637451171875,
+    "topSandVolume_m3": 6542.571784555912,
+    "lastBatch": {
+      "K": 1,
+      "eSand": 0.004023744291429909,
+      "eDust": 0.00010059360728574772,
+      "eSnow": 0.14686666663719167,
+      "dirs": [
+        304.25329214613885
+      ]
+    }
+  },
+  "gpuErrors": 0,
+  "gpuFeatureStatusWebGPU": "enabled",
+  "electron": "45.2.1",
+  "chrome": "156.0.8078.75"
+}
