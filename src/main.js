@@ -5,6 +5,7 @@ import { Panel } from './ui/panel.js';
 import { PRESETS } from './sim/climate.js';
 import { GpuTimer } from './gpuTimer.js';
 import { BrushTool } from './ui/brush.js';
+import { STRATA, strataLayer } from './sim/strata.js';
 
 const $ = (id) => document.getElementById(id);
 
@@ -240,6 +241,9 @@ async function main() {
     refreshHeights: () => brushTool.refreshHeights(true),
     get brushTool() { return brushTool; },
     setPreset: (name) => { sim.climate.setPreset(name); sim.datum = sim.climate.preset.baseElevation; panel.sync(); },
+    // rock layers (sim/strata.js): bed index at bedrock height z in cell (x, y), and the bed table
+    strataLayer: (z, x, y) => strataLayer(z, x, y, sim.strataTop, sim.strataScale),
+    strataBeds: STRATA,
     get engine() { return sim; },
     get renderer() { return renderer; },
     get gpuTimes() { return { timed: timer.ok, simMs: timer.simMs, renderMs: timer.renderMs, nSub: sim.nSub }; },

@@ -15,7 +15,8 @@
 //   For each 8-neighbour pair the flux from the higher cell is
 //     F = thermalRate/2 * max(0, dz - tan(talus)*dist) + creepFrac*(dx/dist)^2 * dz
 //   limited to 0.12*dz (explicit-diffusion stability for 8 neighbours) and to soil/8.5 of the donor.
-//   Bedrock steeper than rockTan converts to soil (rock fall) at rockRate per frame.
+//   Bedrock steeper than its bed's cliff angle (rockTan with rock layers off) converts to soil
+//   (rock fall) at rockRate per frame. Rock layers (sim/strata.js) also scale kRock per bed.
 import { COMMON_WGSL, makeKernel, dispatchGrid } from './common.js';
 
 export const EROSION_PARAMS = {
@@ -92,7 +93,7 @@ fn main(@builtin(global_invocation_id) gid : vec3<u32>) {
     let rest = e - fromSoil;
     var br = bedrock[i];
     if (rest > 0.0) {
-      let nb = br - rest * P.kRock;
+      let nb = br - rest * P.kRock * rockAt(br, x, y).x;   // soft shale wears fast, sandstone slowly
       let actual = br - nb;             // exact f32 change -> exact conservation
       bedrock[i] = nb;
       s = s + actual;
@@ -135,6 +136,7 @@ fn main(@builtin(global_invocation_id) gid : vec3<u32>) {
   let so = soil[i];
   let z = bedrock[i] + so;
   let v0 = clamp(veg[i], 0.0, 1.0);
+  let cliffTan = rockAt(bedrock[i], x, y).z;   // sandstone holds near-vertical faces, shale does not
   var net = 0.0;
   var rockEx = 0.0;
   for (var dy = -1; dy <= 1; dy++) {
@@ -149,7 +151,7 @@ fn main(@builtin(global_invocation_id) gid : vec3<u32>) {
       let vm = 0.5 * (v0 + clamp(veg[j], 0.0, 1.0));
       if (dz > 0.0) {
         net -= pairFlux(dz, dist, so, vm);
-        rockEx = max(rockEx, dz - P.rockTan * dist);
+        rockEx = max(rockEx, dz - cliffTan * dist);
       } else if (dz < 0.0) {
         net += pairFlux(-dz, dist, sn, vm);
       }

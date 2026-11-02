@@ -1,4 +1,5 @@
 import { PARAMS_WGSL } from './params.js';
+import { STRATA_WGSL } from './strata.js';
 
 // Shared WGSL prelude: params uniform at @group(0) @binding(0) plus grid helpers.
 // All grid kernels use 16x16 workgroups (256 threads, good occupancy on NVIDIA/AMD/Intel and
@@ -19,6 +20,13 @@ const PI : f32 = 3.14159265;
 // Groundwater capacity (m of water) of a cell: thin rocky soil holds little, deep soil and
 // alluvium hold more. Equals the preset's gwMax at 1 m of soil. Mirrored on the CPU by gwCapacity().
 fn gwCap(soilDepth : f32) -> f32 { return P.gwMax * (0.15 + 0.85 * min(max(soilDepth, 0.0), 2.0)); }
+${STRATA_WGSL}
+// Rock at bedrock elevation z in cell (x, y): (erode multiplier, weather multiplier, cliff tan).
+// With rock layers off every cell is the same uniform rock as before.
+fn rockAt(z : f32, x : i32, y : i32) -> vec3<f32> {
+  if (P.strataOn < 0.5) { return vec3<f32>(1.0, 1.0, P.rockTan); }
+  return stProps(z, vec2<f32>(f32(x), f32(y)), P.strataTop, P.strataScale);
+}
 `;
 export function gwCapacity(soilDepth, gwMax) { return gwMax * (0.15 + 0.85 * Math.min(Math.max(soilDepth, 0), 2)); }
 

@@ -139,8 +139,9 @@ fn main(@builtin(global_invocation_id) gid : vec3<u32>) {
   }
   let fr = st.fr;
   let d = st.d;
-  // weathering: bedrock -> soil, exact f32 change so solids are conserved
-  let w = min(aW, 2.0);
+  // weathering: bedrock -> soil, exact f32 change so solids are conserved; shale crumbles faster
+  // than sandstone (sim/strata.js)
+  let w = min(aW * rockAt(br, x, y).y, 2.0);
   if (w > 0.0) {
     let nb = br - w;
     bedrock[i] = nb;

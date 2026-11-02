@@ -103,6 +103,8 @@ export class Simulation {
     let mn = Infinity, mx = -Infinity, sum = 0;
     for (let i = 0; i < N * N; i++) { const h = height[i]; if (h < mn) mn = h; if (h > mx) mx = h; sum += h; }
     this.terrainRange = { min: mn, max: mx, mean: sum / (N * N) };
+    // rock layers start at the top of the new terrain; beds thicken with the relief slider
+    this.strataTop = mx; this.strataScale = Math.max(0.5, this.relief);
     this.day = 0; this.frame = 0; this.carry = 0; this.hmax = 0.3; this.consumed = 0;
     this.cum = { precip: 0, outflow: 0, evap: 0, sedOut: 0 };
     this.climate.stormDaysLeft = 0;
@@ -159,6 +161,7 @@ export class Simulation {
       creepFrac: Math.min(0.1, EROSION_PARAMS.creepK * this.erosionStrength * yearsE / (dx * dx)),
       rockRate: Math.min(0.4, EROSION_PARAMS.rockFallPerYear * yearsE),
       vegInit: 0,
+      strataOn: this.strata ? 1 : 0, strataTop: this.strataTop ?? 0, strataScale: this.strataScale ?? 1,
       ...ev.fields,
     };
     return { plan, n, A, tau, dm, fastFloodM3: ev.fastFloodM3 };
@@ -249,6 +252,9 @@ export class Simulation {
   endStroke() { return sculptor.endStroke(); }
   undoSculpt() { return sculptor.undo((n) => this.readLayer(n)); }
   get canUndo() { return sculptor.canUndo; }
+  // rock layers on/off (sim/strata.js); on by default, takes effect at the next batch
+  strata = true;
+
   // snow avalanches on/off (sim/snow.js); on by default
   get avalanches() { return avalanche.enabled; }
   set avalanches(v) { avalanche.enabled = !!v; }

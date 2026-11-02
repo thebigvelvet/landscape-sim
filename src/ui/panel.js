@@ -150,6 +150,7 @@ export class Panel {
     $('contours').addEventListener('change', () => { app.renderer.contours = $('contours').checked; });
     $('spin').addEventListener('change', () => { app.renderer.camera.autoRotate = $('spin').checked; });
     $('trees').addEventListener('change', () => { app.renderer.showTrees = $('trees').checked; });
+    $('strata').addEventListener('change', () => { app.sim.strata = $('strata').checked; });
     $('dice').addEventListener('click', () => {
       $('seed').value = 1 + Math.floor(Math.random() * 99999);
       $('scenario').value = 'random';

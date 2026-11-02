@@ -1,3 +1,4 @@
+import { STRATA_WGSL, STRATA_COLOR_WGSL } from '../sim/strata.js';
 // WGSL for the renderer: shared uniforms, sky, terrain, terrain block sides, water, falling precipitation.
 
 export const UNIFORMS = /* wgsl */ `
@@ -30,11 +31,21 @@ struct R {
   st: array<vec4f, 4>,   // active storm clouds: world x, world z, radius (m), strength 0..1
   stX: vec4f,         // x = cloud base height (world y), y = snow 0..1, z = flash 0..1, w = cloud top height
   view: vec4f,        // viewport width, height (px), projection scale (P11), tree density scale
+  strata: vec4f,      // rock layers (sim/strata.js): on, top of the stack (m), thickness scale, unused
 };
 @group(0) @binding(0) var<uniform> R_: R;
 `;
 
-export const COMMON = /* wgsl */ `
+export const COMMON = STRATA_WGSL + STRATA_COLOR_WGSL + /* wgsl */ `
+// Rock colour from the simulated beds at bedrock height z, grid cell g (linear rgb); a = 0 when off.
+fn strataRock(z: f32, g: vec2f) -> vec4f {
+  if (R_.strata.x < 0.5) { return vec4f(0.0); }
+  let L = stLayer(z, g, R_.strata.y, R_.strata.z);
+  let k = u32(L.x);
+  // the contact itself shows as a slightly darker seam
+  let seam = 1.0 - 0.25 * (1.0 - smoothstep(0.0, 0.8, min(L.y, L.z)));
+  return vec4f(srgb(stColor(k)) * seam, 1.0);
+}
 fn srgb(c: vec3f) -> vec3f { return pow(c, vec3f(2.2)); }
 fn hash2(p: vec2f) -> f32 {
   let q = fract(p * vec2f(0.1031, 0.1030));
@@ -293,6 +304,9 @@ fn overlay(mode: i32, m0: vec4f, m1: vec4f, m3: vec2f, m4: vec4f) -> vec4f {
   let band2 = sin(lay * 0.21 + nz * 3.0) * 0.5 + 0.5;
   let bandStr = R_.rock.w * (0.6 + 0.4 * vnoise(p2 * 0.01));
   var rockC = mix(R_.rock.rgb, R_.rock2.rgb, clamp(band * bandStr + nz * (1.0 - R_.rock.w), 0.0, 1.0));
+  // Real rock layers replace the painted bands: the colour is the bed the erosion is working on.
+  let stc = strataRock(ground - soilD, i.m2.yz);
+  rockC = mix(rockC, stc.rgb * (0.85 + 0.3 * nz), stc.a * 0.85);
   rockC = rockC * (0.8 + 0.3 * band2 * bandStr + 0.25 * (nzf - 0.5));
   // --- Loose material: talus on steep slopes, soil on gentle ground.
   let steep = smoothstep(0.35, 0.75, slopeTan);
@@ -458,7 +472,7 @@ fn overlay(mode: i32, m0: vec4f, m1: vec4f, m3: vec2f, m4: vec4f) -> vec4f {
 export const SKIRT = UNIFORMS + COMMON + /* wgsl */ `
 @group(0) @binding(1) var<storage, read> bedrock: array<f32>;
 @group(0) @binding(2) var<storage, read> soil: array<f32>;
-struct VO { @builtin(position) pos: vec4f, @location(0) wpos: vec3f, @location(1) info: vec3f, @location(2) nrm: vec3f };
+struct VO { @builtin(position) pos: vec4f, @location(0) wpos: vec3f, @location(1) info: vec3f, @location(2) nrm: vec3f, @location(3) gxy: vec2f };
 @vertex fn vs(@builtin(vertex_index) vi: u32) -> VO {
   let n = u32(R_.grid.x);
   let dx = R_.grid.y;
@@ -487,6 +501,7 @@ struct VO { @builtin(position) pos: vec4f, @location(0) wpos: vec3f, @location(1
   o.pos = R_.viewProj * vec4f(wp, 1.0);
   o.wpos = wp;
   o.info = vec3f(y, b, g);
+  o.gxy = vec2f(f32(gx), f32(gy));
   o.nrm = nrm;
   return o;
 }
@@ -498,6 +513,8 @@ struct VO { @builtin(position) pos: vec4f, @location(0) wpos: vec3f, @location(1
   let lay = y + vnoise(vec2f(along * 0.0025, 0.0)) * 40.0 + fbm(vec2f(along * 0.02, y * 0.02)) * 12.0;
   let band = smoothstep(0.25, 0.75, sin(lay * 0.045 + 1.7 * sin(lay * 0.013)) * 0.5 + 0.5);
   var c = mix(R_.rock.rgb, R_.rock2.rgb, band * max(R_.rock.w, 0.35)) * 0.8;
+  let stc = strataRock(y, i.gxy);
+  c = mix(c, stc.rgb * 0.8, stc.a * 0.9);
   // Soil layer sits on top of bedrock (exaggerated a little so thin soils stay visible).
   if (y > b - 0.3) { c = R_.soilC.rgb * 0.9; }
   let L = normalize(R_.sunDir.xyz);

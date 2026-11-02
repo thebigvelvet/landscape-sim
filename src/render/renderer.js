@@ -14,7 +14,7 @@ import { PRESETS } from '../sim/climate.js';
 // Overlay names, in the order of the shader's overlay modes (0 = natural view).
 export const OVERLAYS = ['none', 'water', 'sediment', 'snow', 'frost', 'change', 'groundwater', 'plants'];
 export const TOOL_IDS = { none: 0, storm: 1, drought: 2, flood: 3, wildfire: 4, raise: 5, lower: 5, smooth: 5, flatten: 5, channel: 5 };
-const UB_FLOATS = 156;
+const UB_FLOATS = 160;
 
 const SAMPLES = 4;
 const WEATHER_VISIBLE_SPEED = 36;   // days/s; above this rain particles and clouds are averaged out
@@ -347,6 +347,7 @@ export class Renderer {
     const P11 = 1 / Math.tan(this.camera.fov / 2);
     const dens = world.N <= 512 ? 1 : world.N <= 1024 ? 0.5 : 0.25;
     u.set([this.canvas.width, this.canvas.height, P11, dens], 152);
+    u.set([sim.strata ? 1 : 0, sim.strataTop ?? 0, sim.strataScale ?? 1, 0], 156);
     this.device.queue.writeBuffer(this.ub, 0, u);
     this.nStorms = vis.storms.length;
 

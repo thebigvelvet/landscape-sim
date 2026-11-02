@@ -34,6 +34,8 @@ export const PARAM_FIELDS = [
   ['s3x', 'f32'], ['s3y', 'f32'], ['s3r', 'f32'], ['s3a', 'f32'],
   ['f0x', 'f32'], ['f0y', 'f32'], ['f0r', 'f32'], ['f0d', 'f32'],
   ['f1x', 'f32'], ['f1y', 'f32'], ['f1r', 'f32'], ['f1d', 'f32'],
+  // rock layers (sim/strata.js): on/off, top of the stack (m, bedrock frame), thickness scale
+  ['strataOn', 'f32'], ['strataTop', 'f32'], ['strataScale', 'f32'], ['pad4', 'f32'],
 ];
 
 export const PARAMS_WGSL = `struct Params {\n${PARAM_FIELDS.map(([n, t]) => `  ${n} : ${t},`).join('\n')}\n};\n`;
