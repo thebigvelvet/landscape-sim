@@ -47,7 +47,7 @@ ${EVENTS_WGSL}
 
 struct Col { swe : f32, g : f32, d : f32, fr : f32, mn : f32 };
 // surface properties of the cell for this batch (from plants, fire and soil depth)
-struct Surf { cap : f32, kMul : f32, etF : f32, v : f32, storm : f32 };
+struct Surf { cap : f32, kMul : f32, etF : f32, v : f32, storm : f32, invCap : f32 };
 // per-interval sums: precip, ET, runoff, weathering, growing-season moisture sum, growing-season days
 struct Sums { p : f32, et : f32, r : f32, w : f32, ws : f32, gs : f32 };
 
@@ -70,12 +70,12 @@ fn integrate(st : ptr<function, Col>, n : u32, dt : f32, start : f32, z : f32, s
     let cyc = ftCycles(T, dt) * select(0.0, 1.0, (*st).swe < 0.03);   // snow cover damps surface cycles
     let s3 = soilStep((*st).g, sn.y, T, (*st).fr, dt, sf.cap, sf.kMul, sf.etF);
     (*st).g = s3.x; a.r += s3.y; a.et += s3.z;
-    let moist = (*st).g / max(sf.cap, 1e-4);
+    let moist = (*st).g * sf.invCap;
     a.w += weathering(cyc, moist, so, dt, sf.v);
     a.p += pr;
     // growing-season soil moisture for the plants: weight each day by how warm it is
-    let warm = smoothstep(2.0, 10.0, T) * dt;
-    a.ws += warm * clamp((*st).g / max(0.5 * sf.cap, 1e-4), 0.0, 1.0);
+    let warm = clamp((T - 2.0) * 0.125, 0.0, 1.0) * dt;
+    a.ws += warm * min(2.0 * moist, 1.0);
     a.gs += warm;
   }
   return a;
@@ -97,7 +97,8 @@ fn main(@builtin(global_invocation_id) gid : vec3<u32>) {
   let ev = eventRates(x, y);                 // (storm precip m/day, flood inflow m/day)
   // plants raise infiltration (aux.y, which also carries the fire penalty), transpire from the
   // groundwater store (bare soil still evaporates), and thin soils hold little water
-  let sf = Surf(gwCap(so), aux.y, 0.45 + 0.75 * aux.z, aux.z, ev.x);
+  let cap = gwCap(so);
+  let sf = Surf(cap, aux.y, 0.45 + 0.75 * aux.z, aux.z, ev.x, 1.0 / max(cap, 1e-4));
   let swe0 = snowSWE[i];
   let g0 = groundwater[i];
   var st = Col(swe0, g0, frostDepth[i], 0.0, 1e9);

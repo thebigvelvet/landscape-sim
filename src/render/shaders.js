@@ -253,7 +253,7 @@ fn overlay(mode: i32, m0: vec4f, m1: vec4f, m3: vec2f, m4: vec4f) -> vec4f {
   let burnS = i.m4.y;
   let stress = i.m4.z;
   let Tw = i.m4.w;
-  let clump = vnoise(p2 * 0.09) * 0.6 + nzf * 0.4;
+  let clump = nz * 0.6 + nzf * 0.4;
   let vegAmt = clamp(smoothstep(0.0, 1.0, vegCov * (0.55 + 0.9 * clump)), 0.0, 1.0);
   let forest = smoothstep(9.0, 13.0, Tw) * smoothstep(0.3, 0.75, vegCov);
   var vegC = mix(R_.veg.rgb * vec3f(1.25, 1.05, 0.7), R_.veg.rgb, summer) * (0.8 + 0.4 * nzf);
@@ -265,8 +265,10 @@ fn overlay(mode: i32, m0: vec4f, m1: vec4f, m3: vec2f, m4: vec4f) -> vec4f {
   let rockExpo = 1.0 - smoothstep(0.03, 0.35, soilD + (nzf - 0.5) * 0.1);
   var albedo = mix(looseWithVeg, rockC, rockExpo * (1.0 - 0.6 * vegAmt));
   // fresh burn scars: charcoal and grey ash, fading as the severity decays and plants return
-  let ash = mix(srgb(vec3f(0.07, 0.065, 0.06)), srgb(vec3f(0.36, 0.35, 0.34)), smoothstep(0.35, 0.75, vnoise(p2 * 0.21)));
-  albedo = mix(albedo, ash, smoothstep(0.03, 0.4, burnS) * (1.0 - 0.7 * vegAmt));
+  if (burnS > 0.03) {
+    let ash = mix(srgb(vec3f(0.07, 0.065, 0.06)), srgb(vec3f(0.36, 0.35, 0.34)), smoothstep(0.35, 0.75, grit));
+    albedo = mix(albedo, ash, smoothstep(0.03, 0.4, burnS) * (1.0 - 0.7 * vegAmt));
+  }
 
   // Wet ground darkens.
   let wet = max(smoothstep(0.0005, 0.02, wdep), smoothstep(1e-4, 2e-3, i.m3.y) * 0.7);
