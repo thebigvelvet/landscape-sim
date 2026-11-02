@@ -145,6 +145,7 @@ export class Panel {
     });
     $('contours').addEventListener('change', () => { app.renderer.contours = $('contours').checked; });
     $('spin').addEventListener('change', () => { app.renderer.camera.autoRotate = $('spin').checked; });
+    $('trees').addEventListener('change', () => { app.renderer.showTrees = $('trees').checked; });
     $('dice').addEventListener('click', () => {
       $('seed').value = 1 + Math.floor(Math.random() * 99999);
       $('scenario').value = 'random';
@@ -243,7 +244,12 @@ export class Panel {
     const tLow = cl.airTempAt(c.dayOfYear, zLow), tHigh = cl.airTempAt(c.dayOfYear, zHigh);
     const rate = c.precipRate_mm_per_day;
     let weather;
-    if (cl.stormDaysLeft > 0) weather = 'Big storm!';
+    const ev = sim.events;
+    if (ev.floods.length) weather = 'Flood wave coming down!';
+    else if (ev.storms.length) weather = 'Cloudburst on the map';
+    else if (ev.drought) weather = `Drought (${Math.max(0.1, ev.drought.left / 365).toFixed(1)} years left)`;
+    else if (ev.fireWeather > 0.05) weather = 'Wildfire burning';
+    else if (cl.stormDaysLeft > 0) weather = 'Big storm!';
     else if (fast) weather = 'Weather averaged';
     else if (rate < 0.3) weather = season.name === 'Summer' && tLow > 22 ? 'Hot and dry' : 'Clear';
     else {
@@ -276,6 +282,9 @@ export class Panel {
       ['Flowed off the map', fmtVol(t.cumOutflow_m3)],
       ['Evaporated or used by plants', fmtVol(t.cumEvapLoss_m3)],
       ['Water books balance', `<span class="${ok ? 'good' : 'bad'}">${t.hasNaN ? 'ERROR (NaN)' : err < 0.001 ? 'yes, exact' : `off by ${err.toFixed(3)}%`}</span>`],
+      'sep',
+      ['Ground covered by plants', `${Math.round(100 * (t.vegCoveredFrac ?? 0))}%`],
+      ['Recently burned', `${(100 * (t.burnedFrac ?? 0)).toFixed(1)}%`],
       'sep',
       ['Rock & soil carried away', fmtVol(Math.max(0, lost))],
       ['Highest point', `${Math.round(t.maxHeight).toLocaleString()} m`],

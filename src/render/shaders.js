@@ -104,7 +104,7 @@ fn leafColor(elevAbs: f32, h: f32, dry: f32) -> vec4f {
   let shift = clamp((tMeanAt(elevAbs) - 6.0) * 3.0, -25.0, 25.0);     // warmer: later autumn, earlier spring
   let aut0 = 252.0 + shift; let off = 300.0 + shift; let on = 135.0 - shift;
   let green = mix(srgb(vec3f(0.46, 0.62, 0.22)), srgb(vec3f(0.24, 0.40, 0.13)), smoothstep(on, on + 40.0, doy));
-  let gold = srgb(mix(vec3f(0.95, 0.72, 0.12), vec3f(0.98, 0.84, 0.25), h));
+  let gold = srgb(mix(vec3f(0.86, 0.56, 0.08), vec3f(0.93, 0.70, 0.16), h));
   let red = srgb(mix(vec3f(0.86, 0.30, 0.08), vec3f(0.93, 0.55, 0.10), h));
   let autC = mix(gold, red, R_.forest.y * step(0.35, h));
   var c = green;
@@ -317,15 +317,17 @@ fn overlay(mode: i32, m0: vec4f, m1: vec4f, m3: vec2f, m4: vec4f) -> vec4f {
   let rockExpo = 1.0 - smoothstep(0.03, 0.35, soilD + (nzf - 0.5) * 0.1);
   var albedo = mix(looseC, rockC, rockExpo);
   // Herbs and grass: green in the growing season, golden when dry, dormant tan in winter.
-  let grassGreen = mix(R_.veg.rgb * vec3f(1.05, 1.25, 0.9), srgb(vec3f(0.33, 0.47, 0.17)), 0.5);
-  let straw = srgb(vec3f(0.74, 0.63, 0.38));
-  let dormant = srgb(vec3f(0.55, 0.47, 0.34));
+  let grassGreen = mix(R_.veg.rgb * vec3f(1.05, 1.2, 0.9), srgb(vec3f(0.29, 0.40, 0.16)), 0.5);
+  let straw = srgb(vec3f(0.74, 0.62, 0.35));
+  let dormant = mix(srgb(vec3f(0.55, 0.45, 0.30)), srgb(vec3f(0.66, 0.54, 0.33)), vnoise(p2 * 0.05));
   var herb = mix(grassGreen, straw, smoothstep(0.35, 0.85, dry));
   herb = mix(dormant, herb, growing);
-  herb = herb * (0.82 + 0.36 * vnoise(p2 * 0.6));
+  // tufts: darker clumps and lighter seed heads so meadows have texture
+  let tuft = vnoise(p2 * 0.6) * 0.6 + vnoise(p2 * 2.3) * 0.4;
+  herb = herb * (0.70 + 0.55 * tuft);
   // Canopy seen from above (the 3D trees add relief up close): conifer, broadleaf or pinyon-juniper.
   let hcell = hash2(floor(p2 / 23.0));
-  let coldBoost = clamp((4.0 - tMeanAt(elevAbs)) * 0.12, -0.3, 0.6);
+  let coldBoost = clamp((-1.0 - tMeanAt(elevAbs)) * 0.15, -0.4, 0.5);
   let conShare = clamp(R_.forest.x + coldBoost, 0.0, 1.0);
   let conifer = mix(srgb(vec3f(0.11, 0.21, 0.12)), srgb(vec3f(0.40, 0.31, 0.16)), smoothstep(0.6, 0.95, dry));
   let leaf = leafColor(elevAbs, hcell, dry);
@@ -336,8 +338,8 @@ fn overlay(mode: i32, m0: vec4f, m1: vec4f, m3: vec2f, m4: vec4f) -> vec4f {
   canopy = canopy * (0.75 + 0.5 * vnoise(p2 * 0.35));
   let vegC = mix(herb, canopy, smoothstep(0.1, 0.7, woody));
   // Patchy cover: sparse plants read as clumps, not a tint.
-  let patch = vnoise(p2 * 0.22) * 0.55 + vnoise(p2 * 0.9) * 0.45;
-  let cov = smoothstep(0.0, 0.25, veg * 1.15 - (patch - 0.5) * 0.7 - 0.12) * smoothstep(0.0, 0.05, veg);
+  let patchN = vnoise(p2 * 0.22) * 0.55 + vnoise(p2 * 0.9) * 0.45;
+  let cov = smoothstep(0.0, 0.25, veg * 1.15 - (patchN - 0.5) * 0.7 - 0.12) * smoothstep(0.0, 0.05, veg);
   albedo = mix(albedo, vegC, cov);
   // Burn scar: char with grey ash, fading to dark earth as it ages; green shoots come back on top.
   let ashN = vnoise(p2 * 0.8);
@@ -768,7 +770,7 @@ struct VO {
   let elevAbs = ground + R_.grid.z;
   let dry = clamp(1.0 - moist * 1.25 + R_.misc2.x * 0.15, 0.0, 1.0);
   // species (same noise as the terrain canopy colour, so patches agree)
-  let coldBoost = clamp((4.0 - tMeanAt(elevAbs)) * 0.12, -0.3, 0.6);
+  let coldBoost = clamp((-1.0 - tMeanAt(elevAbs)) * 0.15, -0.4, 0.5);
   let conN = clamp(R_.forest.x + coldBoost, 0.0, 1.0) + (vnoise(base.xz * 0.04) - 0.5) * 0.6;
   let pjShare = R_.forest.z * (1.0 - smoothstep(0.3, 0.7, moist));
   var sp = 1u;                                       // 0 conifer, 1 broadleaf, 2 pinyon-juniper, 3 snag

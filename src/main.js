@@ -4,6 +4,7 @@ import { Renderer } from './render/renderer.js';
 import { Panel } from './ui/panel.js';
 import { PRESETS } from './sim/climate.js';
 import { GpuTimer } from './gpuTimer.js';
+import { BrushTool } from './ui/brush.js';
 
 const $ = (id) => document.getElementById(id);
 
@@ -35,7 +36,10 @@ async function initGPU() {
   device.lost.then((info) => {
     if (info.reason !== 'destroyed') fatal('The graphics device was lost', `<p>${info.message || ''}</p><p>This can happen after a driver update or if the GPU ran out of memory. <button onclick="location.reload()">Reload</button></p>`);
   });
-  device.addEventListener('uncapturederror', (e) => { console.error('[WebGPU]', e.error?.message); window.__gpuErrors = (window.__gpuErrors || 0) + 1; });
+  device.addEventListener('uncapturederror', (e) => {
+    console.error('[WebGPU]', e.error?.message); window.__gpuErrors = (window.__gpuErrors || 0) + 1;
+    const m = (window.__gpuErrorMsgs ||= []); if (m.length < 8 && !m.includes(e.error?.message)) m.push(e.error?.message);
+  });
   return { adapter, device };
 }
 
@@ -56,6 +60,7 @@ async function main() {
     else b.classList.add('fade');
   };
   let panel = null;
+  let brushTool = null;
   let stats = null;
   let fpsEMA = 60, gpuMs = 0, gpuPending = false, frames = 0, lastT = performance.now(), statsPending = false;
 
@@ -67,6 +72,8 @@ async function main() {
       try {
         const res = await sim.load(scenario, opts);
         renderer.frameTerrain(sim.terrainRange);
+        renderer.visuals.clear();
+        brushTool?.refreshHeights(true);
         panel?.syncTerrain(res);
         panel?.sync();
         stats = await sim.stats();
@@ -129,6 +136,7 @@ async function main() {
   if (q.has('paused')) sim.paused = q.get('paused') !== '0';
 
   panel = new Panel(app);
+  brushTool = new BrushTool(app);
   await app.load(scenario, { size, seed, preset });
 
   // ------------- sub-step governor -------------
@@ -197,6 +205,17 @@ async function main() {
     stats: () => sim.stats(),
     setOverlay: (o) => panel.setOverlay(o),
     bench: (sizes) => app.bench(sizes),
+    // Weather brushes: same as clicking with that tool at grid cell (x, y). type: storm | drought |
+    // flood | wildfire. Returns the event (type, x, y, r, ...).
+    brush: (type, opts = {}) => {
+      const N = sim.N;
+      return brushTool.apply(type, opts.x ?? N / 2, opts.y ?? N / 2, opts);
+    },
+    setTool: (t) => brushTool.setTool(t),
+    pick: (clientX, clientY) => brushTool.pick(clientX, clientY),
+    screenOf: (x, y) => brushTool.screenOf(x, y),
+    refreshHeights: () => brushTool.refreshHeights(true),
+    get brushTool() { return brushTool; },
     setPreset: (name) => { sim.climate.setPreset(name); sim.datum = sim.climate.preset.baseElevation; panel.sync(); },
     get engine() { return sim; },
     get renderer() { return renderer; },

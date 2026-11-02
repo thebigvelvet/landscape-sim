@@ -155,7 +155,7 @@ fn main(@builtin(global_invocation_id) gid : vec3<u32>) {
   let pl = plant[i];
   let m = pl.y;
   let w = clamp(0.45 * min(ai, 1.5) + 0.6 * m, 0.0, 1.2);
-  let fWarm = smoothstep(1.0, 7.0, Tw);
+  let fWarm = smoothstep(3.0, 9.5, Tw);                         // alpine tundra thins out above treeline
   let fTree = smoothstep(8.5, 11.5, Tw);
   let fWater = smoothstep(0.0, 0.8, w);
   let fSoil = 0.55 + 0.45 * smoothstep(0.02, 0.4, so);         // thin soil in rock cracks still carries plants

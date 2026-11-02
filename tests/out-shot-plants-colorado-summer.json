@@ -1,0 +1,15 @@
+{
+  "preset": "Colorado alpine",
+  "day": 11150.009999999855,
+  "meanVeg": 0.7707820713985711,
+  "vegCoveredFrac": 0.9395484924316406,
+  "woody": 0.14626516521093436,
+  "burnedFrac": 0,
+  "bal": 0.000002181284820842252,
+  "nan": false,
+  "gpuErrors": 0,
+  "fps": 59.955790157593356,
+  "gpuFeatureStatusWebGPU": "enabled",
+  "electron": "45.2.1",
+  "chrome": "156.0.8078.75"
+}
