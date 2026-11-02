@@ -111,6 +111,37 @@ fn main(@builtin(local_invocation_index) li : u32) {
 }
 `;
 
+// Plant cover statistics: sum of cover, cells with cover >= 0.3, cells with burn >= 0.1, sum of
+// woody cover (cover x woody share). 256 partial vec4s, summed on the CPU.
+const PLANT_WGSL = /* wgsl */`
+${COMMON_WGSL}
+@group(0) @binding(1) var<storage, read> veg : array<f32>;
+@group(0) @binding(2) var<storage, read> burn : array<f32>;
+@group(0) @binding(3) var<storage, read> plant : array<vec4<f32>>;
+@group(0) @binding(4) var<storage, read_write> partials : array<vec4<f32>>;
+var<workgroup> sh : array<vec4<f32>, 256>;
+@compute @workgroup_size(256)
+fn main(@builtin(local_invocation_index) li : u32, @builtin(workgroup_id) wg : vec3<u32>) {
+  let cells = P.N * P.N;
+  var a = vec4<f32>(0.0);
+  var i = wg.x * 256u + li;
+  let stride = ${STAT_GROUPS}u * 256u;
+  loop {
+    if (i >= cells) { break; }
+    let v = finite(veg[i]);
+    a += vec4<f32>(v, select(0.0, 1.0, v >= 0.3), select(0.0, 1.0, finite(burn[i]) >= 0.1), v * finite(plant[i].x));
+    i += stride;
+  }
+  sh[li] = a;
+  workgroupBarrier();
+  for (var off = 128u; off > 0u; off = off >> 1u) {
+    if (li < off) { sh[li] += sh[li + off]; }
+    workgroupBarrier();
+  }
+  if (li == 0u) { partials[wg.x] = sh[0]; }
+}
+`;
+
 export class Stats {
   constructor(device, world) {
     this.device = device; this.world = world;
@@ -121,6 +152,8 @@ export class Stats {
     this.sBG = this.ks.bind(prm, [B.bedrock, B.soil, B.water, B.sediment, B.snowSWE, B.groundwater, B.statPartials, B.initHeight]);
     this.aBG = this.ka.bind(prm, [B.acc, B.accPartials]);
     this.fBG = this.kf.bind(prm, [B.accPartials, B.fluxLog]);
+    this.kp = makeKernel(device, 'plant.stats', PLANT_WGSL, ['r', 'r', 'r', 'rw']);
+    this.pBG = this.kp.bind(prm, [B.veg, B.burn, B.plant, B.plantPartials]);
     this.pool = [];
   }
 
@@ -131,7 +164,7 @@ export class Stats {
   }
 
   _staging() {
-    const size = STAT_GROUPS * STAT_STRIDE * 4 + LOG_SIZE * 16;
+    const size = STAT_GROUPS * STAT_STRIDE * 4 + LOG_SIZE * 16 + STAT_GROUPS * 16;
     return this.pool.pop() || this.device.createBuffer({ size, usage: GPUBufferUsage.MAP_READ | GPUBufferUsage.COPY_DST, label: 'statsStaging' });
   }
 
@@ -143,19 +176,22 @@ export class Stats {
     const enc = dev.createCommandEncoder({ label: 'stats' });
     const pass = enc.beginComputePass();
     pass.setPipeline(this.ks.pipeline); pass.setBindGroup(0, this.sBG); pass.dispatchWorkgroups(STAT_GROUPS);
+    pass.setPipeline(this.kp.pipeline); pass.setBindGroup(0, this.pBG); pass.dispatchWorkgroups(STAT_GROUPS);
     pass.end();
     const pBytes = STAT_GROUPS * STAT_STRIDE * 4;
     enc.copyBufferToBuffer(B.statPartials, 0, st, 0, pBytes);
     enc.copyBufferToBuffer(B.fluxLog, 0, st, pBytes, LOG_SIZE * 16);
+    enc.copyBufferToBuffer(B.plantPartials, 0, st, pBytes + LOG_SIZE * 16, STAT_GROUPS * 16);
     dev.queue.submit([enc.finish()]);
     await st.mapAsync(GPUMapMode.READ);
     const all = new Float32Array(st.getMappedRange().slice(0));
     st.unmap();
     this.pool.push(st);
     const part = all.subarray(0, STAT_GROUPS * STAT_STRIDE);
-    const log = all.subarray(STAT_GROUPS * STAT_STRIDE);
+    const log = all.subarray(STAT_GROUPS * STAT_STRIDE, STAT_GROUPS * STAT_STRIDE + LOG_SIZE * 4);
+    const pp = all.subarray(STAT_GROUPS * STAT_STRIDE + LOG_SIZE * 4);
     // float64 sums
-    const out = { water: 0, sediment: 0, soil: 0, bedrock: 0, snow: 0, groundwater: 0, minH: Infinity, maxH: -Infinity, maxWater: 0, nan: 0, solidsChange: 0, maxErosion: 0, maxDeposition: 0 };
+    const out = { vegSum: 0, vegCovered: 0, burned: 0, woodySum: 0, water: 0, sediment: 0, soil: 0, bedrock: 0, snow: 0, groundwater: 0, minH: Infinity, maxH: -Infinity, maxWater: 0, nan: 0, solidsChange: 0, maxErosion: 0, maxDeposition: 0 };
     for (let gi = 0; gi < STAT_GROUPS; gi++) {
       const o = gi * STAT_STRIDE;
       out.water += part[o]; out.sediment += part[o + 1]; out.soil += part[o + 2]; out.bedrock += part[o + 3];
@@ -164,6 +200,9 @@ export class Stats {
       out.maxWater = Math.max(out.maxWater, part[o + 8]); out.nan += part[o + 9]; out.solidsChange += part[o + 10];
       out.maxErosion = Math.max(out.maxErosion, -part[o + 11]); out.maxDeposition = Math.max(out.maxDeposition, part[o + 12]);
       for (let k = 0; k < 9; k++) if (!Number.isFinite(part[o + k]) && !(k === 6 || k === 7)) out.nan += 1;
+    }
+    for (let gi = 0; gi < STAT_GROUPS; gi++) {
+      out.vegSum += pp[gi * 4]; out.vegCovered += pp[gi * 4 + 1]; out.burned += pp[gi * 4 + 2]; out.woodySum += pp[gi * 4 + 3];
     }
     return { state: out, log };
   }

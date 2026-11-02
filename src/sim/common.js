@@ -16,7 +16,11 @@ fn idxc(x : i32, y : i32) -> u32 { return idx(cl(x), cl(y)); }
 fn isBad(v : f32) -> bool { return (bitcast<u32>(v) & 0x7f800000u) == 0x7f800000u; }
 fn finite(v : f32) -> f32 { return select(v, 0.0, isBad(v)); }
 const PI : f32 = 3.14159265;
+// Groundwater capacity (m of water) of a cell: thin rocky soil holds little, deep soil and
+// alluvium hold more. Equals the preset's gwMax at 1 m of soil. Mirrored on the CPU by gwCapacity().
+fn gwCap(soilDepth : f32) -> f32 { return P.gwMax * (0.15 + 0.85 * min(max(soilDepth, 0.0), 2.0)); }
 `;
+export function gwCapacity(soilDepth, gwMax) { return gwMax * (0.15 + 0.85 * Math.min(Math.max(soilDepth, 0), 2)); }
 
 export function dispatchGrid(pass, N) {
   const g = Math.ceil(N / WG);

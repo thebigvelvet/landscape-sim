@@ -46,6 +46,13 @@ export const OVERLAYS = [
     labels: ['drier (20% full)', 'half full', 'wet (80%+)'],
     note: 'Rain soaks in, creeps downhill underground, and fills the ground in hollows and valley bottoms. Bright teal spots are springs where it comes back out and feeds the streams.',
   },
+  {
+    id: 7, name: 'Plants & burn scars', dot: 'linear-gradient(135deg,#eedc9e,#9ed65a,#1a7a29)',
+    desc: 'Where plants grow, from bare ground to grass, shrubs and forest, and where fire has burned.',
+    gradient: 'linear-gradient(90deg, rgb(237,219,158), rgb(158,214,82), rgb(26,122,41) 80%, rgb(5,66,26))',
+    labels: ['bare', 'grass', 'forest'],
+    note: 'Plants need warmth (there is a treeline), water and some soil. Red patches burned recently; they turn green again as grass, then shrubs, then trees come back. Orange is fire burning now.',
+  },
 ];
 
 export function showLegend(id) {

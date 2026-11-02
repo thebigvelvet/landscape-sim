@@ -1,6 +1,12 @@
 // Terrain lighting precompute (compute shader): soft sun shadows by marching toward the sun
-// across the height field, and horizon-based ambient occlusion. Also packs the groundwater fill and
-// spring strength for the shaders. Written to world.light (vec4: sun vis, ao, groundwater fill, spring).
+// across the height field, and horizon-based ambient occlusion. Also packs the groundwater fill,
+// spring strength and the plant layers for the shaders, so the terrain vertex shader still binds
+// only 8 storage buffers. world.light is vec4<u32> per cell:
+//   x = pack2x16unorm(sun visibility, ambient occlusion)
+//   y = pack2x16unorm(groundwater fill of the cell's capacity, spring code)   spring code s: 0 = none,
+//       else discharge = 1e-5 * 10^(5 s) m/day (decode with springDecode in shaders.js)
+//   z = pack4x8unorm(plant cover, woody share, burn severity, active fire)
+//   w = pack4x8unorm(moisture memory, 0, 0, 0)
 import { WGSL_COMMON, makeKernels, dispatch } from './gpu.js';
 
 const CODE = /* wgsl */ `
@@ -9,9 +15,12 @@ struct U { N: u32, dx: f32, sunX: f32, sunZ: f32, tanElev: f32, vex: f32, snowDe
 @group(0) @binding(1) var<storage, read> bedrock: array<f32>;
 @group(0) @binding(2) var<storage, read> soil: array<f32>;
 @group(0) @binding(3) var<storage, read> snowSWE: array<f32>;
-@group(0) @binding(4) var<storage, read_write> light: array<vec4f>;
+@group(0) @binding(4) var<storage, read_write> light: array<vec4u>;
 @group(0) @binding(5) var<storage, read> groundwater: array<f32>;
 @group(0) @binding(6) var<storage, read> spring: array<f32>;
+@group(0) @binding(7) var<storage, read> veg: array<f32>;
+@group(0) @binding(8) var<storage, read> burn: array<f32>;
+@group(0) @binding(9) var<storage, read> plant: array<vec4f>;
 ${WGSL_COMMON}
 fn Hc(x: i32, y: i32, n: i32) -> f32 {
   let i = ix(x, y, n);
@@ -62,16 +71,24 @@ fn main(@builtin(global_invocation_id) g: vec3u) {
   }
   let ao = clamp(1.0 - occ / 8.0 * 1.1, 0.0, 1.0);
   let i = ix(x, y, n);
-  light[i] = vec4f(vis, ao, clamp(groundwater[i] / max(u.gwMax, 1e-3), 0.0, 1.0), finiteOr(spring[i], 0.0));
+  let cap = u.gwMax * (0.15 + 0.85 * min(max(soil[i], 0.0), 2.0));     // = gwCap() in sim/common.js
+  let sp = finiteOr(spring[i], 0.0);
+  let spc = select(0.0, clamp(log(max(sp, 1e-5) / 1e-5) / log(1e5), 0.004, 1.0), sp > 1e-5);
+  let pl = plant[i];
+  light[i] = vec4u(
+    pack2x16unorm(vec2f(vis, ao)),
+    pack2x16unorm(vec2f(clamp(finiteOr(groundwater[i] / max(cap, 1e-4), 0.0), 0.0, 1.0), spc)),
+    pack4x8unorm(clamp(vec4f(finiteOr(veg[i], 0.0), finiteOr(pl.x, 0.0), finiteOr(burn[i], 0.0), finiteOr(pl.w, 0.0)), vec4f(0.0), vec4f(1.0))),
+    pack4x8unorm(vec4f(clamp(finiteOr(pl.y, 0.0), 0.0, 1.0), 0.0, 0.0, 0.0)));
 }`;
 
 export class Lighting {
   constructor(device, world) {
     this.device = device;
     this.world = world;
-    this.k = makeKernels(device, 'lighting', CODE, ['uniform', 'read', 'read', 'read', 'storage', 'read', 'read'], ['main']);
+    this.k = makeKernels(device, 'lighting', CODE, ['uniform', 'read', 'read', 'read', 'storage', 'read', 'read', 'read', 'read', 'read'], ['main']);
     this.ub = device.createBuffer({ size: 32, usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST });
-    this.bg = this.k.bind([this.ub, world.bedrock, world.soil, world.snowSWE, world.light, world.groundwater, world.spring]);
+    this.bg = this.k.bind([this.ub, world.bedrock, world.soil, world.snowSWE, world.light, world.groundwater, world.spring, world.veg, world.burn, world.plant]);
     this.data = new ArrayBuffer(32);
   }
   update(encoder, sunDir, vex, gwMax = 0.25) {

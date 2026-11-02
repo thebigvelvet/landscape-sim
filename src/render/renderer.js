@@ -1,17 +1,25 @@
 // Raw WebGPU renderer (from the Artist build): sky, terrain with material shading, soft sun shadows,
 // ambient occlusion and haze, block sides, translucent flowing water, and falling rain/snow.
+// Round 2 (Showman): plants from the simulated veg layers (grass, shrubs, 3D trees and snags with
+// seasonal colour), burn scars, fire glow and smoke, storm clouds with rain curtains and lightning,
+// a baked drought look, event markers, the brush cursor and click ripples.
 // Reads the simulation storage buffers directly (no copies, no CPU readback). The frame is encoded
 // into the caller's command encoder so simulation and rendering share one submission.
-import { SKY, TERRAIN, SKIRT, WATER, PRECIP } from './shaders.js';
+import { SKY, TERRAIN, SKIRT, WATER, PRECIP, COMPACT, TREES, SMOKE, STORMFX } from './shaders.js';
+import { makeKernels } from './gpu.js';
 import { Lighting } from './lighting.js';
 import { OrbitCamera } from './camera.js';
 import { PRESETS } from '../sim/climate.js';
 
 // Overlay names, in the order of the shader's overlay modes (0 = natural view).
-export const OVERLAYS = ['none', 'water', 'sediment', 'snow', 'frost', 'change', 'groundwater'];
+export const OVERLAYS = ['none', 'water', 'sediment', 'snow', 'frost', 'change', 'groundwater', 'plants'];
+export const TOOL_IDS = { none: 0, storm: 1, drought: 2, flood: 3, wildfire: 4 };
+const UB_FLOATS = 156;
 
 const SAMPLES = 4;
 const WEATHER_VISIBLE_SPEED = 36;   // days/s; above this rain particles and clouds are averaged out
+
+const TOOL_RGB = { 1: [0.35, 0.70, 1.0], 2: [1.0, 0.72, 0.25], 3: [0.20, 0.95, 0.95], 4: [1.0, 0.38, 0.12] };
 
 function lerp3(a, b, t) { return [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t, a[2] + (b[2] - a[2]) * t]; }
 
@@ -31,8 +39,18 @@ export class Renderer {
     this.format = format;
     this.ctx.configure({ device, format, alphaMode: 'opaque' });
     this.camera = new OrbitCamera(canvas);
-    this.ub = device.createBuffer({ size: 84 * 4, usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST });
-    this.u = new Float32Array(84);
+    this.ub = device.createBuffer({ size: UB_FLOATS * 4, usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST });
+    this.u = new Float32Array(UB_FLOATS);
+    this.compUB = device.createBuffer({ size: 96, usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST });
+    this.compRaw = new ArrayBuffer(96);
+    this.cursor = { on: false, x: 0, y: 0, r: 10, tool: 0 };       // grid cells
+    this.ripple = null;                                           // {x, y, r, t0, tool}
+    this.flash = 0;
+    this.droughtVis = 0;
+    this.stormSnow = 0;
+    this.showTrees = true;
+    this.treeScale = 1;
+    this.visuals = new Map();                                     // event id -> {endWall}
     this.mode = 0;
     this.vex = 1.25;
     this.haze = 0.12;
@@ -84,6 +102,10 @@ export class Renderer {
     this.pSkirt = mk(SKIRT, 'skirt');
     this.pWater = mk(WATER, 'water', { blend: true, depthWrite: false });
     this.pPrecip = mk(PRECIP, 'precip', { blend: true, depth: false });
+    this.pTrees = mk(TREES, 'trees');
+    this.pSmoke = mk(SMOKE, 'smoke', { blend: true, depthWrite: false });
+    this.pStorm = mk(STORMFX, 'stormfx', { blend: true, depthWrite: false });
+    this.kCompact = makeKernels(d, 'compact', COMPACT, ['uniform', 'read', 'read', 'read', 'storage', 'storage', 'storage'], ['main', 'clampArgs']);
   }
 
   /** (Re)bind to a world; called by the engine whenever it creates a new World. */
@@ -120,6 +142,53 @@ export class Renderer {
     this.bgWater = bg(this.pWater, [this.ub, w.bedrock, w.soil, w.water, w.velX, w.velY, w.sediment, w.light, w.snowSWE]);
     this.lighting = new Lighting(d, world);
     this.lightDirty = true;
+    // instance lists for trees/snags and burning cells, with drawIndirect argument blocks
+    for (const b of [this.treeList, this.fireList, this.drawArgs]) b?.destroy();
+    this.treeCap = Math.min(N * N, 600000);
+    this.fireCap = 65536;
+    this.treeList = d.createBuffer({ size: this.treeCap * 4, usage: GPUBufferUsage.STORAGE, label: 'trees' });
+    this.fireList = d.createBuffer({ size: this.fireCap * 4, usage: GPUBufferUsage.STORAGE, label: 'fires' });
+    this.drawArgs = d.createBuffer({ size: 32, usage: GPUBufferUsage.STORAGE | GPUBufferUsage.INDIRECT | GPUBufferUsage.COPY_DST, label: 'drawArgs' });
+    d.queue.writeBuffer(this.drawArgs, 0, new Uint32Array([36, 0, 0, 0, 18, 0, 0, 0]));
+    this.bgCompact = this.kCompact.bind([this.compUB, w.bedrock, w.soil, w.light, this.treeList, this.fireList, this.drawArgs]);
+    this.bgTrees = bg(this.pTrees, [this.ub, w.bedrock, w.soil, w.light, this.treeList, w.snowSWE]);
+    this.bgSmoke = bg(this.pSmoke, [this.ub, w.bedrock, w.soil, w.light, this.fireList]);
+    this.bgStorm = bg(this.pStorm, [this.ub]);
+  }
+
+  // ---- brush cursor / feedback (grid cell coordinates) ----
+  setCursor(on, x = 0, y = 0, r = 10, tool = 0) { Object.assign(this.cursor, { on, x, y, r, tool }); }
+  clickRipple(x, y, r, tool) { this.ripple = { x, y, r, tool, t0: performance.now() }; }
+
+  // grid cell -> world xz
+  gridToWorld(x, y) {
+    const c = (this.world.N - 1) * 0.5, dx = this.world.cellSize;
+    return [(x - c) * dx, (y - c) * dx];
+  }
+
+  // Visual state of painted events: storms (clouds), markers. Visuals last at least a few seconds
+  // of wall time even when the simulated event is over in a blink at high speed.
+  eventVisuals(sim, now) {
+    const ev = sim.events;
+    const storms = [], markers = [];
+    const minWall = { storm: 4000, drought: 3000, flood: 6000, wildfire: 3500 };
+    for (let k = ev.log.length - 1; k >= 0; k--) {
+      const e = ev.log[k];
+      let v = this.visuals.get(e.id);
+      if (!v) { v = { endWall: null }; this.visuals.set(e.id, v); }
+      const live = e.type === 'drought' ? !!ev.drought : ev.remaining(e.id) > 0;
+      if (live) v.endWall = null;
+      else if (v.endWall === null) v.endWall = Math.max(now, e.t0 + (minWall[e.type] || 3000));
+      const fadeIn = Math.min(1, (now - e.t0) / 500);
+      const fadeOut = v.endWall === null ? 1 : 1 - Math.min(1, Math.max(0, (now - v.endWall) / 1500));
+      const a = fadeIn * fadeOut;
+      if (a <= 0) continue;
+      const [wx, wz] = this.gridToWorld(e.x, e.y);
+      const r = e.r * this.world.cellSize;
+      if (e.type === 'storm' && storms.length < 4) storms.push([wx, wz, r, a, e]);
+      if (markers.length < 4 && e.type !== 'drought') markers.push([wx, wz, r, e.type === 'storm' ? 1 : e.type === 'flood' ? 3 : 4, a * (e.type === 'storm' ? 0.5 : 1)]);
+    }
+    return { storms, markers };
   }
 
   /** Called after new terrain is uploaded: frame the camera on it. */
@@ -162,12 +231,18 @@ export class Renderer {
     // Clouds follow the weather (smoothed so time-lapse flicker stays gentle).
     const rate = lc?.precipRate_mm_per_day ?? 0;
     const mean = Math.max(0.2, c.precipAt(doy));
-    const target = lc ? Math.min(1, (rate / mean) * 0.35) : 0;
+    let target = lc ? Math.min(1, (rate / mean) * 0.35) : 0;
+    target = Math.max(target, (this.stormStrength || 0) * 0.55);
     this.cloud += (target - this.cloud) * (fast ? 0.02 : 0.08);
     const cl = this.cloud;
     zenith = lerp3(zenith, [0.50, 0.53, 0.58], cl * 0.8);
     horizon = lerp3(horizon, [0.70, 0.72, 0.75], cl * 0.8);
-    const sunColor = lerp3([1.0, 0.86, 0.70], [1.0, 0.96, 0.90], summer);
+    // drought: dusty, hazy, harsh light
+    const dv = this.droughtVis;
+    zenith = lerp3(zenith, [0.52, 0.60, 0.72], dv * 0.6);
+    horizon = lerp3(horizon, [0.93, 0.80, 0.60], dv * 0.6);
+    let sunColor = lerp3([1.0, 0.86, 0.70], [1.0, 0.96, 0.90], summer);
+    sunColor = lerp3(sunColor, [1.0, 0.84, 0.62], dv * 0.5);
     const sun = sunDirection(doy);
     // Rain/snow particles only when the weather is visible in real time.
     const precipTarget = !fast && !sim.paused && rate > 0.3 ? Math.min(1, rate / 15 + 0.25) : 0;
@@ -189,12 +264,18 @@ export class Renderer {
     this.resize();
     this.camera.update(dtWall);
     const world = this.world;
-    const atm = this.atmosphere(sim);
     const aspect = this.canvas.width / this.canvas.height;
     // Shift the image right when the floating side panel covers the left of the canvas.
     const panel = document.getElementById('panel');
     const pw = panel && !panel.classList.contains('hidden') ? panel.getBoundingClientRect().right : 0;
     const { eye, viewProj, invViewProj } = this.camera.matrices(aspect, pw / Math.max(1, this.canvas.clientWidth));
+    this.lastViewProj = viewProj; this.lastInvViewProj = invViewProj; this.lastEye = eye;
+    // event visuals (computed before atmosphere so clouds darken the sky)
+    const vis = this.eventVisuals(sim, now);
+    this.stormStrength = vis.storms.reduce((m, q) => Math.max(m, q[3]), 0);
+    const dTarget = sim.events.drought || sim.events.log.some((e) => e.type === 'drought' && now - e.t0 < 3000) ? 1 : 0;
+    this.droughtVis += (dTarget - this.droughtVis) * 0.04;
+    const atm = this.atmosphere(sim);
     const u = this.u;
     const pal = atm.preset.palette;
     const extent = world.N * world.cellSize;
@@ -207,7 +288,7 @@ export class Renderer {
     u.set([atm.sun[0], atm.sun[1], atm.sun[2], 1.0], 36);
     u.set([...lin(atm.sunColor), this.vex], 40);
     u.set([...lin(atm.zenith), this.mode], 44);
-    u.set([...lin(atm.horizon), this.haze / extent], 48);
+    u.set([...lin(atm.horizon), this.haze * (1 + 0.8 * this.droughtVis) / extent], 48);
     const c = sim.climate;
     const tSeaMean = atm.preset.tSea + c.tempOffset;   // annual mean air temperature at sea level
     u.set([world.N, world.cellSize, sim.datum, tSeaMean], 52);
@@ -218,11 +299,76 @@ export class Renderer {
     u.set([...lin(pal.veg), this.cloud], 72);
     u.set([...lin(pal.sand), this.precipVis], 76);
     u.set([this.snowVis, extent, tr.min, this.contours ? 1 : 0], 80);
+    // ---- round 2 fields (see struct R in shaders.js) ----
+    const dx = world.cellSize;
+    const cur = this.cursor;
+    if (cur.on) { const [cx, cz] = this.gridToWorld(cur.x, cur.y); u.set([cx, cz, cur.r * dx, cur.tool], 84); } else u.set([0, 0, 0, 0], 84);
+    const rp = this.ripple;
+    const rAge = rp ? (now - rp.t0) / 800 : 2;
+    if (rp && rAge < 1) {
+      const [rx, rz] = this.gridToWorld(rp.x, rp.y);
+      u.set([rx, rz, rp.r * dx, rAge], 88);
+      u.set([...(TOOL_RGB[rp.tool] || [1, 1, 1]), rp.tool], 92);
+    } else u.set([0, 0, 0, 2], 88);
+    const pre = atm.preset;
+    u.set([this.droughtVis, pre.tAmp * c.seasonality, this.flash, this.treeScale], 96);
+    const fo = pre.palette.forest || pre.forest || { conifer: 0.5, autumn: 0, shrub: 0 };
+    u.set([fo.conifer, fo.autumn, fo.shrub, 1], 100);
+    const fwd = [this.camera.target[0] - eye[0], this.camera.target[1] - eye[1], this.camera.target[2] - eye[2]];
+    const fl = Math.hypot(...fwd) || 1;
+    const f3 = fwd.map((v) => v / fl);
+    let right = [-f3[2], 0, f3[0]];                                 // forward x world-up
+    const rl = Math.hypot(...right) || 1; right = right.map((v) => v / rl);
+    const up = [right[1] * f3[2] - right[2] * f3[1], right[2] * f3[0] - right[0] * f3[2], right[0] * f3[1] - right[1] * f3[0]];
+    u.set([...right, sim.events.wind[0]], 104);
+    u.set([...up, sim.events.wind[1]], 108);
+    for (let k = 0; k < 4; k++) {
+      const m = vis.markers[k];
+      u.set(m ? [m[0], m[1], m[2], m[3]] : [0, 0, 0, 0], 112 + 4 * k);
+      u[128 + k] = m ? m[4] : 0;
+    }
+    for (let k = 0; k < 4; k++) {
+      const q = vis.storms[k];
+      u.set(q ? [q[0], q[1], q[2], q[3]] : [0, 0, 0, 0], 132 + 4 * k);
+    }
+    // cloud deck above the peaks; snow if the storm's air is below freezing
+    const cloudBase = (tr.max + 260) * this.vex;
+    let snowT = 0;
+    if (vis.storms.length) {
+      const doy = sim.lastClimate?.dayOfYear ?? 172;
+      snowT = c.airTempAt(doy, sim.datum + tr.mean) + (sim.events.climateMods(1).dT || 0) < 0.5 ? 1 : 0;
+      // lightning in rain storms
+      if (!sim.paused && snowT < 0.5 && Math.random() < 0.012 * this.stormStrength) this.flash = 1;
+    }
+    this.stormSnow += (snowT - this.stormSnow) * 0.1;
+    this.flash *= this.flash > 0.3 && Math.random() < 0.3 ? 1.0 : 0.8;
+    if (this.flash < 0.01) this.flash = 0;
+    u.set([cloudBase, this.stormSnow, this.flash, cloudBase + 420 * this.vex], 148);
+    const P11 = 1 / Math.tan(this.camera.fov / 2);
+    const dens = world.N <= 512 ? 1 : world.N <= 1024 ? 0.5 : 0.25;
+    u.set([this.canvas.width, this.canvas.height, P11, dens], 152);
     this.device.queue.writeBuffer(this.ub, 0, u);
+    this.nStorms = vis.storms.length;
 
     if (this.frameCount % 2 === 0 || this.lightDirty) {
       this.lighting.update(encoder, atm.sun, this.vex, atm.preset.gwMax);
       this.lightDirty = false;
+      if (this.showTrees) {
+        // rebuild the tree / fire instance lists for this view
+        const cf = new Float32Array(this.compRaw), cu = new Uint32Array(this.compRaw);
+        cf.set(viewProj, 0);
+        cu[16] = world.N; cu[17] = this.treeCap; cu[18] = this.fireCap; cu[19] = 0;
+        cf[20] = world.cellSize; cf[21] = this.vex; cf[22] = 0.5 * this.canvas.height * P11; cf[23] = dens;
+        this.device.queue.writeBuffer(this.compUB, 0, this.compRaw);
+        this.device.queue.writeBuffer(this.drawArgs, 0, new Uint32Array([36, 0, 0, 0, 18, 0, 0, 0]));
+        const cp = encoder.beginComputePass({ label: 'compact' });
+        cp.setBindGroup(0, this.bgCompact);
+        cp.setPipeline(this.kCompact.pipes.main);
+        cp.dispatchWorkgroups(Math.ceil(world.N / 16), Math.ceil(world.N / 16));
+        cp.setPipeline(this.kCompact.pipes.clampArgs);
+        cp.dispatchWorkgroups(1);
+        cp.end();
+      }
     }
     const pass = encoder.beginRenderPass({
       colorAttachments: [{ view: this.msaa.createView(), resolveTarget: this.ctx.getCurrentTexture().createView(), loadOp: 'clear', storeOp: 'discard', clearValue: { r: 0.6, g: 0.7, b: 0.8, a: 1 } }],
@@ -239,11 +385,26 @@ export class Renderer {
     pass.setPipeline(this.pSkirt);
     pass.setBindGroup(0, this.bgSkirt);
     pass.draw(4 * (world.N - 1) * 6);
+    if (this.showTrees) {
+      pass.setPipeline(this.pTrees);
+      pass.setBindGroup(0, this.bgTrees);
+      pass.drawIndirect(this.drawArgs, 0);
+    }
     // The natural-looking water is hidden under the water/sediment overlays so their colours read cleanly.
     if (this.showWater && this.mode !== 1 && this.mode !== 2) {
       pass.setPipeline(this.pWater);
       pass.setBindGroup(0, this.bgWater);
       pass.drawIndexed(this.indexCount);
+    }
+    if (this.showTrees) {
+      pass.setPipeline(this.pSmoke);
+      pass.setBindGroup(0, this.bgSmoke);
+      pass.drawIndirect(this.drawArgs, 16);
+    }
+    if (this.nStorms > 0) {
+      pass.setPipeline(this.pStorm);
+      pass.setBindGroup(0, this.bgStorm);
+      pass.draw(480, this.nStorms);
     }
     if (this.precipVis > 0.01) {
       pass.setPipeline(this.pPrecip);

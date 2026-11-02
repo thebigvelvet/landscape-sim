@@ -23,6 +23,17 @@ export const PARAM_FIELDS = [
   ['rockRate', 'f32'], ['hDry', 'f32'], ['kGw', 'f32'], ['gwPor', 'f32'],
   // groundwater
   ['gwDt', 'f32'], ['pad1', 'f32'], ['pad2', 'f32'], ['pad3', 'f32'],
+  // plants and fire (see sim/vegetation.js)
+  ['vegInit', 'f32'], ['fireWeather', 'f32'], ['windX', 'f32'], ['windY', 'f32'],
+  // painted weather events (see sim/events.js): 4 local storms (centre x, y in cells, radius in
+  // cells, extra precipitation at the centre in m/day averaged over the batch) and 2 flood sources
+  // (centre, radius, water depth added per cell per hydraulic sub-step)
+  ['s0x', 'f32'], ['s0y', 'f32'], ['s0r', 'f32'], ['s0a', 'f32'],
+  ['s1x', 'f32'], ['s1y', 'f32'], ['s1r', 'f32'], ['s1a', 'f32'],
+  ['s2x', 'f32'], ['s2y', 'f32'], ['s2r', 'f32'], ['s2a', 'f32'],
+  ['s3x', 'f32'], ['s3y', 'f32'], ['s3r', 'f32'], ['s3a', 'f32'],
+  ['f0x', 'f32'], ['f0y', 'f32'], ['f0r', 'f32'], ['f0d', 'f32'],
+  ['f1x', 'f32'], ['f1y', 'f32'], ['f1r', 'f32'], ['f1d', 'f32'],
 ];
 
 export const PARAMS_WGSL = `struct Params {\n${PARAM_FIELDS.map(([n, t]) => `  ${n} : ${t},`).join('\n')}\n};\n`;
