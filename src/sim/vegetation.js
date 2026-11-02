@@ -5,7 +5,7 @@
 // State (per cell):
 //   veg     total cover V (0..1) = woody cover T + herb/grass cover G
 //   eco.x   woody cover T (trees and shrubs)            eco.y  burn severity B (decays, tau 1.5 yr)
-//   eco.z   greenness (phenology / drought browning)    eco.w  ground height at the last step
+//   eco.z   greenness (phenology / drought browning)    eco.w  ground height, lagged by ~1 year
 //   clim    growing-season climate from the column kernel (see column.js): last complete calendar
 //           year's means of PET x soil moisture, PET, growing-season fraction and T x growing:
 //             Wi  = sum(PET * moisture) / sum(PET) over the growing season  (water index 0..1,
@@ -35,8 +35,8 @@
 //             in dry or subalpine forest (Turner et al. 1997 Yellowstone; Agee 1993).
 //   die-back above capacity is exponential: trees 0.25/yr (drought mortality; Breshears et al. 2005
 //   pinon die-off of 40-80 % in two years), grasses 1.5/yr (they brown and die back within a season).
-//   burial (deposition faster than ~2 cm/yr) and stripping (erosion) kill cover: grasses under
-//   3-30 cm of sediment, trees under 0.3-1.5 m.
+//   burial and stripping kill cover at a rate set by the sediment added (or soil removed) over about
+//   the last year: grasses under 5-40 cm of new sediment, trees under 0.3-1.5 m.
 //
 // Feedbacks into the other modules (see column.js, erosion.js, freezethaw.js, groundwater.js):
 //   infiltration x(0.5 + 1.5 V)(1 - 0.7 B); ET x(0.35 + 0.85 V) from the groundwater store (logged as
@@ -134,12 +134,19 @@ fn main(@builtin(global_invocation_id) gid : vec3<u32>) {
     eco[i] = vec4<f32>(e.x, 0.0, 1.0, ground);
     return;
   }
-  // --- burial and stripping since the last step (slow deposition is grown through)
-  let dz = ground - e.w;
-  let dep = max(dz - 0.02 * yrs, 0.0);
-  let ero = max(-dz - 0.01 * yrs, 0.0);
-  T = T * (1.0 - max(smoothstep(0.3, 1.5, dep), smoothstep(0.2, 1.0, ero)));
-  G = G * (1.0 - max(smoothstep(0.03, 0.3, dep), smoothstep(0.05, 0.4, ero)));
+  // --- burial and stripping. eco.w is a reference ground level that follows the real ground with
+  // a 1-year lag, so (ground - ref) is the sediment piled on (or soil stripped off) within about the
+  // last year, whatever the step length. Plants die at a RATE set by that depth, so the outcome is
+  // the same at every speed: slow deposition is grown through, half a metre of mud in one flood kills
+  // the grass within months and young trees over a year or two.
+  let dz = (ground - e.w) * min(1.0, 1.0 / max(yrs, 1e-6));
+  let dep = max(dz, 0.0);
+  let ero = max(-dz, 0.0);
+  let muT = 4.0 * max(smoothstep(0.3, 1.5, dep), smoothstep(0.2, 1.0, ero));
+  let muG = 6.0 * max(smoothstep(0.05, 0.4, dep), smoothstep(0.08, 0.5, ero));
+  T = T * exp(-muT * yrs);
+  G = G * exp(-muG * yrs);
+  let gRef = ground - (ground - e.w) * exp(-yrs);
   // --- seed sources: woody neighbours within ~40 m
   var nb = 0.0;
   for (var k = 0; k < 8; k++) {
@@ -158,7 +165,7 @@ fn main(@builtin(global_invocation_id) gid : vec3<u32>) {
   let gi = smoothstep(0.0, 5.0, temp[i]) * smoothstep(0.08, 0.45, f) * select(1.0, 0.0, snowSWE[i] > 0.01);
   let green = mix(e.z, gi, 1.0 - exp(-yrs * 365.0 / ${fx(VEG_PARAMS.greenDays)}));
   scratch[i] = vec2<f32>(finite(T + G), finite(T));
-  eco[i] = vec4<f32>(e.x, clamp(B, 0.0, 1.0), clamp(finite(green), 0.0, 1.0), ground);
+  eco[i] = vec4<f32>(e.x, clamp(B, 0.0, 1.0), clamp(finite(green), 0.0, 1.0), gRef);
 }
 `;
 

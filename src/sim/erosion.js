@@ -58,16 +58,21 @@ fn main(@builtin(global_invocation_id) gid : vec3<u32>) {
   let sp = length(vec2<f32>(velX[i], velY[i]));
   let sRaw = slope[i];
   let S = max(sRaw, P.minSlope);
-  let lim = smoothstep(0.0005, 0.03, h);          // thin sheet flow carries little
   let conc = min(P.kc * sp * S, 0.25);
-  let C = conc * min(h, 1.5) * lim * P.morph;     // bed-equivalent capacity (m)
+  let V = clamp(veg[i], 0.0, 1.0);
+  let burn = eco[i].y;
+  // thin sheet flow carries little; on fresh burns water-repellent soil and lost litter let runoff
+  // gather into rills almost at once, so even thin flow starts cutting (rilling, Moody et al. 2013)
+  let lim = smoothstep(0.0005 * (1.0 - 0.8 * burn), 0.03 * (1.0 - 0.8 * burn), h);
+  // Burned ground: runoff picks up ash and loose burned soil and bulks into muddy, debris-laden flow
+  // that carries several times more sediment (post-fire debris flows, Cannon et al. 2001).
+  let C = conc * min(h, 1.5) * lim * P.morph * (1.0 + 4.0 * burn);     // bed-equivalent capacity (m)
   // Plants: ground cover and roots cut soil detachment roughly exponentially with cover,
   // E/E0 = exp(-b C%) with b ~ 0.035-0.05 per % (Gyssels et al. 2005), i.e. ~3 % of bare at full
   // cover. Deep, fast channel flow rips through it. A fresh burn (ash, no litter, dead roots) adds
   // up to 3x on top of the lost cover: together 30-100x more erosion on a burned slope, the range
   // measured after severe fires (Moody & Martin 2001; Shakesby & Doerr 2006).
-  let V = clamp(veg[i], 0.0, 1.0);
-  let burn = eco[i].y;
+
   let protect = mix(exp(-3.0 * V), 1.0, smoothstep(0.4, 2.0, h));
   if (C > s) {
     // local-relief limit: a sub-step can never dig a cell more than ~half the drop to its
@@ -111,7 +116,7 @@ ${COMMON_WGSL}
 fn pairFlux(dz : f32, dist : f32, donorSoil : f32, donorVeg : f32, donorWoody : f32) -> f32 {
   let excess = dz - (P.talusTan + 0.35 * donorWoody) * dist;
   let r = P.cellSize / dist;
-  var F = 0.5 * P.thermalRate * max(excess, 0.0) + P.creepFrac * (1.0 - 0.5 * donorVeg) * r * r * dz;
+  var F = 0.5 * P.thermalRate * (1.0 - 0.8 * donorVeg) * max(excess, 0.0) + P.creepFrac * (1.0 - 0.5 * donorVeg) * r * r * dz;
   F = min(F, 0.12 * dz);
   return min(F, donorSoil / 8.5);
 }
@@ -195,10 +200,12 @@ class ErosionModule {
     hooks.push(this.hook);
   }
 
-  recordThermal(pass) {
+  recordThermal(pass, iters = 1) {
     const N = this.world.N;
-    pass.setPipeline(this.kg.pipeline); pass.setBindGroup(0, this.gBG); dispatchGrid(pass, N);
-    pass.setPipeline(this.ka.pipeline); pass.setBindGroup(0, this.aBG); dispatchGrid(pass, N);
+    for (let k = 0; k < iters; k++) {
+      pass.setPipeline(this.kg.pipeline); pass.setBindGroup(0, this.gBG); dispatchGrid(pass, N);
+      pass.setPipeline(this.ka.pipeline); pass.setBindGroup(0, this.aBG); dispatchGrid(pass, N);
+    }
   }
 
   // Contract step: the slow, once-per-frame part (thermal). The hydraulic exchange runs inside

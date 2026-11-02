@@ -164,6 +164,12 @@ export class Simulation {
     const nInner = Math.min(48, Math.max(1, Math.ceil(span / 1.0)));
     const zRef = this.datum + (this.terrainRange?.mean ?? 0);
     const yearsE = Deros / 365;
+    // Talus: over-steep loose material (mostly fed by rock fall) slumps at a RATE (e-folding ~10 yr
+    // at 10 m cells: dry ravel and small slides), not once per batch. Round 1 relaxed a fixed fraction
+    // per batch, so slow speeds (thousands of batches a year) stripped steep slopes that fast speeds
+    // kept, and slowing the clock buried the plants below under sudden slumps. Long batches use two
+    // passes so the 8-neighbour explicit update stays stable.
+    const thermalIters = Deros >= 365 ? 2 : 1;
     this.climate.advanceWeather(this.day, Dcol);
     const plan = {
       N: w.N, frame: this.frame, logSize: LOG_SIZE, nSub: n,
@@ -177,9 +183,11 @@ export class Simulation {
       kc: EROSION_PARAMS.kc * this.erosionStrength, ks: EROSION_PARAMS.ks, kd: EROSION_PARAMS.kd, kRock: EROSION_PARAMS.kRock,
       minSlope: EROSION_PARAMS.minSlope, dzMax: 0.02 * dx, vMax: 0.5 * dx / dtH,
       talusTan: EROSION_PARAMS.talusTan, rockTan: EROSION_PARAMS.rockTan,
-      thermalRate: 0.25 * Math.min(1, Deros / 0.25),
-      creepFrac: Math.min(0.1, EROSION_PARAMS.creepK * this.erosionStrength * yearsE / (dx * dx)),
-      rockRate: Math.min(0.4, EROSION_PARAMS.rockFallPerYear * yearsE),
+      thermalRate: 0.25 * (1 - Math.exp(-Deros / (3650 * thermalIters))),
+      // long batches repeat the talus relaxation (see thermalIters below); creep and rock fall are
+      // split across the repeats so their totals stay per-year
+      creepFrac: Math.min(0.1, EROSION_PARAMS.creepK * this.erosionStrength * yearsE / (dx * dx)) / thermalIters,
+      rockRate: Math.min(0.4, EROSION_PARAMS.rockFallPerYear * yearsE) / thermalIters,
     };
     p.set(plan);
     p.upload();
@@ -190,7 +198,7 @@ export class Simulation {
     column.record(pass);
     groundwater.record(pass);
     water.record(pass, n);
-    erosion.recordThermal(pass);
+    erosion.recordThermal(pass, thermalIters);
     vegetation.record(pass);
     this.statsK.recordAccumulate(pass);
     pass.end();
