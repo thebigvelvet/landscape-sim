@@ -1,0 +1,28 @@
+{
+  "fast": {
+    "year": 6022,
+    "fps": 60,
+    "meanVeg": 0.8149780672974885,
+    "bal": -4.2525377406606906e-8,
+    "nan": false,
+    "gpu": {
+      "timed": true,
+      "simMs": 8.188367186321372,
+      "renderMs": 2.6086492622981807,
+      "nSub": 96
+    }
+  },
+  "slow": {
+    "day": 2946734.1867666934,
+    "fps": 60,
+    "meanVeg": 0.8128919028677046,
+    "burnedFrac": 0,
+    "bal": -1.7946286146196695e-7,
+    "nan": false
+  },
+  "gpuErrors": 0,
+  "pass": true,
+  "gpuFeatureStatusWebGPU": "enabled",
+  "electron": "45.2.1",
+  "chrome": "156.0.8078.75"
+}

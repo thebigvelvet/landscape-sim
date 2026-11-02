@@ -172,7 +172,9 @@ are in `tests/out-r2-*.json`.
 | soil under forest vs bare ground (Colorado / PNW / Temperate) | 1.9 vs 1.1 m, 2.6 vs 1.7 m, 2.5 vs 1.6 m |
 | 5-year drought vs the same run without it (Colorado) | groundwater in the 3rd summer 0.049 vs 0.099 m; cover at year 5 0.53 vs 0.63; difference ≤ 0.005 at year 65 |
 | "Rain & snow" slider to 0.25× at 1000 yr/s | cover 0.91 → 0.56 within 0.1 s of wall time (95 % of the change in 1 s); back to 0.87 within 0.5 s of returning it |
-| `--selftest` (cone, 1000 years) | balance −3.2e-5 %, no NaN (see the note on timings below) |
+| `--selftest` (cone, 1000 years) | balance −3.2e-5 %, no NaN, 13.7 s wall (round 1: 5 s; see the timing note below) |
+| bench, hydraulic sub-steps/s at 256² / 512² / 1024² | 27.4k / 9.2k / 1.7k (round 1: 59.6k / 11.7k / 2.2k); 60 fps at every size |
+| live app, 512², 1000 yr/s with the plants overlay, then all 4 brushes and 1 day/s (`tests/r2-interactive.js`) | 60 fps, sim 8.2 ms + render 2.6 ms GPU per frame, no GPU errors, balance −1.8e-7 % |
 
 ### Changes to round-1 code a merger should know about
 - `light` is now **8 floats per cell** (two vec4). The terrain and water shaders index `light[2i]`
@@ -209,9 +211,10 @@ are in `tests/out-r2-*.json`.
   succession, and no natural lightning fire regime. Fire spread ignores wind and slope.
 - Greenness, which drives the browning colour, uses the instantaneous root-zone moisture. At high
   speed it shows the strobe-sampled season, not an average.
-- Timings: the self-test and bench in `selftest-results.json` were taken while two other agents' test
-  windows held the same GPU at 100 %, so wall times (24 s for the 1000-year cone) and sub-step rates
-  are not comparable with round 1's 5 s.
+- Speed: the column kernel (more state, growing-season sums) and the vegetation kernel add per-batch
+  cost, so `sim.run()` (thousands of short batches) is slower than in round 1. Interactive frame rates
+  are unchanged at 60 fps. The timings were taken while other agents' test windows shared the GPU
+  (17–100 % busy), so they are upper bounds.
 
 ## Running it
 
