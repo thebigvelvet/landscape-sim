@@ -22,7 +22,7 @@ export const PARAM_FIELDS = [
   ['talusTan', 'f32'], ['rockTan', 'f32'], ['thermalRate', 'f32'], ['creepFrac', 'f32'],
   ['rockRate', 'f32'], ['hDry', 'f32'], ['kGw', 'f32'], ['gwPor', 'f32'],
   // groundwater
-  ['gwDt', 'f32'], ['pad1', 'f32'], ['pad2', 'f32'], ['pad3', 'f32'],
+  ['gwDt', 'f32'], ['vegYrs', 'f32'], ['spinup', 'f32'], ['pad3', 'f32'],
 ];
 
 export const PARAMS_WGSL = `struct Params {\n${PARAM_FIELDS.map(([n, t]) => `  ${n} : ${t},`).join('\n')}\n};\n`;

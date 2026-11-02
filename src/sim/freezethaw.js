@@ -29,10 +29,15 @@ fn ftCycles(T : f32, dt : f32) -> f32 {
   let a = max(0.5 * P.dtr, 0.1);
   return dt * clamp(1.0 - abs(T) / a, 0.0, 1.0);
 }
-// metres of bedrock converted to soil; humped/exponential soil-production with soil cover
-fn weathering(cycles : f32, moisture : f32, soil : f32, dt : f32) -> f32 {
+// metres of bedrock converted to soil; humped/exponential soil-production with soil cover.
+// Plants: a canopy and litter layer insulate the surface (fewer, weaker freeze-thaw cycles, about
+// half under full cover), while roots, fungi and organic acids speed chemical weathering ~3x
+// (biotic weathering; soil production of 0.05-0.1 mm/yr under forest, Heimsath et al. 1997).
+fn weathering(cycles : f32, moisture : f32, soil : f32, dt : f32, veg : f32) -> f32 {
   let shield = exp(-soil / 0.6);
-  return (P.kWeather * cycles * (0.3 + moisture) + P.kChem * dt / 365.0 * (0.2 + moisture)) * shield;
+  let frost = P.kWeather * cycles * (1.0 - 0.5 * veg) * (0.3 + moisture);
+  let chem = P.kChem * dt / 365.0 * (0.2 + moisture) * (1.0 + 2.0 * veg);
+  return (frost + chem) * shield;
 }
 `;
 

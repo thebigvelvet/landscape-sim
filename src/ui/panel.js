@@ -55,6 +55,7 @@ export class Panel {
     this.buildPresets();
     this.buildOverlays();
     this.bindControls();
+    this.bindTools();
     this.bindTooltips();
     this.initialSolid = null;
     this.syncPreset();
@@ -166,6 +167,51 @@ export class Panel {
     $('expand').addEventListener('click', () => this.collapse(false));
   }
 
+  bindTools() {
+    const b = this.app.brush;
+    if (!b) return;
+    const HINTS = {
+      off: 'Drag to turn, right-drag to slide, scroll to zoom.',
+      storm: 'Click or drag over the land to drop a 3-day cloudburst there.',
+      drought: 'Click to start five dry years inside the circle.',
+      flood: 'Click on (or near) a stream: its whole catchment gets a 100-year rainstorm.',
+      wildfire: 'Click or drag over plants to set them alight. Then watch the next rains wash the burned slopes.',
+    };
+    const select = (t) => {
+      b.setTool(t);
+      for (const el of document.querySelectorAll('.tool')) el.classList.toggle('active', el.dataset.tool === b.tool);
+      $('brush-hint').textContent = HINTS[b.tool];
+    };
+    this.selectTool = select;
+    for (const el of document.querySelectorAll('.tool')) el.addEventListener('click', () => select(el.dataset.tool));
+    const size = () => {
+      b.radiusM = Math.pow(10, +$('brush-size').value) / 2;
+      const d = b.radiusM * 2;
+      $('brush-size-out').textContent = d >= 1000 ? `${(d / 1000).toFixed(1)} km across` : `${Math.round(d / 10) * 10} m across`;
+      this.app.renderer.brush.radius = b.radiusCells();
+    };
+    const str = () => {
+      b.intensity = +$('brush-strength').value;
+      $('brush-strength-out').textContent = Math.abs(b.intensity - 1) < 0.03 ? 'normal' : `${b.intensity.toFixed(2)}x`;
+    };
+    $('brush-size').addEventListener('input', size); size();
+    $('brush-strength').addEventListener('input', str); str();
+    $('brush-slow').addEventListener('change', () => { b.slowDown = $('brush-slow').checked; });
+    window.addEventListener('keydown', (e) => { if (e.key === 'Escape') select('off'); });
+    b.onApplied = (info) => {
+      const what = { storm: 'Storm', drought: 'Drought', flood: '100-year flood', wildfire: 'Wildfire' }[info.type];
+      let extra = '';
+      if (info.type === 'flood') extra = ` on a ${info.catchmentKm2.toFixed(2)} km² catchment`;
+      if (info.type === 'wildfire') {
+        $('brush-hint').textContent = info.burnedCells > 0
+          ? `Wildfire burned ${info.burnedArea_ha < 10 ? info.burnedArea_ha.toFixed(1) : Math.round(info.burnedArea_ha)} hectares. ${HINTS[b.tool]}`
+          : 'Nothing caught fire there: the plants are under snow, too sparse, or too wet to burn.';
+        return;
+      }
+      $('brush-hint').textContent = `${what} started${extra}. ${HINTS[b.tool]}`;
+    };
+  }
+
   collapse(on) {
     $('panel').classList.toggle('hidden', on);
     $('expand').classList.toggle('hidden', !on);
@@ -243,7 +289,12 @@ export class Panel {
     const tLow = cl.airTempAt(c.dayOfYear, zLow), tHigh = cl.airTempAt(c.dayOfYear, zHigh);
     const rate = c.precipRate_mm_per_day;
     let weather;
+    const painted = sim.events?.activeAt(sim.day) || [];
+    const has = (t) => painted.some((e) => e.type === t);
     if (cl.stormDaysLeft > 0) weather = 'Big storm!';
+    else if (has('flood')) weather = '100-year storm upstream!';
+    else if (has('storm')) weather = 'Cloudburst (painted)';
+    else if (has('drought')) weather = 'Drought';
     else if (fast) weather = 'Weather averaged';
     else if (rate < 0.3) weather = season.name === 'Summer' && tLow > 22 ? 'Hot and dry' : 'Clear';
     else {
@@ -275,6 +326,11 @@ export class Panel {
       ['Rain & snow that fell', fmtVol(t.cumPrecip_m3)],
       ['Flowed off the map', fmtVol(t.cumOutflow_m3)],
       ['Evaporated or used by plants', fmtVol(t.cumEvapLoss_m3)],
+      'sep',
+      ['Ground covered by plants', t.vegCoveredFrac !== undefined ? `${Math.round(100 * t.vegCoveredFrac)} %` : '?'],
+      ['Average plant cover', t.meanVeg !== undefined ? `${Math.round(100 * t.meanVeg)} %` : '?'],
+      ['Recently burned', t.burnedFrac !== undefined ? `${(100 * t.burnedFrac).toFixed(1)} %` : '?'],
+      'sep',
       ['Water books balance', `<span class="${ok ? 'good' : 'bad'}">${t.hasNaN ? 'ERROR (NaN)' : err < 0.001 ? 'yes, exact' : `off by ${err.toFixed(3)}%`}</span>`],
       'sep',
       ['Rock & soil carried away', fmtVol(Math.max(0, lost))],

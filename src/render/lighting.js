@@ -1,6 +1,8 @@
 // Terrain lighting precompute (compute shader): soft sun shadows by marching toward the sun
 // across the height field, and horizon-based ambient occlusion. Also packs the groundwater fill and
-// spring strength for the shaders. Written to world.light (vec4: sun vis, ao, groundwater fill, spring).
+// spring strength for the shaders, and copies the plant state next to it so the terrain shader stays
+// within 8 storage buffers. world.light holds two vec4 per cell:
+//   [2i] (sun vis, ao, groundwater fill, spring)   [2i+1] (plant cover, woody cover, burn, greenness)
 import { WGSL_COMMON, makeKernels, dispatch } from './gpu.js';
 
 const CODE = /* wgsl */ `
@@ -12,6 +14,8 @@ struct U { N: u32, dx: f32, sunX: f32, sunZ: f32, tanElev: f32, vex: f32, snowDe
 @group(0) @binding(4) var<storage, read_write> light: array<vec4f>;
 @group(0) @binding(5) var<storage, read> groundwater: array<f32>;
 @group(0) @binding(6) var<storage, read> spring: array<f32>;
+@group(0) @binding(7) var<storage, read> veg: array<f32>;
+@group(0) @binding(8) var<storage, read> eco: array<vec4f>;
 ${WGSL_COMMON}
 fn Hc(x: i32, y: i32, n: i32) -> f32 {
   let i = ix(x, y, n);
@@ -62,16 +66,20 @@ fn main(@builtin(global_invocation_id) g: vec3u) {
   }
   let ao = clamp(1.0 - occ / 8.0 * 1.1, 0.0, 1.0);
   let i = ix(x, y, n);
-  light[i] = vec4f(vis, ao, clamp(groundwater[i] / max(u.gwMax, 1e-3), 0.0, 1.0), finiteOr(spring[i], 0.0));
+  // groundwater fill relative to what this soil can hold (same as gwCap() in sim/common.js)
+  let cap = max(u.gwMax * (0.2 + 0.8 * (1.0 - exp(-max(soil[i], 0.0) / 0.5))), 1e-4);
+  light[2u * i] = vec4f(vis, ao, clamp(groundwater[i] / cap, 0.0, 1.0), finiteOr(spring[i], 0.0));
+  let e = eco[i];
+  light[2u * i + 1u] = vec4f(clamp(finiteOr(veg[i], 0.0), 0.0, 1.0), e.x, e.y, e.z);
 }`;
 
 export class Lighting {
   constructor(device, world) {
     this.device = device;
     this.world = world;
-    this.k = makeKernels(device, 'lighting', CODE, ['uniform', 'read', 'read', 'read', 'storage', 'read', 'read'], ['main']);
+    this.k = makeKernels(device, 'lighting', CODE, ['uniform', 'read', 'read', 'read', 'storage', 'read', 'read', 'read', 'read'], ['main']);
     this.ub = device.createBuffer({ size: 32, usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST });
-    this.bg = this.k.bind([this.ub, world.bedrock, world.soil, world.snowSWE, world.light, world.groundwater, world.spring]);
+    this.bg = this.k.bind([this.ub, world.bedrock, world.soil, world.snowSWE, world.light, world.groundwater, world.spring, world.veg, world.eco]);
     this.data = new ArrayBuffer(32);
   }
   update(encoder, sunDir, vex, gwMax = 0.25) {

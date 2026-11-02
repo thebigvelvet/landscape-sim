@@ -8,7 +8,7 @@ import { OrbitCamera } from './camera.js';
 import { PRESETS } from '../sim/climate.js';
 
 // Overlay names, in the order of the shader's overlay modes (0 = natural view).
-export const OVERLAYS = ['none', 'water', 'sediment', 'snow', 'frost', 'change', 'groundwater'];
+export const OVERLAYS = ['none', 'water', 'sediment', 'snow', 'frost', 'change', 'groundwater', 'plants'];
 
 const SAMPLES = 4;
 const WEATHER_VISIBLE_SPEED = 36;   // days/s; above this rain particles and clouds are averaged out
@@ -31,8 +31,10 @@ export class Renderer {
     this.format = format;
     this.ctx.configure({ device, format, alphaMode: 'opaque' });
     this.camera = new OrbitCamera(canvas);
-    this.ub = device.createBuffer({ size: 84 * 4, usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST });
-    this.u = new Float32Array(84);
+    this.ub = device.createBuffer({ size: 88 * 4, usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST });
+    this.u = new Float32Array(88);
+    this.brush = { tool: 0, x: 0, y: 0, radius: 0, visible: false };   // cursor ring (grid cells), set by the panel
+    this.lastMatrices = null;
     this.mode = 0;
     this.vex = 1.25;
     this.haze = 0.12;
@@ -195,6 +197,7 @@ export class Renderer {
     const panel = document.getElementById('panel');
     const pw = panel && !panel.classList.contains('hidden') ? panel.getBoundingClientRect().right : 0;
     const { eye, viewProj, invViewProj } = this.camera.matrices(aspect, pw / Math.max(1, this.canvas.clientWidth));
+    this.lastMatrices = { eye, viewProj, invViewProj };
     const u = this.u;
     const pal = atm.preset.palette;
     const extent = world.N * world.cellSize;
@@ -218,6 +221,8 @@ export class Renderer {
     u.set([...lin(pal.veg), this.cloud], 72);
     u.set([...lin(pal.sand), this.precipVis], 76);
     u.set([this.snowVis, extent, tr.min, this.contours ? 1 : 0], 80);
+    const cN = (world.N - 1) * 0.5, b = this.brush;
+    u.set([(b.x - cN) * world.cellSize, (b.y - cN) * world.cellSize, b.radius * world.cellSize, b.visible ? b.tool : 0], 84);
     this.device.queue.writeBuffer(this.ub, 0, u);
 
     if (this.frameCount % 2 === 0 || this.lightDirty) {

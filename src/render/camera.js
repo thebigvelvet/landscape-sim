@@ -87,7 +87,9 @@ export class OrbitCamera {
     let drag = null;
     c.addEventListener('contextmenu', (e) => e.preventDefault());
     c.addEventListener('pointerdown', (e) => {
-      drag = { x: e.clientX, y: e.clientY, pan: e.button === 2 || e.button === 1 || e.shiftKey };
+      // an event brush is selected: the left button paints instead of turning the view
+      if (e.button === 0 && !e.shiftKey && this.leftButtonBlocked?.()) { drag = null; return; }
+      drag ={ x: e.clientX, y: e.clientY, pan: e.button === 2 || e.button === 1 || e.shiftKey };
       c.setPointerCapture(e.pointerId);
       this.autoRotate = false;
     });
