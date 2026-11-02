@@ -86,17 +86,26 @@ const groundC = async () => { const b = await E.readLayer('bedrock'), s = await 
 const measureC = (z0, z1) => { let low = 0, dep = 0, n = 0, mx = 0; for (let y = P.y - r; y <= P.y + r; y++) for (let x = P.x - r; x <= P.x + r; x++) { if ((x - P.x) ** 2 + (y - P.y) ** 2 > r * r) continue; const d = z1[y * N + x] - z0[y * N + x]; if (d < 0) { low -= d; mx = Math.max(mx, -d); } else dep += d; n++; } return { meanLowering_mm: 1000 * low / n, meanDeposit_mm: 1000 * dep / n, maxLowering_m: mx }; };
 const out = {};
 await sim.run(((200 - (E.day % 365)) + 365) % 365, { batchDays: 5, nSub: 32 });
-let z0 = await groundC(); let s0 = (await sim.stats()).cumSedimentOut_m3;
+let zc0 = await groundC(); let sc0 = (await sim.stats()).cumSedimentOut_m3;
 await sim.run(3 * 365, { batchDays: 6, nSub: 64 });
-let z1 = await groundC();
-out.unburned3y = { ...measureC(z0, z1), sedOut_m3: (await sim.stats()).cumSedimentOut_m3 - s0 };
+let zc1 = await groundC();
+out.unburned3y = { ...measureC(zc0, zc1), sedOut_m3: (await sim.stats()).cumSedimentOut_m3 - sc0 };
 out.fire = await sim.brush('wildfire', { x: P.x, y: P.y, radius: r });
-z0 = await groundC(); s0 = (await sim.stats()).cumSedimentOut_m3;
+zc0 = await groundC(); sc0 = (await sim.stats()).cumSedimentOut_m3;
 await sim.run(3 * 365, { batchDays: 6, nSub: 64 });
-z1 = await groundC();
-out.burned3y = { ...measureC(z0, z1), sedOut_m3: (await sim.stats()).cumSedimentOut_m3 - s0 };
+zc1 = await groundC();
+out.burned3y = { ...measureC(zc0, zc1), sedOut_m3: (await sim.stats()).cumSedimentOut_m3 - sc0 };
 R.catchment = out;
 
 const s1 = await sim.stats();
 R.balancePct = s1.balanceErrorPct; R.nan = s1.hasNaN; R.gpuErrors = window.__gpuErrors || 0;
+const rs = R.recoverySummary;
+R.pass = {
+  burnedPatchErodesMore: R.erosion.ratio2y > 3,
+  grassBackWithin5y: rs.vegAfter5y > 0.6 * rs.vegBefore,
+  forestBackWithin120y: rs.woodyAfter120y > 0.8 * rs.woodyBefore && rs.woodyAfter20y < 0.5 * rs.woodyBefore,
+  catchmentErodesMoreAfterFire: R.catchment.burned3y.meanLowering_mm > 1.3 * R.catchment.unburned3y.meanLowering_mm,
+  balance: Math.abs(R.balancePct) < 0.01 && Math.abs(R.balanceAfterStormPct) < 0.01 && !R.nan,
+};
+R.allPass = Object.values(R.pass).every(Boolean);
 return R;
