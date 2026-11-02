@@ -16,7 +16,7 @@ export const TOOLS = [
     icon: '<svg viewBox="0 0 24 24"><path d="M7 15a5 5 0 0 1-.6-10 6 6 0 0 1 11.3 1.6A4.2 4.2 0 0 1 17 15z"/><path d="M8 17l-1.5 4M12 17l-1.5 4M16 17l-1.5 4" stroke-width="2" stroke-linecap="round" fill="none"/><path d="M12.5 14.5l-2 3.5h2.6l-1.6 3.5" stroke-width="1.6" fill="none" stroke-linejoin="round"/></svg>' },
   { id: 'drought', name: 'Drought', key: '3', tip: 'Click anywhere to start a five-year drought over the whole map: little rain or snow and hotter air. Grass turns gold then brown, groundwater falls, and dry forests burn easily.',
     icon: '<svg viewBox="0 0 24 24"><circle cx="12" cy="10" r="4.2"/><path d="M12 1.5v2.6M12 16v2.2M3.5 10h2.6M18 10h2.5M6 4l1.8 1.8M16.2 14.2l1.8 1.8M6 16l1.8-1.8M16.2 5.8L18 4" stroke-width="1.8" stroke-linecap="round" fill="none"/><path d="M3 21.5l3-2 2.5 1.5 3-2.5 2.5 2 3-1.5 3 2.5" stroke-width="1.5" fill="none" stroke-linejoin="round"/></svg>' },
-  { id: 'flood', name: 'Flood', key: '4', tip: 'Click a valley or stream to send a 100-year flood down it: a 12-hour flood wave (peak 150 cubic metres per second) pours in at that spot from upstream. Best watched at 1 day per second.',
+  { id: 'flood', name: 'Flood', key: '4', tip: 'Click a valley or stream to send a 100-year flood down it: a 12-hour flood wave (peak 150 cubic metres per second) pours in at that spot from upstream. Best watched in slow motion (1 hour per second).',
     icon: '<svg viewBox="0 0 24 24"><path d="M2 9c2 0 2-1.6 4-1.6S8 9 10 9s2-1.6 4-1.6S16 9 18 9s2-1.6 4-1.6M2 14c2 0 2-1.6 4-1.6S8 14 10 14s2-1.6 4-1.6 2 1.6 4 1.6 2-1.6 4-1.6M2 19c2 0 2-1.6 4-1.6S8 19 10 19s2-1.6 4-1.6 2 1.6 4 1.6 2-1.6 4-1.6" stroke-width="2" stroke-linecap="round" fill="none"/></svg>' },
   { id: 'wildfire', name: 'Wildfire', key: '5', tip: 'Click or drag to set the plants on fire. Dry plants nearby can catch, and fire runs uphill and with the wind. Burned slopes shed water and mud in the next storms until plants grow back.',
     icon: '<svg viewBox="0 0 24 24"><path d="M12.3 2.2c.4 3-1.5 4.6-3 6.3-1.6 1.8-3 3.6-3 6.4A5.8 5.8 0 0 0 12 21a5.8 5.8 0 0 0 5.8-5.9c0-2.5-1.2-4.6-2.7-6.3-.3 1.4-1 2.6-2.2 3.2.6-3.2-.1-6.6-.6-9.8z"/><path d="M12 20.5c-1.6 0-2.8-1.2-2.8-2.8 0-1.6 1.3-2.6 2.2-3.8.2 1 .8 1.6 1.6 1.9.4-.6.5-1.2.6-1.8.9 1 1.2 2.2 1.2 3.4 0 1.7-1.2 3.1-2.8 3.1z" fill="#ffd27a"/></svg>' },
@@ -238,39 +238,44 @@ export class BrushTool {
       const what = cold ? 'snow (as water)' : 'rain';
       let t = `Up to ${fmt(mm)} mm of ${what} will fall in the middle over ${fmt(ev.days)} days, about ${Math.round((mm / ev.days) / normal)} times a normal wet day here. Watch the gullies run and the streams turn muddy.`;
       if (fast) t += ' At this speed the storm is over in a blink, but every drop and every grain of mud it moves is counted.';
-      this.toast('storm', cold ? 'Blizzard!' : 'Cloudburst!', t + pausedNote);
+      this.toast('storm', cold ? 'Blizzard!' : 'Cloudburst!', t + pausedNote, fast ? { label: 'Watch it at 1 day per second', speed: 1 } : null);
     } else if (ev.type === 'drought') {
       const yrs = ev.days / 365;
       let t = `For the next ${fmt(yrs)} years only ${Math.round(sim.events.drought ? sim.events.drought.pMul * 100 : 30)}% of the usual rain and snow falls, everywhere on the map, and it is ${fmt(sim.events.drought?.dT ?? 1.5)} °C hotter. Grass turns gold, then brown; groundwater sinks; forests get dry enough to burn.`;
-      if (speed < 120) t += ' Speed up to about 1 year per second to watch the land bake.';
-      else if (speed > 3650) t += ' At this speed five years pass in a blink; slow to 1 year per second to watch it.';
-      this.toast('drought', 'Drought!', t + pausedNote);
+      const act = speed < 120 || speed > 3650 ? { label: 'Watch it at 1 year per second', speed: 365 } : null;
+      this.toast('drought', 'Drought!', t + pausedNote, act);
     } else if (ev.type === 'flood') {
       let t = `A ${fmt(ev.volume / 1e6)} million m³ flood wave (peak ${fmt(ev.peak)} m³/s, ${fmt(ev.days * 24)} hours) is pouring in here from upstream, like the 100-year storm hitting the hills above the map. Watch it race down the valley, scour the channel and drop sand on the flats.`;
-      if (speed > 3) t += ' Slow down to 1 day per second to watch the surge travel.';
-      this.toast('flood', '100-year flood!', t + pausedNote);
+      this.toast('flood', '100-year flood!', t + pausedNote, speed > 0.1 ? { label: 'Watch in slow motion (1 hour per second)', speed: 1 / 24 } : null);
     } else if (ev.type === 'wildfire') {
       const fuel = this.fuelAround(ev.x, ev.y, ev.r);
       let t;
       if (fuel !== null && fuel < 0.06) t = 'There is almost nothing here to burn: bare rock, snow or very sparse plants. Try a grassy or forested slope.';
       else {
         t = 'The plants here are burning. Dry fuel nearby can catch; fire runs uphill and with the wind. The black scar sheds water and mud in the next storms until grass, then shrubs, then trees grow back.';
-        if (speed > 3650 && !sim.paused) t += ' At this speed the scar heals within a second; slow to about 1 year per second to watch the forest return.';
+        if (speed > 3650 && !sim.paused) t += ' At this speed the scar heals within a second.';
       }
-      this.toast('wildfire', 'Wildfire!', t + (sim.paused ? ' Press play to let it burn.' : ''));
+      this.toast('wildfire', 'Wildfire!', t + (sim.paused ? ' Press play to let it burn.' : ''), fuel !== null && fuel < 0.06 ? null : { label: speed > 120 ? 'Watch it at 1 day per second, then speed up' : 'Then watch it grow back at 1 year per second', speed: speed > 120 ? 1 : 365, later: speed > 120 });
     }
   }
 
-  toast(kind, title, text) {
+  // action: optional { label, speed } button that sets the speed dial (and plays)
+  toast(kind, title, text, action = null) {
     const el = $('toast');
     const icon = TOOLS.find((t) => t.id === kind)?.icon || '';
     el.className = `toast ${kind}`;
-    el.innerHTML = `<div class="ticon">${icon}</div><div><b>${title}</b><p>${text}</p></div>`;
+    el.innerHTML = `<div class="ticon">${icon}</div><div><b>${title}</b><p>${text}</p>${action ? `<button class="tact">${action.label}</button>` : ''}</div>`;
     void el.offsetWidth;
     el.classList.add('show');
     clearTimeout(this.toastTimer);
-    this.toastTimer = setTimeout(() => el.classList.remove('show'), 9000);
-    el.onclick = () => el.classList.remove('show');
-    this.lastToast = { kind, title, text };
+    this.toastTimer = setTimeout(() => el.classList.remove('show'), action ? 14000 : 9000);
+    el.onclick = (e) => {
+      if (action && e.target.classList.contains('tact')) {
+        this.app.setSpeed(action.speed); this.app.play();
+        if (action.later) setTimeout(() => this.app.setSpeed(365), 6000);
+      }
+      el.classList.remove('show');
+    };
+    this.lastToast = { kind, title, text, action: action?.label };
   }
 }

@@ -1,0 +1,15 @@
+{
+  "preset": "Utah desert",
+  "day": 11100.010000000591,
+  "meanVeg": 0.1756134929601103,
+  "vegCoveredFrac": 0.07291793823242188,
+  "woody": 0.055977002397412434,
+  "burnedFrac": 0,
+  "bal": -6.030184632598063e-7,
+  "nan": false,
+  "gpuErrors": 0,
+  "fps": 59.95549089027672,
+  "gpuFeatureStatusWebGPU": "enabled",
+  "electron": "45.2.1",
+  "chrome": "156.0.8078.75"
+}

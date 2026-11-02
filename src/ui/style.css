@@ -130,7 +130,8 @@ button.round svg { width: 24px; height: 24px; fill: #2a1c08; }
 .speedlabel { display: flex; gap: 8px; align-items: center; font-size: 13px; color: var(--muted); }
 .speedlabel b { color: var(--text); font-weight: 600; }
 #speed { width: 100%; }
-.ticks { display: flex; justify-content: space-between; font-size: 11px; color: var(--muted); }
+.ticks { position: relative; height: 15px; font-size: 11px; color: var(--muted); }
+.ticks span { position: absolute; white-space: nowrap; }
 .ticks span { cursor: pointer; }
 .ticks span:hover { color: var(--text); }
 
@@ -202,3 +203,5 @@ body.painting canvas#view { cursor: crosshair; }
 .toast.wildfire { border-color: rgba(255,122,58,0.6); } .toast.wildfire .ticon { color: #ff7a3a; }
 .toast.storm .ticon svg path:first-child, .toast.drought .ticon svg circle, .toast.wildfire .ticon svg path:last-child { stroke: none; }
 body.collapsed .toast { margin-left: 0; }
+.toast .tact { margin-top: 8px; background: rgba(255,255,255,0.12); color: var(--text); border: 1px solid rgba(255,255,255,0.25); border-radius: 8px; padding: 5px 10px; font-size: 12.5px; }
+.toast .tact:hover { background: rgba(255,255,255,0.22); }

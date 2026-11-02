@@ -317,7 +317,7 @@ fn overlay(mode: i32, m0: vec4f, m1: vec4f, m3: vec2f, m4: vec4f) -> vec4f {
   let rockExpo = 1.0 - smoothstep(0.03, 0.35, soilD + (nzf - 0.5) * 0.1);
   var albedo = mix(looseC, rockC, rockExpo);
   // Herbs and grass: green in the growing season, golden when dry, dormant tan in winter.
-  let grassGreen = mix(R_.veg.rgb * vec3f(1.05, 1.2, 0.9), srgb(vec3f(0.29, 0.40, 0.16)), 0.5);
+  let grassGreen = mix(R_.veg.rgb * vec3f(1.05, 1.2, 0.9), srgb(vec3f(0.29, 0.40, 0.16)), 0.5 * (1.0 - R_.forest.z));   // sage in the desert
   let straw = srgb(vec3f(0.74, 0.62, 0.35));
   let dormant = mix(srgb(vec3f(0.55, 0.45, 0.30)), srgb(vec3f(0.66, 0.54, 0.33)), vnoise(p2 * 0.05));
   var herb = mix(grassGreen, straw, smoothstep(0.35, 0.85, dry));
@@ -344,7 +344,7 @@ fn overlay(mode: i32, m0: vec4f, m1: vec4f, m3: vec2f, m4: vec4f) -> vec4f {
   // Burn scar: char with grey ash, fading to dark earth as it ages; green shoots come back on top.
   let ashN = vnoise(p2 * 0.8);
   let scar = mix(srgb(vec3f(0.07, 0.06, 0.055)), srgb(vec3f(0.42, 0.40, 0.38)), smoothstep(0.55, 0.85, ashN) * 0.7);
-  let scarAmt = smoothstep(0.05, 0.5, burnS);
+  let scarAmt = smoothstep(0.02, 0.35, burnS);
   albedo = mix(albedo, mix(albedo * 0.45, scar, smoothstep(0.25, 0.7, burnS)), scarAmt * (1.0 - cov * 0.75));
 
   // Wet ground darkens.
@@ -686,7 +686,7 @@ fn main(@builtin(global_invocation_id) g: vec3u) {
   let h = f32(pcg(i) & 0xffffu) / 65536.0;
   let dens = c.x * c.y * U.dens;
   var kind = 0u;
-  if (h < dens) { kind = 1u; } else if (c.z > 0.15 && h < dens + c.z * 0.3) { kind = 2u; }
+  if (h < dens) { kind = 1u; } else if (c.z > 0.04 && h < dens + c.z * 0.35) { kind = 2u; }
   let onFire = c.w > 0.06 && (pcg(i * 7u + 3u) & 255u) < 110u;
   if (kind == 0u && !onFire) { return; }
   let ctr = (f32(U.N) - 1.0) * 0.5;

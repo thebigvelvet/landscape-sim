@@ -243,7 +243,10 @@ export class Simulation {
       Dcol = target + this.carry; this.carry = 0; this.strobe = false;
     }
     if (Dcol <= 0) return 0;
-    const n = this._batch(Dcol, target, this.nSub, true);
+    // Slow motion (below ~1 day/s): never simulate more hydraulic seconds than clock seconds, so
+    // water moves at its real speed and a flood wave can be watched travelling down the valley.
+    const nClock = Math.max(2, 2 * Math.floor((Dcol * 86400) / (0.2 * this.world.cellSize) / 2));
+    const n = this._batch(Dcol, target, Math.min(this.nSub, nClock), true);
     if (this.frame % 30 === 0) this._readback();
     return n;
   }

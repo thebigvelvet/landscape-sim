@@ -1,0 +1,15 @@
+{
+  "preset": "Pacific NW wet",
+  "day": 11150.009999999855,
+  "meanVeg": 0.7505747599061579,
+  "vegCoveredFrac": 0.9166030883789062,
+  "woody": 0.5826862336834893,
+  "burnedFrac": 0,
+  "bal": -9.597795090440857e-8,
+  "nan": false,
+  "gpuErrors": 0,
+  "fps": 59.95484873019297,
+  "gpuFeatureStatusWebGPU": "enabled",
+  "electron": "45.2.1",
+  "chrome": "156.0.8078.75"
+}

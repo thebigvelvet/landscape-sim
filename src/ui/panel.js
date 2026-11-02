@@ -4,12 +4,16 @@ import { OVERLAYS, showLegend } from './legend.js';
 
 const $ = (id) => document.getElementById(id);
 const SPEED_MAX = 365000;
+const SPEED_MIN = 0.01;   // ~15 minutes per second: slow motion for floods
 const WEATHER_VISIBLE_SPEED = 36;
 
-export function speedToSlider(s) { return Math.round((Math.log10(Math.max(1, s)) / Math.log10(SPEED_MAX)) * 1000); }
-export function sliderToSpeed(v) { return Math.pow(10, (v / 1000) * Math.log10(SPEED_MAX)); }
+const LMIN = Math.log10(SPEED_MIN), LMAX = Math.log10(SPEED_MAX);
+export function speedToSlider(s) { return Math.round(((Math.log10(Math.max(SPEED_MIN, s)) - LMIN) / (LMAX - LMIN)) * 1000); }
+export function sliderToSpeed(v) { return Math.pow(10, LMIN + (v / 1000) * (LMAX - LMIN)); }
 
 export function speedText(s) {
+  if (s < 0.04) return `${Math.max(5, Math.round((s * 1440) / 5) * 5)} minutes / second (slow motion)`;
+  if (s < 0.8) { const h = Math.round(s * 24); return `${h} hour${h === 1 ? '' : 's'} / second (slow motion)`; }
   if (s < 1.5) return '1 day / second';
   if (s < 30) return `${Math.round(s)} days / second`;
   if (s < 365) { const m = s / 30.4; return `${m < 1.5 ? 1 : Math.round(m)} month${m < 1.5 ? '' : 's'} / second`; }
@@ -154,6 +158,10 @@ export class Panel {
     $('generate').addEventListener('click', () => this.generate());
     $('speed').addEventListener('input', () => app.setSpeed(sliderToSpeed(+$('speed').value)));
     for (const t of document.querySelectorAll('.ticks span')) {
+      // place each label exactly under its speed on the (logarithmic) slider
+      const pct = speedToSlider(+t.dataset.speed) / 10;
+      t.style.left = `${pct}%`;
+      t.style.transform = pct < 3 ? 'none' : pct > 97 ? 'translateX(-100%)' : 'translateX(-50%)';
       t.addEventListener('click', () => app.setSpeed(+t.dataset.speed));
     }
     $('play').addEventListener('click', () => (sim.paused ? app.play() : app.pause()));
