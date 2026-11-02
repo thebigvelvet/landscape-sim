@@ -75,8 +75,8 @@ fn main(@builtin(global_invocation_id) gid : vec3<u32>) {
   let v = veg[i];
   var fn_ = 0.0;
   if (f > 0.02) {
-    // a burning cell keeps burning while it has fuel, then dies down (~10-20 batches)
-    fn_ = f * (0.72 + 0.22 * smoothstep(0.04, 0.35, v));
+    // a burning cell keeps burning while it has fuel, then dies down (~60-120 batches: 1-2 s)
+    fn_ = f * (0.955 + 0.04 * smoothstep(0.04, 0.35, v));
     if (fn_ < 0.03) { fn_ = 0.0; }
   } else if (P.fireWeather > 0.01) {
     let fuel = smoothstep(0.12, 0.6, v);
@@ -102,7 +102,7 @@ fn main(@builtin(global_invocation_id) gid : vec3<u32>) {
           s += fj * select(1.0, 0.7, diag) * max(0.15, 1.0 + 1.2 * up + 0.6 * wind);
         }
       }
-      let p = P.fireWeather * 0.2 * s * k;
+      let p = P.fireWeather * 0.035 * s * k;               // front advances a few cells per second
       if (s > 0.0 && rnd(i, P.frame) < p) { fn_ = 0.95; }
     }
   }
@@ -185,8 +185,8 @@ fn main(@builtin(global_invocation_id) gid : vec3<u32>) {
     if (fire > 0.02) {
       // the flames eat the cover and the trees; severity grows with the fuel that was there
       let fuel0 = V;
-      V = V * exp(-0.45 * fire);
-      W = W * exp(-0.6 * fire);
+      V = V * exp(-0.06 * fire);
+      W = W * exp(-0.08 * fire);
       B = max(B, clamp(fire * (0.35 + 0.65 * smoothstep(0.05, 0.6, fuel0)), 0.0, 1.0));
     }
     let r = select(${'$'}{DIE}, ${'$'}{GROW} * (0.3 + 0.7 * fWarm), V < vStar);

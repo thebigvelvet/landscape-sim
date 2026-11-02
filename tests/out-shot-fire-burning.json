@@ -1,0 +1,25 @@
+{
+  "preset": "Colorado alpine",
+  "day": 11185.03100000059,
+  "meanVeg": 0.6386582739651203,
+  "vegCoveredFrac": 0.85125732421875,
+  "woody": 0.20087741731549613,
+  "burnedFrac": 0.004634857177734375,
+  "bal": -3.4094991953052116e-7,
+  "nan": false,
+  "gpuErrors": 0,
+  "fps": 59.94550062621224,
+  "extra": {
+    "type": "wildfire",
+    "x": 317.44,
+    "y": 317.44,
+    "r": 14,
+    "intensity": 1,
+    "days": 0.01,
+    "id": 1,
+    "t0": 10947.699999988079
+  },
+  "gpuFeatureStatusWebGPU": "enabled",
+  "electron": "45.2.1",
+  "chrome": "156.0.8078.75"
+}

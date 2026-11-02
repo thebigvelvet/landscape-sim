@@ -153,7 +153,7 @@ export class Events {
     for (const f of this.floods) f.t += D;
     this.floods = this.floods.filter((f) => f.t < f.days - 1e-9);
     if (this.drought) { this.drought.left -= D; if (this.drought.left <= 1e-9) this.drought = null; }
-    this.fireWeather = this.fireWeather > 0.02 ? this.fireWeather * 0.985 : 0;
+    this.fireWeather = this.fireWeather > 0.02 ? this.fireWeather * 0.996 : 0;   // fire weather fades over ~10 s
   }
 
   /**

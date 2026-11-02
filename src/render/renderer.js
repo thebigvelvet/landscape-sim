@@ -332,7 +332,7 @@ export class Renderer {
       u.set(q ? [q[0], q[1], q[2], q[3]] : [0, 0, 0, 0], 132 + 4 * k);
     }
     // cloud deck above the peaks; snow if the storm's air is below freezing
-    const cloudBase = (tr.max + 260) * this.vex;
+    const cloudBase = (tr.mean + 0.55 * (tr.max - tr.mean) + 180) * this.vex;   // low, heavy cloud: peaks poke into it
     let snowT = 0;
     if (vis.storms.length) {
       const doy = sim.lastClimate?.dayOfYear ?? 172;
@@ -343,7 +343,7 @@ export class Renderer {
     this.stormSnow += (snowT - this.stormSnow) * 0.1;
     this.flash *= this.flash > 0.3 && Math.random() < 0.3 ? 1.0 : 0.8;
     if (this.flash < 0.01) this.flash = 0;
-    u.set([cloudBase, this.stormSnow, this.flash, cloudBase + 420 * this.vex], 148);
+    u.set([cloudBase, this.stormSnow, this.flash, cloudBase + 200 * this.vex], 148);
     const P11 = 1 / Math.tan(this.camera.fov / 2);
     const dens = world.N <= 512 ? 1 : world.N <= 1024 ? 0.5 : 0.25;
     u.set([this.canvas.width, this.canvas.height, P11, dens], 152);

@@ -63,7 +63,7 @@ const t0 = performance.now();
     const g0 = await ground();
     const vegBefore = discMean(await layer('veg'), N, site.x, site.y, site.r);
     if (burnIt) { sim.brush('wildfire', { x: site.x, y: site.y, radius: site.r }); e.events.fireWeather = 0; }
-    await e.run(0.2, { batchDays: 0.01 });
+    await e.run(2.5, { batchDays: 0.01 });   // ~250 batches: the fire burns out
     const vegAfter = discMean(await layer('veg'), N, site.x, site.y, site.r);
     // two cloudbursts over the patch (identical in both runs), then the rest of the year
     for (let k = 0; k < 2; k++) { sim.brush('storm', { x: site.x, y: site.y - 10, radius: 30 }); await e.run(30); }
@@ -88,7 +88,7 @@ const t0 = performance.now();
   const w0 = discMean((await layer('plant')).filter((_, i) => i % 4 === 0), N, x, y, r);
   sim.brush('wildfire', { x, y, radius: r });
   e.events.fireWeather = 0;
-  await e.run(0.3, { batchDays: 0.01 });
+  await e.run(2.5, { batchDays: 0.01 });   // ~250 batches: the fire burns out
   const v1 = discMean(await layer('veg'), N, x, y, r), b1 = discMean(await layer('burn'), N, x, y, r);
   const series = [];
   for (const yrs of [1, 2, 5, 10, 30, 60]) {
@@ -169,7 +169,7 @@ const t0 = performance.now();
   const sp = sim.screenOf(200, 260);
   click(sp.x, sp.y);
   e.events.fireWeather = 0;
-  await e.run(0.2, { batchDays: 0.01 });
+  await e.run(2.5, { batchDays: 0.01 });   // ~250 batches: the fire burns out
   const burn = await layer('burn'); const N = e.N;
   let sx = 0, sy = 0, sw = 0;
   for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) { const b = burn[y * N + x]; if (b > 0.05) { sx += x * b; sy += y * b; sw += b; } }

@@ -686,8 +686,8 @@ fn main(@builtin(global_invocation_id) g: vec3u) {
   let h = f32(pcg(i) & 0xffffu) / 65536.0;
   let dens = c.x * c.y * U.dens;
   var kind = 0u;
-  if (h < dens) { kind = 1u; } else if (c.z > 0.15 && h < dens + c.z * 0.5) { kind = 2u; }
-  let onFire = c.w > 0.06 && (pcg(i * 7u + 3u) & 255u) < 70u;
+  if (h < dens) { kind = 1u; } else if (c.z > 0.15 && h < dens + c.z * 0.3) { kind = 2u; }
+  let onFire = c.w > 0.06 && (pcg(i * 7u + 3u) & 255u) < 110u;
   if (kind == 0u && !onFire) { return; }
   let ctr = (f32(U.N) - 1.0) * 0.5;
   let wp = vec4f((f32(g.x) - ctr) * U.dx, (bedrock[i] + soil[i]) * U.vex + 8.0, (f32(g.y) - ctr) * U.dx, 1.0);
@@ -867,13 +867,13 @@ struct VO {
   let h = hu(i * 17u + k * 3u);
   let ph = fract(R_.camPos.w * 0.16 + h + f32(k) / 3.0);
   let wind = vec2f(R_.camRight.w, R_.camUp.w);
-  let size = (14.0 + 75.0 * ph) * (0.7 + 0.6 * h);
+  let size = (18.0 + 95.0 * ph) * (0.7 + 0.6 * h);
   let c = base + vec3f(wind.x * ph * 160.0, 10.0 + ph * 300.0, wind.y * ph * 160.0);
   let wp = c + R_.camRight.xyz * q.x * size + R_.camUp.xyz * q.y * size;
   var o: VO;
   o.pos = R_.viewProj * vec4f(wp, 1.0);
   o.q = q;
-  o.a = vec3f(fire * (1.0 - ph) * smoothstep(0.0, 0.1, ph) * 0.6, ph, h);
+  o.a = vec3f(min(fire * 1.5, 1.0) * (1.0 - ph) * smoothstep(0.0, 0.1, ph) * 0.8, ph, h);
   o.wpos = wp;
   return o;
 }
