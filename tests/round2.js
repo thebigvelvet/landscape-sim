@@ -16,7 +16,7 @@ const t0 = performance.now();
   const rows = {};
   for (const [label, batchDays, days] of [['1 day/s', 1 / 60, 20], ['1000 yr/s', 6083, 6083 * 3]]) {
     for (const brush of ['none', 'storm', 'drought', 'flood', 'wildfire']) {
-      await sim.load('random', { size: 256, seed: 4, preset: 'Colorado alpine' });
+      sim.pause(); await sim.load('random', { size: 256, seed: 4, preset: 'Colorado alpine' });
       sim.pause();
       await e.run(2, { batchDays: Math.min(batchDays, 1) });
       const N = e.N;
@@ -32,7 +32,7 @@ const t0 = performance.now();
 
 // 2. No NaN, live: 10 s at 1 day/s and 10 s at 1000 yr/s with rendering, with a fire and a storm.
 {
-  await sim.load('random', { size: 512, seed: 7, preset: 'Temperate' });
+  sim.pause(); await sim.load('random', { size: 512, seed: 7, preset: 'Temperate' });
   const N = e.N;
   sim.setSpeed(1); sim.play();
   sim.brush('wildfire', { x: N * 0.4, y: N * 0.5, radius: 15 });
@@ -49,30 +49,39 @@ const t0 = performance.now();
   check('noNaN', !a.hasNaN && !b.hasNaN && (window.__gpuErrors || 0) === 0, { slow: { nan: a.hasNaN, bal: a.balanceErrorPct, fps: fpsSlow }, fast: { nan: b.hasNaN, bal: b.balanceErrorPct, years: b.year, fps: e.fps }, gpuErrors: window.__gpuErrors || 0 });
 }
 
-// 3. A burned patch erodes more than an identical unburned one. The cone is symmetric east-west
-//    (aspect only matters north-south), so burn a patch on the east flank and compare it with its
-//    mirror image on the west flank.
+// 3. A burned patch erodes more than an identical unburned one: the same landscape (V-shaped
+//    valley, planar hillslopes at ~0.35, below the angle of repose) is run twice with the same
+//    weather, once with a fire on the east valley wall and once without, and the ground lowering
+//    inside the patch is compared. Then four big storms.
 {
-  await sim.load('cone', { size: 256, seed: 1, preset: 'Temperate' });
-  sim.pause();
-  const N = e.N, c = (N - 1) / 2, off = 55, r = 14;
-  const xb = c + off, xu = c - off, y = c;
-  const g0 = await ground();
-  sim.brush('wildfire', { x: xb, y, radius: r });
-  e.events.fireWeather = 0;                       // no spread: compare like with like
-  await e.run(0.2, { batchDays: 0.01 });          // let it burn (fire runs per batch)
-  const vegB = discMean(await layer('veg'), N, xb, y, r), vegU = discMean(await layer('veg'), N, xu, y, r);
-  const burnB = discMean(await layer('burn'), N, xb, y, r);
-  for (let k = 0; k < 4; k++) { e.climate.triggerStorm(3, 12); await e.run(90); }
-  const g1 = await ground();
-  const d = new Float32Array(N * N); for (let i = 0; i < d.length; i++) d[i] = g0[i] - g1[i];
-  const eroB = discMean(d, N, xb, y, r), eroU = discMean(d, N, xu, y, r);
-  check('burnErodesMore', eroB > 1.5 * Math.max(eroU, 1e-6), { erosionBurned_m: eroB, erosionUnburned_m: eroU, ratio: eroB / Math.max(eroU, 1e-9), vegAfterFire: vegB, vegUnburned: vegU, burnSeverity: burnB });
+  const site = { x: 190, y: 140, r: 14 };
+  const runOnce = async (burnIt) => {
+    sim.pause(); await sim.load('valley', { size: 256, seed: 1, preset: 'Temperate' });
+    sim.pause();
+    const N = e.N;
+    await e.run(365 * 20);
+    const g0 = await ground();
+    const vegBefore = discMean(await layer('veg'), N, site.x, site.y, site.r);
+    if (burnIt) { sim.brush('wildfire', { x: site.x, y: site.y, radius: site.r }); e.events.fireWeather = 0; }
+    await e.run(0.2, { batchDays: 0.01 });
+    const vegAfter = discMean(await layer('veg'), N, site.x, site.y, site.r);
+    // two cloudbursts over the patch (identical in both runs), then the rest of the year
+    for (let k = 0; k < 2; k++) { sim.brush('storm', { x: site.x, y: site.y - 10, radius: 30 }); await e.run(30); }
+    await e.run(300);
+    const g1 = await ground();
+    const d = new Float32Array(N * N); for (let i = 0; i < d.length; i++) d[i] = g0[i] - g1[i];
+    let maxCut = 0; for (let y = site.y - site.r; y <= site.y + site.r; y++) for (let x = site.x - site.r; x <= site.x + site.r; x++) maxCut = Math.max(maxCut, d[y * N + x]);
+    const st = await sim.stats();
+    return { maxCut_m: maxCut, vegBefore, vegAfter, lowering_m: discMean(d, N, site.x, site.y, site.r), burn: discMean(await layer('burn'), N, site.x, site.y, site.r), sedimentOutOfMap_m3: st.cumSedimentOut_m3, bal: st.balanceErrorPct };
+  };
+  const un = await runOnce(false);
+  const bu = await runOnce(true);
+  check('burnErodesMore', bu.lowering_m > 1.5 * Math.max(un.lowering_m, 1e-4) && bu.lowering_m > 0.0005, { site, burned: bu, unburned: un, ratio: bu.lowering_m / Math.max(un.lowering_m, 1e-9) });
 }
 
 // 4. Plants recover after fire.
 {
-  await sim.load('random', { size: 256, seed: 3, preset: 'Temperate' });
+  sim.pause(); await sim.load('random', { size: 256, seed: 3, preset: 'Temperate' });
   sim.pause();
   const N = e.N, x = N * 0.5, y = N * 0.5, r = 25;
   const v0 = discMean(await layer('veg'), N, x, y, r);
@@ -95,7 +104,7 @@ const t0 = performance.now();
 {
   const cover = {};
   for (const p of ['Utah desert', 'Colorado alpine', 'Pacific NW wet', 'Temperate']) {
-    await sim.load('random', { size: 256, seed: 3, preset: p });
+    sim.pause(); await sim.load('random', { size: 256, seed: 3, preset: p });
     sim.pause();
     await e.run(365 * 20);
     const s = await sim.stats();
@@ -106,7 +115,7 @@ const t0 = performance.now();
 
 // 6. Treeline: on the Colorado cone, woody cover by elevation band.
 {
-  await sim.load('cone', { size: 256, seed: 1, preset: 'Colorado alpine' });
+  sim.pause(); await sim.load('cone', { size: 256, seed: 1, preset: 'Colorado alpine' });
   sim.pause();
   await e.run(365 * 20);
   const N = e.N, g = await ground(), v = await layer('veg'), pl = await layer('plant');
@@ -121,31 +130,44 @@ const t0 = performance.now();
   check('treeline', bands[0].treeCover > 0.2 && bands[5].treeCover < 0.03 && bands[5].cover > 0.01, { bands });
 }
 
-// 7. The brush lands where clicked: synthetic pointer events on the canvas at the screen position
-//    of known grid cells, then compare the event's cell with the target.
+// 7. The brush lands where clicked. (a) Synthetic clicks on the canvas at the screen position of
+//    visible grid cells; (b) round trip for a grid of screen points: click -> event cell -> project
+//    the cell back to the screen, which must be the clicked pixel (cells hidden behind a ridge are
+//    correctly not reachable, so (b) is the general test); (c) a wildfire burns where it was put.
 {
-  await sim.load('random', { size: 512, seed: 2, preset: 'Colorado alpine' });
+  sim.pause(); await sim.load('random', { size: 512, seed: 2, preset: 'Colorado alpine' });
   sim.pause();
   await sim.refreshHeights();
   await sleep(300);
   const cv = sim.renderer.canvas;
-  const targets = [[256, 256], [180, 300], [340, 210], [300, 360]];
-  const hits = [];
-  sim.setTool('storm');
-  for (const [tx, ty] of targets) {
-    const sp = sim.screenOf(tx, ty);
-    const opt = { clientX: sp.x, clientY: sp.y, button: 0, buttons: 1, pointerId: 1, bubbles: true, isPrimary: true };
+  const click = (x, y) => {
+    const opt = { clientX: x, clientY: y, button: 0, buttons: 1, pointerId: 1, bubbles: true, isPrimary: true };
     cv.dispatchEvent(new PointerEvent('pointermove', { ...opt, buttons: 0 }));
     cv.dispatchEvent(new PointerEvent('pointerdown', opt));
     cv.dispatchEvent(new PointerEvent('pointerup', opt));
-    const ev = e.events.log[e.events.log.length - 1];
+    return e.events.log[e.events.log.length - 1];
+  };
+  sim.setTool('storm');
+  const hits = [];
+  for (const [tx, ty] of [[256, 256], [180, 300], [145, 142], [370, 429]]) {
+    const sp = sim.screenOf(tx, ty);
+    const ev = click(sp.x, sp.y);
     hits.push({ target: [tx, ty], got: [+ev.x.toFixed(2), +ev.y.toFixed(2)], err: Math.hypot(ev.x - tx, ev.y - ty) });
   }
-  // the wildfire burns where it was put
+  const rect = cv.getBoundingClientRect();
+  const trips = [];
+  for (let fy = 0.3; fy <= 0.8; fy += 0.125) for (let fx = 0.45; fx <= 0.9; fx += 0.15) {
+    const px = rect.left + fx * rect.width, py = rect.top + fy * rect.height;
+    const n0 = e.events.seq;
+    const ev = click(px, py);
+    if (e.events.seq === n0) continue;   // missed the map (sky)
+    if (ev.x < 1 || ev.y < 1 || ev.x > e.N - 2 || ev.y > e.N - 2) continue;   // clicked the side of the block
+    const back = sim.screenOf(ev.x, ev.y);
+    trips.push({ px: [Math.round(px), Math.round(py)], cell: [+ev.x.toFixed(1), +ev.y.toFixed(1)], errPx: Math.hypot(back.x - px, back.y - py) });
+  }
   sim.setTool('wildfire');
   const sp = sim.screenOf(200, 260);
-  cv.dispatchEvent(new PointerEvent('pointerdown', { clientX: sp.x, clientY: sp.y, button: 0, buttons: 1, pointerId: 1, bubbles: true }));
-  cv.dispatchEvent(new PointerEvent('pointerup', { clientX: sp.x, clientY: sp.y, button: 0, pointerId: 1, bubbles: true }));
+  click(sp.x, sp.y);
   e.events.fireWeather = 0;
   await e.run(0.2, { batchDays: 0.01 });
   const burn = await layer('burn'); const N = e.N;
@@ -153,8 +175,9 @@ const t0 = performance.now();
   for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) { const b = burn[y * N + x]; if (b > 0.05) { sx += x * b; sy += y * b; sw += b; } }
   const centroid = [sx / sw, sy / sw];
   sim.setTool('none');
-  const worst = Math.max(...hits.map((h) => h.err));
-  check('brushLandsWhereClicked', worst < 1.5 && Math.hypot(centroid[0] - 200, centroid[1] - 260) < 3, { hits, worstErrCells: worst, fireTarget: [200, 260], burnCentroid: centroid });
+  const worst = Math.max(...hits.map((h) => h.err)), worstPx = Math.max(...trips.map((t) => t.errPx));
+  check('brushLandsWhereClicked', worst < 1.5 && worstPx < 1.5 && trips.length >= 10 && Math.hypot(centroid[0] - 200, centroid[1] - 260) < 3,
+    { hits, worstErrCells: worst, roundTrips: trips.length, worstRoundTripPx: worstPx, fireTarget: [200, 260], burnCentroid: centroid });
 }
 
 // 8. Speed scaling: a 3-day storm adds the same water at 1 day/s-sized batches and at 1000 yr/s.
@@ -162,7 +185,7 @@ const t0 = performance.now();
   const extra = {};
   for (const [label, bd] of [['realtime', 1 / 60], ['1000 yr/s', 6083]]) {
     const run = async (withStorm) => {
-      await sim.load('random', { size: 256, seed: 5, preset: 'Temperate' });
+      sim.pause(); await sim.load('random', { size: 256, seed: 5, preset: 'Temperate' });
       sim.pause();
       if (withStorm) sim.brush('storm', { x: 128, y: 128, radius: 30, days: 3 });
       await e.run(bd > 3 ? bd : 4, { batchDays: bd });
@@ -176,23 +199,32 @@ const t0 = performance.now();
   check('stormSpeedScaling', Math.abs(extra.realtime / expected - 1) < 0.02 && Math.abs(extra['1000 yr/s'] / expected - 1) < 0.02, { expected_m3: expected, ...extra });
 }
 
-// 9. Flood: the surge travels; water is counted.
+// 9. Flood: a surge put in high up the valley races down it (the valley drains to row 0); the
+//    water is counted.
 {
-  await sim.load('valley', { size: 256, seed: 1, preset: 'Temperate' });
+  sim.pause(); await sim.load('valley', { size: 256, seed: 1, preset: 'Temperate' });
   sim.pause();
   const s0 = await sim.stats();
-  sim.brush('flood', { x: 128, y: 20 });
-  const depth = [];
-  for (let k = 0; k < 6; k++) { await e.run(0.1, { batchDays: 1 / 60 }); const w = await layer('water'); let m = 0, my = 0; for (let y = 0; y < 256; y++) for (let x = 0; x < 256; x++) if (w[y * 256 + x] > 0.3 && y > my) { my = y; } const s = await sim.stats(); depth.push({ day: +s.day.toFixed(2), maxDepth: s.maxWaterDepth, frontRow: my }); }
+  sim.brush('flood', { x: 128, y: 220 });
+  const track = [];
+  for (let k = 0; k < 12; k++) {
+    await e.run(k < 8 ? 0.01 : 0.1, { batchDays: 1 / 60 });
+    const w = await layer('water');
+    let front = 256;
+    for (let y = 0; y < 256; y++) { let deep = false; for (let x = 100; x < 156; x++) if (w[y * 256 + x] > 0.2) deep = true; if (deep) { front = y; break; } }
+    const s = await sim.stats();
+    track.push({ day: +s.day.toFixed(2), maxDepth: +s.maxWaterDepth.toFixed(2), frontRow: front, water_m3: Math.round(s.totalWater_m3) });
+  }
   const s = await sim.stats();
-  check('floodSurge', s.maxWaterDepth > s0.maxWaterDepth + 0.5 && depth[5].frontRow > depth[0].frontRow && Math.abs(s.balanceErrorPct) < 0.01, { depth, balPct: s.balanceErrorPct, floodVolume_m3: 0.5 * 150 * 0.5 * 86400 });
+  check('floodSurge', Math.max(...track.map((t) => t.maxDepth)) > s0.maxWaterDepth + 0.5 && track[0].frontRow - Math.min(...track.map((t) => t.frontRow)) > 50 && Math.abs(s.balanceErrorPct) < 0.01,
+    { start: { maxDepth: s0.maxWaterDepth }, track, balPct: s.balanceErrorPct, floodVolume_m3: 0.5 * 150 * 0.5 * 86400 });
 }
 
 // 10. Drought browns the land and drains groundwater; it recovers afterwards.
 {
   const res = {};
   for (const withD of [false, true]) {
-    await sim.load('random', { size: 256, seed: 3, preset: 'Temperate' });
+    sim.pause(); await sim.load('random', { size: 256, seed: 3, preset: 'Temperate' });
     sim.pause();
     await e.run(365 * 5);
     const a = await sim.stats();

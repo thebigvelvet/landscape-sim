@@ -50,9 +50,12 @@ fn erodibility(i : u32) -> f32 {
 }
 // Plants also slow the water at the bed (stems, litter: rougher ground), so vegetated sheet flow
 // carries less (x0.35) and drops its load: grassy slopes and riparian strips trap sediment.
+// A fresh burn scar is covered in loose ash and dry ravel that even millimetre-deep sheetwash
+// picks up (up to 9x the capacity, and the thin-flow limiter relaxes, see below): this is what
+// makes post-fire rilling and debris flows when the first storms hit.
 fn capacityMul(i : u32) -> f32 {
   let v = clamp(veg[i], 0.0, 1.0);
-  return mix(1.0, 0.35, v) * (1.0 + 1.0 * clamp(burn[i], 0.0, 1.0));
+  return mix(1.0, 0.35, v) * (1.0 + 8.0 * clamp(burn[i], 0.0, 1.0));
 }
 
 @compute @workgroup_size(16, 16)
@@ -71,7 +74,8 @@ fn main(@builtin(global_invocation_id) gid : vec3<u32>) {
   let sp = length(vec2<f32>(velX[i], velY[i]));
   let sRaw = slope[i];
   let S = max(sRaw, P.minSlope);
-  let lim = smoothstep(0.0005, 0.03, h);          // thin sheet flow carries little
+  // thin sheet flow carries little - except loose ash on a fresh burn scar
+  let lim = mix(smoothstep(0.0005, 0.03, h), smoothstep(0.0001, 0.004, h), clamp(burn[i], 0.0, 1.0));
   let conc = min(P.kc * sp * S, 0.25);
   let C = conc * min(h, 1.5) * lim * P.morph * capacityMul(i);     // bed-equivalent capacity (m)
   if (C > s) {

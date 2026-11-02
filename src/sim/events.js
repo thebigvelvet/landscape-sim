@@ -179,7 +179,7 @@ export class Events {
       this.drought = { days, left: days, pMul: Math.max(0, 1 - (1 - def.pMul) * Math.min(I, 1.4)), etMul: 1 + (def.etMul - 1) * I, dT: def.dT * I };
       this.fireWeather = Math.max(this.fireWeather, 0);   // drought dries the fuel (moisture memory) instead
     } else if (type === 'flood') {
-      const rr = Math.max(2, Math.min(r, 12));
+      const rr = Math.max(6, Math.min(r, 14));          // spread the inflow so it does not pile up
       const cells = discCells(x, y, rr, N);
       const volume = 0.5 * def.peak * I * days * 86400;
       if (this.floods.length >= 2) this.floods.shift();
