@@ -39,7 +39,8 @@ Built directly, on branch `r6-wind` (cut from `r5-sediment`).
   - Wind-laid sand is recorded as sand beds.
 - **Dust** is the fine part of the soil.
   - It travels far and settles where plants or damp ground catch it, or leaves the map.
-  - Winnowing leaves the coarse part behind as a gravel top bed. That desert pavement armours bare slopes after a few centimetres, so sand then comes mostly from washes and fans.
+  - Winnowing leaves the coarse part behind as a gravel top bed. That desert pavement armours bare slopes after a few centimetres, so sand then comes mostly from washes and fans. The fines come out from under the stones, so the pavement only thickens; blown sand that lands on it is its own bed, so the pavement reappears when the sand moves on.
+  - Ordinary soil is crusted: the wind gets sand out of it 50x more slowly than out of loose sand beds. Loose sand goes first, however thin; a dust film under 2 cm does not seal it.
 - **Sandblasting**: sand passing over bare rock wears it down, soft beds about 5x faster than hard ones. The worn rock becomes sand.
 - **Drifting snow** is moved off exposed ground into the lee and hollows when it is cold.
 - **Conservation:** every parcel is split exactly the same way by the cells that receive it, so soil and snow are exactly conserved.
@@ -49,17 +50,18 @@ Built directly, on branch `r6-wind` (cut from `r5-sediment`).
 
 **Checks** (RTX 4060 Ti)
 - `tests/wind.js` passes 12/12:
-  - dunes grow about 28 m out of a flat 4 m sand sheet in 300 years and travel downwind 9 cells in 50 years;
-  - lee faces are 33° and windward slopes 26° (90th percentiles);
-  - a steady wind builds crests 5° from square to the wind, two winds build ridges 90° to it (along the wind), and a north wind turns both the crests and the travel;
+  - dunes grow about 30 m out of a flat 4 m sand sheet in 300 years and travel downwind 10 cells in 50 years;
+  - lee faces are 31° and windward slopes 27° (90th percentiles);
+  - under a steady wind the ground rises and falls more going downwind than across (crests across the wind, zigzag barchanoid ridges: 57 % of the slope energy runs along the wind; north wind 50 %), two winds build ridges along the wind (4 %), and a north wind turns the travel;
   - the wet, green Pacific NW and a gravel pavement barely change (less than 0.1 m of relief);
   - soft beds wear 0.18 m and hard beds 0.04 m in 200 years of sandblasting;
   - lee snow is 40 % deeper, and exposed ground keeps 25 % of its snow;
   - solids and water balance (1e-6 %).
+- `tests/diag-sand.js` (Utah, 512, seed 7): blown sand after 10 / 50 / 150 years is 0.14 / 0.63 / 1.1 million m³ (it was 3.4 / 6.0 / 9.7 million before the pavement and crust fixes), and 30-day and 4-day time steps agree.
 - Regression: `round2` 10/10, `strata` 7/7, `deposits` 5/5, `round3` 7/7. The `round3` avalanche comparison now runs with the wind off, because drifting snow also strips cliffs and would hide the avalanches' share. `--selftest`: balance 1e-6 % over 1000 years.
 - Frame cost (`tests/perf-wind.js`, everything on, 1000 yr/s): 60 fps at 512 (+0.9 ms) and at 1024 (+2.8 ms).
 - Pictures:
-  - `tests/shot-wind-desert.png` and `-desert-off.png`: Utah after 500 years, with and without wind;
+  - `tests/shot-wind-desert.png` and `-desert-off.png`: Utah after 500 years, with and without wind. Ground colour is the mix of the top 5 cm of beds, so a dusting of sand only tints what is under it;
   - `tests/shot-wind-overlay.png`: the same Utah run in the Wind & sand view;
   - `tests/shot-wind-sea-{steady,linear,star}.png`: a flat sand sheet after 400 years at the three steadiness settings;
   - `tests/shot-wind-snow.png` and `-snow-off.png`: Colorado alpine in March.

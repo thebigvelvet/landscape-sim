@@ -2,48 +2,51 @@
   "checks": {
     "dunesForm": {
       "pass": true,
-      "relief_m": 27.585715770721436
+      "relief_m": 29.96536636352539
     },
     "dunesTravelDownwind": {
       "pass": true,
-      "cellsIn50yr": 9
+      "cellsIn50yr": 10
     },
     "slipFaces": {
       "pass": true,
-      "leeP90deg": 33.3908754459552,
-      "stossP90deg": 25.57208665026655
+      "leeP90deg": 30.73863149155851,
+      "stossP90deg": 27.373570756862033
     },
     "crestsAcrossSteadyWind": {
       "pass": true,
-      "gradientAngleToWind": 5.480078500933888,
-      "coherence": 0.5473569592255841
+      "alongShare": 0.5700289271587784,
+      "gradientAngleToWind": 31.892109715396465,
+      "coherence": 0.3170501762578099
     },
     "booksSand": {
       "pass": true,
-      "solidsError_m3": -115.49525585956872,
-      "sedOut_m3": 7527604.84623584,
-      "balPct": 5.246591135179297e-9
+      "solidsError_m3": -117.41299625858665,
+      "sedOut_m3": 6134515.474271808,
+      "balPct": -2.0253840944328064e-9
     },
     "linearDunesAlongWind": {
       "pass": true,
-      "gradientAngleToWind": 89.8038081636126,
-      "coherence": 0.855962420912533
+      "alongShare": 0.04289623836335149,
+      "gradientAngleToWind": 88.66805471074933,
+      "coherence": 0.9151965172064019
     },
     "directionDial": {
       "pass": true,
-      "gradientAngleToWind": 5.585787176311101,
-      "travelSouthCells": 9
+      "alongShare": 0.5038902876272606,
+      "gradientAngleToWind": 42.51363458832756,
+      "travelSouthCells": 10
     },
     "protectedSurfaces": {
       "pass": true,
-      "wetGreen": 0.08407974243164062,
+      "wetGreen": 0.08300399780273438,
       "pavementMeanChange_m": 0.0007241464985741509,
       "pavementRelief": 0.004436492919921875
     },
     "sandblastingDifferential": {
       "pass": true,
-      "hard_m": 0.03712889401630557,
-      "soft_m": 0.18089012285721137,
+      "hard_m": 0.037590739507379865,
+      "soft_m": 0.17992666346119265,
       "cells": {
         "hard": 7783,
         "soft": 29977
@@ -52,29 +55,29 @@
     },
     "snowDrifts": {
       "pass": true,
-      "leeGain": 1.4041174685536282,
-      "exposedLoss": 0.24544655942544288,
-      "leeCells": 30540,
-      "exposedCells": 18906,
-      "balOn": 0.000001007307686230768,
-      "snowOn_m3": 1680614.5601272583,
-      "snowOff_m3": 1597635.1430892944
+      "leeGain": 1.403960863999402,
+      "exposedLoss": 0.24593763836760862,
+      "leeCells": 30547,
+      "exposedCells": 18865,
+      "balOn": 6.911255929158137e-7,
+      "snowOn_m3": 1680665.3659820557,
+      "snowOff_m3": 1597635.1415634155
     },
     "booksSnow": {
       "pass": true,
-      "balPct": 0.000001007307686230768
+      "balPct": 6.911255929158137e-7
     },
     "booksLandscape": {
       "pass": true,
-      "solidsError_m3": -84.81538463523611,
-      "sedOut_m3": 2600077.25851368,
-      "balPct": -1.4713513153175076e-8,
+      "solidsError_m3": -13.796360307605937,
+      "sedOut_m3": 1061170.1170613233,
+      "balPct": 1.0665353748916393e-7,
       "nan": false,
-      "maxErosion_m": 115.36602783203125,
-      "meanWind": 0.7167385556021292,
-      "shelteredFrac": 0.52789306640625,
-      "sandCoverFrac": 0.2403564453125,
-      "topSandVolume_m3": 509017.90032200515,
+      "maxErosion_m": 116.25677490234375,
+      "meanWind": 0.7184176820632935,
+      "shelteredFrac": 0.5225067138671875,
+      "sandCoverFrac": 0.3943023681640625,
+      "topSandVolume_m3": 1031910.635124892,
       "lastBatch": {
         "K": 1,
         "eSand": 4.38469887491035e-12,
@@ -88,46 +91,49 @@
   },
   "runs": {
     "steady": {
-      "relief": 27.585715770721436,
-      "leeP90deg": 33.3908754459552,
-      "stossP90deg": 25.57208665026655,
-      "leeMedDeg": 21.130954961341082,
-      "stossMedDeg": 14.266033090439178,
-      "crestAngleToWind": 5.480078500933888,
-      "coherence": 0.5473569592255841,
-      "travelCells50yr": 9,
-      "solidsError_m3": -115.49525585956872,
-      "sedOut_m3": 7527604.84623584,
-      "balPct": 5.246591135179297e-9,
+      "relief": 29.96536636352539,
+      "leeP90deg": 30.73863149155851,
+      "stossP90deg": 27.373570756862033,
+      "leeMedDeg": 16.79930846503678,
+      "stossMedDeg": 14.332759384529298,
+      "crestAngleToWind": 31.892109715396465,
+      "coherence": 0.3170501762578099,
+      "alongShare": 0.5700289271587784,
+      "travelCells50yr": 10,
+      "solidsError_m3": -117.41299625858665,
+      "sedOut_m3": 6134515.474271808,
+      "balPct": -2.0253840944328064e-9,
       "nan": false
     },
     "bimodal": {
-      "relief": 24.27985715866089,
-      "leeP90deg": 5.133681313389299,
-      "stossP90deg": 6.605101684302418,
-      "leeMedDeg": 1.3180649833128193,
-      "stossMedDeg": 1.304421998287293,
-      "crestAngleToWind": 89.8038081636126,
-      "coherence": 0.855962420912533
+      "relief": 19.852590084075928,
+      "leeP90deg": 6.129454027960293,
+      "stossP90deg": 7.3818451393835955,
+      "leeMedDeg": 0.9983523949771159,
+      "stossMedDeg": 1.0428574413085834,
+      "crestAngleToWind": 88.66805471074933,
+      "coherence": 0.9151965172064019,
+      "alongShare": 0.04289623836335149
     },
     "north": {
-      "relief": 27.384077072143555,
-      "leeP90deg": 32.039595419511976,
-      "stossP90deg": 22.653732916197963,
-      "leeMedDeg": 18.957349477915034,
-      "stossMedDeg": 12.743304797075492,
-      "crestAngleToWind": 5.585787176311101,
-      "coherence": 0.21440808859946997,
-      "travelCells50yr": 9
+      "relief": 28.842158317565918,
+      "leeP90deg": 29.473574396952728,
+      "stossP90deg": 23.464429503061712,
+      "leeMedDeg": 15.86470046913142,
+      "stossMedDeg": 13.149521610680893,
+      "crestAngleToWind": 42.51363458832756,
+      "coherence": 0.08976039460168818,
+      "alongShare": 0.5038902876272606,
+      "travelCells50yr": 10
     },
     "protected": {
-      "wetGreen": 0.08407974243164062,
+      "wetGreen": 0.08300399780273438,
       "pavementMeanChange_m": 0.0007241464985741509,
       "pavementRelief": 0.004436492919921875
     },
     "abrasion": {
-      "hard_m": 0.03712889401630557,
-      "soft_m": 0.18089012285721137,
+      "hard_m": 0.037590739507379865,
+      "soft_m": 0.17992666346119265,
       "cells": {
         "hard": 7783,
         "soft": 29977
@@ -135,24 +141,24 @@
       "stack": "27 beds, dipping 0.4° to the S; a monocline drops them 444 m at up to 16°; a broad syncline arches them 11 m."
     },
     "snow": {
-      "leeGain": 1.4041174685536282,
-      "exposedLoss": 0.24544655942544288,
-      "leeCells": 30540,
-      "exposedCells": 18906,
-      "balOn": 0.000001007307686230768,
-      "snowOn_m3": 1680614.5601272583,
-      "snowOff_m3": 1597635.1430892944
+      "leeGain": 1.403960863999402,
+      "exposedLoss": 0.24593763836760862,
+      "leeCells": 30547,
+      "exposedCells": 18865,
+      "balOn": 6.911255929158137e-7,
+      "snowOn_m3": 1680665.3659820557,
+      "snowOff_m3": 1597635.1415634155
     },
     "utah1000": {
-      "solidsError_m3": -84.81538463523611,
-      "sedOut_m3": 2600077.25851368,
-      "balPct": -1.4713513153175076e-8,
+      "solidsError_m3": -13.796360307605937,
+      "sedOut_m3": 1061170.1170613233,
+      "balPct": 1.0665353748916393e-7,
       "nan": false,
-      "maxErosion_m": 115.36602783203125,
-      "meanWind": 0.7167385556021292,
-      "shelteredFrac": 0.52789306640625,
-      "sandCoverFrac": 0.2403564453125,
-      "topSandVolume_m3": 509017.90032200515,
+      "maxErosion_m": 116.25677490234375,
+      "meanWind": 0.7184176820632935,
+      "shelteredFrac": 0.5225067138671875,
+      "sandCoverFrac": 0.3943023681640625,
+      "topSandVolume_m3": 1031910.635124892,
       "lastBatch": {
         "K": 1,
         "eSand": 4.38469887491035e-12,
@@ -166,7 +172,7 @@
   },
   "passed": 12,
   "total": 12,
-  "minutes": 0.3400400000000993,
+  "minutes": 0.34186666666666665,
   "gpuErrors": 0,
   "gpuFeatureStatusWebGPU": "enabled",
   "electron": "45.2.1",

@@ -6,7 +6,7 @@
 //   y = pack2x16unorm(groundwater fill of the cell's capacity, spring code)   spring code s: 0 = none,
 //       else discharge = 1e-5 * 10^(5 s) m/day (decode with springDecode in shaders.js)
 //   z = pack4x8unorm(plant cover, woody share, burn severity, active fire)
-//   w = pack4x8unorm(moisture memory, sediment bed thickness sqrt(t / 16 m), top bed grain, top bed hash)
+//   w = pack4x8unorm(moisture memory, sediment bed thickness sqrt(t / 16 m), grain of the top 5 cm of beds, hash of its thickest bed)
 //       (the last three come from a second pass, `dep`, so the main pass keeps its bindings)
 import { WGSL_COMMON, makeKernels, dispatch } from './gpu.js';
 
@@ -95,12 +95,26 @@ fn dep(@builtin(global_invocation_id) id: vec3u) {
   if (id.x >= n || id.y >= n) { return; }
   let i = id.y * n + id.x;
   let t = dot(deposit[4u * i], vec4f(1.0)) + dot(deposit[4u * i + 1u], vec4f(1.0));
-  let tg = deposit[4u * i + 2u].x;
+  // the surface shows the top few cm, so the grain is that layer's thickness-weighted mix: a dusting
+  // of blown sand over gravel or old wash beds only tints them; the hash is the thickest bed's there
+  let a0 = deposit[4u * i]; let a1 = deposit[4u * i + 1u];
+  let t0 = deposit[4u * i + 2u]; let t1 = deposit[4u * i + 3u];
+  let th = array<f32, 8>(a0.x, a0.y, a0.z, a0.w, a1.x, a1.y, a1.z, a1.w);
+  let tgs = array<f32, 8>(t0.x, t0.y, t0.z, t0.w, t1.x, t1.y, t1.z, t1.w);
+  var left = 0.05;
+  var gs = 0.0; var ws = 0.0; var wBest = -1.0; var tg = tgs[0];
+  for (var k = 0; k < 8; k++) {
+    let w = min(max(th[k], 0.0), left);
+    if (w <= 0.0) { break; }
+    gs += w * fract(tgs[k]) / 0.99; ws += w; left -= w;
+    if (w > wBest) { wBest = w; tg = tgs[k]; }
+  }
+  let grain = select(fract(tgs[0]) / 0.99, gs / ws, ws > 0.0);
   let h = fract(sin(floor(tg) * 12.9898 + 4.1) * 43758.547);   // = bedHash() in shaders.js
   let L = light[i];
   let m = unpack4x8unorm(L.w).x;
   let tt = select(0.0, t, t == t && t < 1e6);
-  light[i] = vec4u(L.x, L.y, L.z, pack4x8unorm(clamp(vec4f(m, sqrt(tt / 16.0), fract(tg) / 0.99, h), vec4f(0.0), vec4f(1.0))));
+  light[i] = vec4u(L.x, L.y, L.z, pack4x8unorm(clamp(vec4f(m, sqrt(tt / 16.0), grain, h), vec4f(0.0), vec4f(1.0))));
 }`;
 
 export class Lighting {

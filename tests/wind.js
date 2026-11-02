@@ -41,23 +41,25 @@ async function anomaly(h0) {
   return g;
 }
 // shape numbers: relief, lee and stoss slopes along the wind (unit vector d, grid), gradient angle
-// relative to the wind (0 = crests across the wind, 90 = crests along it) and its coherence
+// relative to the wind (0 = crests across the wind, 90 = crests along it) and its coherence, and the
+// share of the gradient energy that runs along the wind (> 0.5: the ground rises and falls more going
+// downwind than going across it, i.e. crests lie across the wind, straight or zigzag)
 function shape(g, N, d) {
   let mn = Infinity, mx = -Infinity;
   const lee = [], stoss = [];
-  let gxx = 0, gyy = 0, gxy = 0;
+  let gxx = 0, gyy = 0, gxy = 0, ga = 0;
   for (let y = 8; y < N - 8; y++) for (let x = 8; x < N - 8; x++) {
     const i = y * N + x;
     mn = Math.min(mn, g[i]); mx = Math.max(mx, g[i]);
     const gx = (g[i + 1] - g[i - 1]) / 20, gy = (g[i + N] - g[i - N]) / 20;
     const along = gx * d[0] + gy * d[1];   // ground rising downwind = windward (stoss) face
     if (Math.hypot(gx, gy) > 0.09) (along > 0 ? stoss : lee).push(Math.abs(along));
-    gxx += gx * gx; gyy += gy * gy; gxy += gx * gy;
+    gxx += gx * gx; gyy += gy * gy; gxy += gx * gy; ga += along * along;
   }
   const a = 0.5 * Math.atan2(2 * gxy, gxx - gyy);      // dominant gradient direction
   const rel = Math.abs(((a - Math.atan2(d[1], d[0])) * 180) / Math.PI) % 180;
   return { relief: mx - mn, leeP90deg: deg(pct(lee, 0.9)), stossP90deg: deg(pct(stoss, 0.9)), leeMedDeg: deg(pct(lee, 0.5)), stossMedDeg: deg(pct(stoss, 0.5)),
-    crestAngleToWind: Math.min(rel, 180 - rel), coherence: Math.sqrt((gxx - gyy) ** 2 + 4 * gxy * gxy) / (gxx + gyy) };
+    crestAngleToWind: Math.min(rel, 180 - rel), coherence: Math.sqrt((gxx - gyy) ** 2 + 4 * gxy * gxy) / (gxx + gyy), alongShare: ga / (gxx + gyy) };
 }
 // downwind travel between two anomaly maps (cells), by cross-correlating profiles along d
 function travel(g1, g2, N, d) {
@@ -87,7 +89,7 @@ function travel(g1, g2, N, d) {
   check('dunesForm', sh.relief > 5 && sh.relief < 60, { relief_m: sh.relief });
   check('dunesTravelDownwind', mv >= 1, { cellsIn50yr: mv });
   check('slipFaces', sh.leeP90deg > sh.stossP90deg && sh.leeP90deg > 20 && sh.leeP90deg < 40, { leeP90deg: sh.leeP90deg, stossP90deg: sh.stossP90deg });
-  check('crestsAcrossSteadyWind', sh.crestAngleToWind < 25 && sh.coherence > 0.4, { gradientAngleToWind: sh.crestAngleToWind, coherence: sh.coherence });
+  check('crestsAcrossSteadyWind', sh.alongShare > 0.5, { alongShare: sh.alongShare, gradientAngleToWind: sh.crestAngleToWind, coherence: sh.coherence });
   check('booksSand', !s.hasNaN && Math.abs(s.solidsError_m3) < 1e-3 * s.cumSedimentOut_m3 + 500 && Math.abs(s.balanceErrorPct) < 0.01,
     { solidsError_m3: s.solidsError_m3, sedOut_m3: s.cumSedimentOut_m3, balPct: s.balanceErrorPct });
 }
@@ -98,7 +100,7 @@ function travel(g1, g2, N, d) {
   await e.run(300 * 365);
   const sh = shape(await anomaly(h0), e.N, [1, 0]);
   R.runs.bimodal = sh;
-  check('linearDunesAlongWind', sh.crestAngleToWind > 60, { gradientAngleToWind: sh.crestAngleToWind, coherence: sh.coherence });
+  check('linearDunesAlongWind', sh.crestAngleToWind > 60 && sh.alongShare < 0.3, { alongShare: sh.alongShare, gradientAngleToWind: sh.crestAngleToWind, coherence: sh.coherence });
 }
 // ---- direction: a north wind blows toward +y (south) ----
 {
@@ -110,7 +112,7 @@ function travel(g1, g2, N, d) {
   const g2 = await anomaly(h0), d = [0, 1];
   const sh = shape(g2, e.N, d), mv = travel(g1, g2, e.N, d);
   R.runs.north = { ...sh, travelCells50yr: mv };
-  check('directionDial', sh.crestAngleToWind < 25 && mv >= 1, { gradientAngleToWind: sh.crestAngleToWind, travelSouthCells: mv });
+  check('directionDial', sh.alongShare > 0.5 && mv >= 1, { alongShare: sh.alongShare, gradientAngleToWind: sh.crestAngleToWind, travelSouthCells: mv });
 }
 // ---- protected surfaces ----
 {

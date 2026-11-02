@@ -43,6 +43,7 @@ export const WIND_PARAMS = {
   kAbr: 0.0006,     // m of rock worn per m of sand passing over it (soft beds faster)
   ePerIter: 0.08,   // m: most sand one iteration may lift from a cell
   lag: 0.15,        // coarse share left behind as gravel when the wind winnows mixed soil
+  crust: 0.02,      // crusted, cohesive ordinary soil gives up sand this much more slowly than loose sand
   sandTan: 0.65,    // ~33 degrees: angle of repose of dry sand (slip faces)
 };
 const SAND_GRAIN = 0.62, DUST_GRAIN = 0.2;
@@ -114,21 +115,40 @@ fn main(@builtin(global_invocation_id) gid : vec3<u32>) {
   let bare = (1.0 - v) * (1.0 - v);
   let open = bare * select(1.0, 0.0, wet) * (1.0 - smoothstep(0.002, 0.01, sn)) * (1.0 - smoothstep(0.02, 0.1, frostDepth[i]));
   // what the surface is made of: the top sediment bed if there is one, else the preset's soil mix
-  let th0 = deposit[4u * i].x;
-  let g0 = fract(deposit[4u * i + 2u].x) / 0.99;
+  // loose sand beds on top (dunes, washes, fans), however many, then the first bed below them
+  let a0 = deposit[4u * i]; let a1 = deposit[4u * i + 1u];
+  let t0 = deposit[4u * i + 2u]; let t1 = deposit[4u * i + 3u];
+  let th = array<f32, 8>(a0.x, a0.y, a0.z, a0.w, a1.x, a1.y, a1.z, a1.w);
+  let tg = array<f32, 8>(t0.x, t0.y, t0.z, t0.w, t1.x, t1.y, t1.z, t1.w);
+  var looseTh = 0.0;
+  var nTh = 0.0;
+  var nG = 0.5;
+  for (var k = 0; k < 8; k++) {
+    if (th[k] <= 0.0) { break; }
+    let g = fract(tg[k]) / 0.99;
+    // a dust film under 2 cm is winnowed out with the sand; a thicker fine bed is a crust
+    if (g < 0.45 && th[k] < 0.02) { continue; }
+    if (g < 0.45 || g > 0.85) { nTh = th[k]; nG = g; break; }
+    looseTh += th[k];
+  }
   var sandF = P.windSandy;
   var fineF = 1.0 - P.windSandy;
   var armour = 0.0;
-  var sandTop = 0.0;
-  if (th0 > 1e-6) {
-    let w = smoothstep(0.0, 0.02, th0);
-    if (g0 > 0.85) { armour = w; }
-    else if (g0 >= 0.45) { sandF = mix(sandF, 1.0, w); fineF = mix(fineF, 0.0, w); sandTop = smoothstep(0.02, 0.1, th0); }
+  if (nTh > 0.0) {
+    let w = smoothstep(0.0, 0.02, nTh);
+    if (nG > 0.85) { armour = w; }
     else { sandF = mix(sandF, 0.15, w); fineF = mix(fineF, 0.85, w); }
   }
-  let lift = f * dry * open * (1.0 - armour) * smoothstep(0.01, 0.05, so);
-  let Es = min(W.b.x * lift * sandF, 0.4 * so);
-  let Ed = min(W.b.y * lift * fineF, max(0.4 * so - Es, 0.0));
+  let sandTop = select(0.0, smoothstep(0.02, 0.1, th[0]), looseTh > 0.0);
+  let lift = f * dry * open * smoothstep(0.01, 0.05, so);
+  // the loose sand goes first, at the full rate, however thin it is. Once it is used up the wind
+  // meets what lies beneath: a gravel pavement shuts it out; ordinary soil is crusted and cohesive
+  // and gives up its sand only slowly (and its fines as dust)
+  let cap = W.b.x * lift;
+  let fromLoose = min(cap, looseTh);
+  let rest = select(0.0, (1.0 - fromLoose / cap) * (1.0 - armour), cap > 0.0);
+  let Es = min(fromLoose + cap * rest * ${WIND_PARAMS.crust} * sandF, 0.4 * so);
+  let Ed = min(W.b.y * lift * rest * fineF, max(0.4 * so - Es, 0.0));
   // settling: sand lands on sand, in the lee and in plants; it bounces off bare rock
   var pS = clamp(0.3 + 0.35 * sandTop + 0.7 * (1.0 - shelter) + 0.5 * v, 0.0, 1.0);
   pS = mix(pS * 0.3, pS, max(smoothstep(0.02, 0.1, so), 1.0 - shelter));
@@ -156,6 +176,35 @@ ${WIND_UNIFORM_WGSL}
 @group(0) @binding(8) var<uniform> W : WindIter;
 ${HOPS_WGSL}
 ${DEPOSIT_WGSL}
+// put a bed of thickness d (tag tg) on top as its own bed, however thin (bedsAdd would blend a thin
+// lag into the bed below and lose it); when the stack is full the bottom pair merges
+fn bedsPush(bIn : Beds, d : f32, tg : f32) -> Beds {
+  var b = bIn;
+  if (b.th[7] > 0.0) {
+    let t = b.th[6] + b.th[7];
+    b.tg[6] = floor(b.tg[7]) + min((fract(b.tg[6]) * b.th[6] + fract(b.tg[7]) * b.th[7]) / t, 0.99);
+    b.th[6] = t;
+  }
+  for (var k = 7; k > 0; k--) { b.th[k] = b.th[k - 1]; b.tg[k] = b.tg[k - 1]; }
+  b.th[0] = d; b.tg[0] = tg;
+  return b;
+}
+// blown sand or dust settling: on a gravel pavement it starts its own bed, so the pavement is buried intact and comes back when the sand blows on; dust landing
+// on loose sand is worked into it
+fn windAdd(bIn : Beds, d : f32, gr : f32) -> Beds {
+  var b = bIn;
+  if (b.th[0] > 0.0) {
+    let g = fract(b.tg[0]) / 0.99;
+    if (g > 0.85 && gr < 0.85) { return bedsPush(b, d, P.depEpoch + 0.99 * gr); }
+    if (g >= 0.45 && gr < 0.45) {
+      let t = b.th[0] + d;
+      b.tg[0] = floor(b.tg[0]) + 0.99 * clamp((g * b.th[0] + gr * d) / t, 0.0, 1.0);
+      b.th[0] = t;
+      return b;
+    }
+  }
+  return bedsAdd(b, d, gr);
+}
 
 // channel c: 0 sand, 1 dust, 2 snow -> (amount given to the wind, settling fraction)
 fn ch(c : i32, j : u32) -> vec2<f32> {
@@ -229,13 +278,25 @@ fn main(@builtin(global_invocation_id) gid : vec3<u32>) {
     var b = bedsLoad(i);
     let lifted = gv.x + gv.z;
     if (lifted > 0.0) {
-      // winnowing mixed soil or a fine bed leaves the coarse part behind as a gravel lag
-      let topFine = b.th[0] <= 1e-6 || fract(b.tg[0]) / 0.99 < 0.45;
-      b = bedsRemoveTop(b, lifted);
-      if (topFine) { b = bedsAdd(b, ${WIND_PARAMS.lag} * lifted, 1.0); }
+      // winnowing mixed soil or a fine bed leaves the coarse part behind as a gravel lag on top. Under
+      // a lag the fines come out from between and beneath the stones, which stay: the pavement only
+      // thickens until it shuts the wind out (it must never be carried off with the dust)
+      let gTop = fract(b.tg[0]) / 0.99;
+      let LAG = ${WIND_PARAMS.lag};
+      if (b.th[0] > 0.0 && gTop > 0.85) {
+        let lagTh = b.th[0]; let lagTg = b.tg[0];
+        b.th[0] = 0.0;
+        b = bedsRemoveTop(b, (1.0 + LAG) * lifted);
+        b = bedsPush(b, lagTh + LAG * lifted, lagTg);
+      } else if (b.th[0] <= 0.0 || gTop < 0.45) {
+        b = bedsRemoveTop(b, (1.0 + LAG) * lifted);
+        b = bedsPush(b, LAG * lifted, P.depEpoch + 0.99);
+      } else {
+        b = bedsRemoveTop(b, lifted);
+      }
     }
-    if (sand.x + abr > 0.0) { b = bedsAdd(b, sand.x + abr, ${SAND_GRAIN}); }
-    if (dust.x > 0.0) { b = bedsAdd(b, dust.x, ${DUST_GRAIN}); }
+    if (sand.x + abr > 0.0) { b = windAdd(b, sand.x + abr, ${SAND_GRAIN}); }
+    if (dust.x > 0.0) { b = windAdd(b, dust.x, ${DUST_GRAIN}); }
     bedsStore(i, bedsClamp(b, so));
   }
 }

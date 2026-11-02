@@ -1,0 +1,85 @@
+{
+  "runs": {
+    "windOn": {
+      "start": {
+        "sand_m3": 0,
+        "otherSandBeds_m3": 0,
+        "gravelBeds_m3": 0,
+        "deepFrac": 0,
+        "maxSand_m": 0,
+        "pavementFrac": 0,
+        "meanSoil_m": 0.546
+      },
+      "yr10": {
+        "sand_m3": 141887,
+        "otherSandBeds_m3": 145488,
+        "gravelBeds_m3": 2197475,
+        "deepFrac": 0.0034,
+        "maxSand_m": 5.3,
+        "pavementFrac": 0.025,
+        "meanSoil_m": 0.567
+      },
+      "yr50": {
+        "sand_m3": 628750,
+        "otherSandBeds_m3": 556951,
+        "gravelBeds_m3": 6566450,
+        "deepFrac": 0.0104,
+        "maxSand_m": 15.56,
+        "pavementFrac": 0.0437,
+        "meanSoil_m": 0.664
+      },
+      "yr150": {
+        "sand_m3": 1114804,
+        "otherSandBeds_m3": 1024570,
+        "gravelBeds_m3": 14273989,
+        "deepFrac": 0.0154,
+        "maxSand_m": 19.45,
+        "pavementFrac": 0.0916,
+        "meanSoil_m": 0.908
+      },
+      "solidsErr": 195.1813120203442
+    },
+    "windOff": {
+      "start": {
+        "sand_m3": 0,
+        "otherSandBeds_m3": 0,
+        "gravelBeds_m3": 0,
+        "deepFrac": 0,
+        "maxSand_m": 0,
+        "pavementFrac": 0,
+        "meanSoil_m": 0.546
+      },
+      "yr10": {
+        "sand_m3": 497,
+        "otherSandBeds_m3": 15181,
+        "gravelBeds_m3": 1539866,
+        "deepFrac": 0,
+        "maxSand_m": 0.08,
+        "pavementFrac": 0.0513,
+        "meanSoil_m": 0.568
+      },
+      "yr50": {
+        "sand_m3": 2717,
+        "otherSandBeds_m3": 78268,
+        "gravelBeds_m3": 4113384,
+        "deepFrac": 0,
+        "maxSand_m": 0.11,
+        "pavementFrac": 0.0644,
+        "meanSoil_m": 0.669
+      },
+      "yr150": {
+        "sand_m3": 7584,
+        "otherSandBeds_m3": 271468,
+        "gravelBeds_m3": 10222189,
+        "deepFrac": 0,
+        "maxSand_m": 0.26,
+        "pavementFrac": 0.115,
+        "meanSoil_m": 0.912
+      },
+      "solidsErr": 189.97904758256846
+    }
+  },
+  "gpuFeatureStatusWebGPU": "enabled",
+  "electron": "45.2.1",
+  "chrome": "156.0.8078.75"
+}
