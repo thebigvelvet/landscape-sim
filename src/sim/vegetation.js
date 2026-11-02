@@ -17,12 +17,12 @@
 //   temperature  trees need Tgs > ~6.4 degC and a season > ~94 days: the global treeline isotherm
 //                (Koerner & Paulsen 2004). Grasses and alpine herbs go higher, to Tgs ~2-3 degC and
 //                ~40 days (the alpine-nival transition).
-//   water        trees need a moister root zone than grasses (Wi ramps 0.30-0.75 vs 0.06-0.45),
+//   water        trees need a moister root zone than grasses (Wi ramps 0.18-0.60 vs 0.05-0.70),
 //                which puts the lower treeline of dry country where rain rises and evaporation
 //                falls with elevation. North faces get less sun, less PET and later snowmelt, so
 //                in deserts they are greener; near the upper treeline their shorter, colder season
 //                pushes the trees lower.
-//   soil         trees need rooting depth (~0.5 m), grasses a few cm; bare rock supports lichens only.
+//   soil         trees need rooting depth (~0.5 m), grasses a few cm; bare rock supports sparse plants in cracks only.
 //   channels     standing or flowing water deeper than ~0.1-0.5 m keeps beds bare (scour, drowning),
 //                while the banks, fed by groundwater and springs, become green riparian corridors.
 //
@@ -39,8 +39,8 @@
 //   the last year: grasses under 5-40 cm of new sediment, trees under 0.3-1.5 m.
 //
 // Feedbacks into the other modules (see column.js, erosion.js, freezethaw.js, groundwater.js):
-//   infiltration x(0.5 + 1.5 V)(1 - 0.7 B); ET x(0.35 + 0.85 V) from the groundwater store (logged as
-//   evaporation, so the water balance stays exact); soil detachment x exp(-3.5 V); creep x(1 - 0.5 V);
+//   infiltration x(0.5 + 1.5 V)(1 - 0.5 B); ET x(0.35 + 0.85 V) from the groundwater store (logged as
+//   evaporation, so the water balance stays exact); soil detachment x exp(-3 V); creep x(1 - 0.5 V); talus slumping x(1 - 0.8 V);
 //   angle of repose + root cohesion; frost cycles x(1 - 0.5 V); chemical weathering x(1 + 2 V);
 //   faster deposition (sediment trapping) x(1 + 1.5 V).
 import { COMMON_WGSL, makeKernel, dispatchGrid } from './common.js';

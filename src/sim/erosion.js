@@ -68,10 +68,10 @@ fn main(@builtin(global_invocation_id) gid : vec3<u32>) {
   // that carries several times more sediment (post-fire debris flows, Cannon et al. 2001).
   let C = conc * min(h, 1.5) * lim * P.morph * (1.0 + 4.0 * burn);     // bed-equivalent capacity (m)
   // Plants: ground cover and roots cut soil detachment roughly exponentially with cover,
-  // E/E0 = exp(-b C%) with b ~ 0.035-0.05 per % (Gyssels et al. 2005), i.e. ~3 % of bare at full
-  // cover. Deep, fast channel flow rips through it. A fresh burn (ash, no litter, dead roots) adds
-  // up to 3x on top of the lost cover: together 30-100x more erosion on a burned slope, the range
-  // measured after severe fires (Moody & Martin 2001; Shakesby & Doerr 2006).
+  // E/E0 = exp(-b C%) with b ~ 0.03-0.05 per % (Gyssels et al. 2005), i.e. ~5 % of bare at full
+  // cover. Deep, fast channel flow rips through it. A fresh burn adds rilling, debris bulking and
+  // faster pickup on top of the lost cover; burned slopes erode 10-100x more than unburned ones,
+  // the range measured after severe fires (Moody & Martin 2001; Shakesby & Doerr 2006).
 
   let protect = mix(exp(-3.0 * V), 1.0, smoothstep(0.4, 2.0, h));
   if (C > s) {

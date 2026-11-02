@@ -28,6 +28,191 @@ Checks run on the combined build (RTX 4060 Ti, Electron 45):
 
 The rest of this file is the Engineer build's engine documentation, updated for the combined build.
 
+## Round 2: plants, soil and painted weather ("The Ecologist")
+
+The land now has a living cover. Plants grow where water, warmth and soil allow, thin out in
+drought, burn, get buried by mud or stripped by floods, and come back by succession: grass first,
+trees over decades. They feed back on the water and the land. You can also paint weather onto the
+map: a cloudburst, a drought, a 100-year flood or a wildfire, right where you click.
+
+### What you see
+- **Natural view:** grasses take the place's tint and turn straw-coloured when dormant or dry. Trees
+  and shrubs are drawn as clumps whose area matches the simulated woody cover. Fresh burns are
+  black char and grey ash, fading as they heal.
+- **Plants overlay** (in "Show me"): bare, sparse, grass & shrubs, forest. Trees shift to a
+  blue-green. Orange to dark red marks ground burned in the last few years.
+- **Paint the weather** (panel): Look around, Storm, Drought, 100-year flood, Wildfire, plus circle
+  size and strength sliders. With a tool picked, a coloured ring follows the mouse on the 3D ground.
+  Click or drag to apply. Right-drag still slides the view, and Esc returns to Look around.
+  "Slow the clock down to watch it happen" (on by default) drops to 1 day/s for storms and floods
+  and to 1 yr/s for droughts and fires.
+- The panel's running account adds ground covered by plants, average cover and recently burned area.
+- `tests/shot-*.png`: plants in the Utah, Colorado and Pacific NW presets, the plants overlay, a fresh
+  fire scar, the same scar a year later in natural view and overlay, and a storm brush with its ring.
+
+### The vegetation model (`src/sim/vegetation.js`)
+State per cell: total cover `veg` (0..1, the contract layer) = woody cover T + grass/herb cover G.
+`eco` (vec4) holds T, burn severity, greenness, and a 1-year-lagged ground height used for burial.
+`rip` holds riparian water access.
+
+**Site climate, measured rather than assumed.** The column kernel already integrates every day of
+the year per cell. It now also sums, over the growing season (snow-free days with a daily mean above
+0.9 °C, the Körner & Paulsen 2004 definition), PET × root-zone moisture, PET, days and temperature.
+Plants respond to the last complete calendar year. Calendar years, rather than a running mean, keep
+the indices free of seasonal bias at every speed. From these sums:
+- water index `Wi = Σ PET·moisture / Σ PET`, in the spirit of AET/PET (Stephenson 1990);
+- growing-season length and mean temperature `Tgs`.
+
+Because these come out of the real water and snow physics, the familiar patterns emerge rather than
+being painted on:
+- North faces get less sun, so they have less evaporative demand and later snowmelt. In the desert
+  they are greener, with juniper on north slopes. Near treeline their colder, shorter season pulls
+  the trees lower.
+- Hollows fed by lateral groundwater stay moist.
+- Desert lowlands are dry, and wetter, cooler heights carry piñon-juniper woodland. That is the
+  lower treeline of dry country.
+
+**Carrying capacity** (smooth ramps):
+
+| limit | trees and shrubs | grasses and herbs | basis |
+|---|---|---|---|
+| warmth | Tgs 4.8 → 7.6 °C, season 60 → 100 days | Tgs 1 → 4 °C, season 20 → 55 days | global treeline at Tgs ≈ 6.4 °C and ≥ 94 days (Körner & Paulsen 2004); alpine-nival limit |
+| water | Wi 0.18 → 0.60 | Wi 0.05 → 0.70 | trees need a moister root zone; dryland cover scales with water supply |
+| soil depth | 35 % on bare rock → 100 % at 0.6 m | 45 % → 100 % at 0.12 m | rooting depth; trees root into fractured rock |
+| channels | none where flow is deeper than 0.1–0.5 m | same | scour and drowning keep beds bare |
+| riparian | streams or springs within 20 m count as Wi ≥ 0.8 | same | phreatophytes (willow, cottonwood, alder) tap the water table |
+
+**Dynamics** are exact for any step length, so they behave the same at 1 day/s and 1000 yr/s:
+- Growth is logistic with seed rain, solved analytically.
+  - Grasses: r = 1.2/yr, plus a seed bank and resprouting. They recover in 2–5 years.
+  - Trees: r = 0.03–0.15/yr depending on warmth and water, with seed from woody neighbours within
+    about 40 m, so burns refill from their edges. Canopy closure takes about 30 years in the wet
+    Pacific NW and 60–150 years in dry or subalpine forest (Turner et al. 1997; Agee 1993).
+- Above capacity, cover dies back exponentially. Trees die at 0.25/yr, matching the piñon die-off of
+  2002–03 (40–80 % in two years, Breshears et al. 2005). Grasses die back at 1.5/yr.
+- Burial and stripping kill at a rate set by the sediment added or soil removed over about the last
+  year: grass under 5–40 cm, trees under 0.3–1.5 m. Slow deposition is grown through.
+- Burn severity decays with τ = 1.5 yr, the life of post-fire water repellency (DeBano 2000).
+
+**Feedbacks:**
+
+| on | effect | basis |
+|---|---|---|
+| infiltration | × (0.5 + 1.5·cover) × (1 − 0.5·burn) | 2–4× under shrub canopies (Bhark & Small 2003); burned soils repel water (DeBano 2000, Robichaud 2000) |
+| ET | × (0.35 + 0.85·cover), drawn from the groundwater store and logged as evaporation | bare soil evaporates only from its surface; canopy crop coefficient ≈ 1.2 (FAO-56) |
+| soil detachment | × exp(−3·cover); deep channel flow overrides it | E/E0 = exp(−b·C%), b ≈ 0.03–0.05 (Gyssels et al. 2005) |
+| burned ground | rills form in thin flow, sediment capacity × (1 + 4·burn), pickup × (1 + 1.5·burn) | post-fire debris flows bulk with ash and loose soil (Cannon et al. 2001; Moody et al. 2013) |
+| deposition | settling × (1 + 1.5·cover) | grass filter strips trap sediment |
+| creep, talus | creep × (1 − 0.5·cover); slumping × (1 − 0.8·cover); repose angle + root cohesion | root cohesion 2–15 kPa (Schmidt et al. 2001) |
+| weathering | frost cycles × (1 − 0.5·cover); chemical × (1 + 2·cover) | litter insulates; biotic weathering. Forest soil production ≈ 0.05–0.1 mm/yr (Heimsath et al. 1997) |
+| groundwater | store capacity = gwMax × (0.2 + 0.8·(1 − e^(−soil/0.5 m))) | thin rocky soils hold little; fractured rock still holds some (Rempe & Dietrich 2018) |
+
+Groundwater that no longer fits, for example when erosion strips the soil, seeps out as springs, so
+the water balance stays exact.
+
+**At load** the plants are spun up to equilibrium with the climate. The column kernel runs a
+diagnostic two-year integration that writes only the climate indices and moves no water. This
+alternates six times with a relaxation toward capacity, because transpiration and the water index
+depend on each other.
+
+### Weather brushes (`src/sim/events.js`)
+Events are written into a per-cell GPU field (`evt`) and play out on simulation time:
+- **Storm:** 60 mm/day for 3 days over the circle, with a soft edge. It falls as rain or snow by
+  temperature. Each frame takes min(water left, rate × frame length), so a 3-day storm brushed at
+  1000 yr/s still delivers exactly 3 days of storm water, as one pulse inside a 16-year frame. For
+  scale, the Sept 2013 Colorado Front Range storm dropped about 450 mm in 5 days.
+- **Drought (regional):** inside the circle, precipitation is cut to 40 % and the air is 1.5 °C
+  hotter (a "hot drought", Williams et al. 2013) for 5 years. Each frame averages it exactly.
+  Grasses brown within a season, the ground and springs dry, and trees die over 1–2 years.
+  Real droughts are larger than the 5 km map; use the biggest circle (up to 3 km across) to cover
+  most of it.
+- **100-year flood:** a 100-year rainstorm of 100 mm/day for 2 days falls on the whole upstream
+  catchment of the clicked spot. That is about the 100-year 2-day rainfall of the Colorado
+  foothills (NOAA Atlas 14). The click snaps to the biggest stream inside the circle. The catchment
+  comes from D8 steepest-descent routing on a CPU copy of the ground.
+- **Wildfire:** ignites the circle, then spreads cell by cell into neighbours with fuel. The chance
+  of spreading rises with cover and with dryness of the root zone, so fire stops at bare rock, snow,
+  streams and wet riparian ground. Spread is limited to 2.5 radii. Severity rises with woody fuel:
+  crown fire in forest, a lighter burn in grass. Fuel under snow does not burn, and the panel says
+  so.
+
+All event water enters through the column kernel's precipitation, so it appears in `cumPrecip` and
+the balance stays exact.
+
+**Picking** (`src/ui/brush.js`): the mouse ray is built from the exact view-projection matrix of
+the last rendered frame, lens shift included. It is marched against a CPU copy of the displayed
+surface (bedrock + soil + snow, refreshed every 3 s while a tool is picked) and refined by bisection.
+
+**Test hook:**
+- `sim.brush(type, { x, y, radius, intensity, days })`, with x, y and radius in grid cells. It
+  returns info such as burned cells and catchment area.
+- `sim.pick(clientX, clientY)` and `sim.setTool(name)`.
+- `stats()` adds `meanVeg`, `vegCoveredFrac` (cells with ≥ 25 % cover) and `burnedFrac` (cells
+  with burn severity > 0.1).
+
+### Round-2 test results (RTX 4060 Ti, Electron 45)
+Run `node tests/run-eco.cjs tests/r2-tests.js`, `tests/r2-ecology.js` and `tests/r2-fire.js`.
+Screenshots come from `node tests/r2-shots.cjs`. Every check passes (`allPass: true`). The results
+are in `tests/out-r2-*.json`.
+
+| check | result |
+|---|---|
+| water balance, no brush and each of the 4 brushes, at 1 day/s and at 1000 yr/s (10 runs) | worst 2.2e-6 % |
+| NaN | none in any run |
+| 3-day storm water delivered ÷ painted, at 1 day/s, 1 yr/s, 1000 yr/s | 1.0000, 1.0000, 1.0001 |
+| brush placement: API storm centroid; real mouse click (synthetic pointer event) | 0.00 and 0.01 cells off |
+| picking round trip, 21 screen points | worst 0.01 px |
+| cone, identical flanks, 2 years after fire plus the same storm on both | burned patch eroded 17× more |
+| forested catchment (64 ha burned), 3 years at about 1 yr/s, before vs after fire | mean lowering 37 → 69 mm, max 1.8 → 3.1 m |
+| recovery after a crown fire (Colorado, 1.3 m soil) | cover 0.99 → 0.02 → 0.79 after 5 yr (grass), 0.99 after 120 yr; woody 0.81 → 0.01 → 0.13 after 20 yr → 0.82 after 120 yr |
+| mean cover after 300 yr: Utah / Colorado / Pacific NW / Temperate | 0.30 / 0.91 / 0.92 / 0.90 (woody 0.16 / 0.48 / 0.74 / 0.74) |
+| treeline (Colorado) | woody 0.86 at 2960 m → 0.06 at 3600 m → 0 above 3800 m; Tgs at the treeline band 5.3 °C. Real Colorado treeline is ~3500–3600 m. |
+| aspect, Utah | cover on north faces 0.41 vs south 0.20; woody 0.26 vs 0.06 |
+| riparian, Utah | cover beside streams is 0.76 higher than uplands at the same elevation |
+| soil under forest vs bare ground (Colorado / PNW / Temperate) | 1.9 vs 1.1 m, 2.6 vs 1.7 m, 2.5 vs 1.6 m |
+| 5-year drought vs the same run without it (Colorado) | groundwater in the 3rd summer 0.049 vs 0.099 m; cover at year 5 0.53 vs 0.63; difference ≤ 0.005 at year 65 |
+| "Rain & snow" slider to 0.25× at 1000 yr/s | cover 0.91 → 0.56 within 0.1 s of wall time (95 % of the change in 1 s); back to 0.87 within 0.5 s of returning it |
+| `--selftest` (cone, 1000 years) | balance −3.2e-5 %, no NaN (see the note on timings below) |
+
+### Changes to round-1 code a merger should know about
+- `light` is now **8 floats per cell** (two vec4). The terrain and water shaders index `light[2i]`
+  and `light[2i+1]`, which keeps the terrain vertex shader at 8 storage buffers. The column kernel
+  binds 12 storage buffers and the vegetation kernel 12. This needs
+  `maxStorageBuffersPerShaderStage` ≥ 12; `main.js` already requests the adapter's limit, and the
+  RTX 4060 Ti reports 16.
+- `soilStep()` (water.js) has a new signature with capacity, infiltration and ET multipliers, and
+  `weathering()` takes the cover. The column kernel writes `clim` (3 vec4 per cell) and consumes
+  `evt`.
+- **Groundwater capacity depends on soil depth** (`gwCap()` in common.js, used by the column,
+  groundwater springs and lighting). Initial groundwater is 30 % of that capacity.
+- **Talus is now a rate, not a fixed fraction per batch.** It relaxes with an e-folding time of
+  about 10 years, using 2 passes on long batches. Round 1 relaxed 0.25 of the excess every batch,
+  so slow speeds (thousands of batches a year) stripped steep slopes that fast speeds kept. Slowing
+  the clock then buried the plants below under sudden slumps (a 0.5 m mean slump and −35 % cover
+  in 3 years). Creep and rock fall are unchanged per year.
+- `electron/main.cjs`: scripted runs (`--selftest`, `--eval`) skip the single-instance lock and use
+  their own temp profile. A test can then run while the app, or another worktree's test, is open.
+  Previously such a run silently quit.
+- `main.js` records the first WebGPU error messages in `window.__gpuErrorMsgs` for tests.
+
+### Known weaknesses (round 2)
+- **Hillslope wash is weak at real-time hydrology** (round-1 calibration). On an isolated burned
+  slope, the post-fire debris pulse is about 0.5 mm in two years: 17× the unburned slope, but too
+  small to see. It shows up at ~1 yr/s and faster, where the morphological factor applies, and in
+  channels draining a burn.
+- **Cover depends a little on speed:** after slowing from 1000 yr/s to ~1 yr/s, Colorado mean cover
+  dips from about 0.88 to 0.71 and then settles. Steep thin soils are redistributed faster at slow
+  speed (the remaining round-1 erosion/talus time dependence), and the soil factor follows. The
+  drought test compares two runs at the same speeds, so it is unaffected.
+- Closed hollows fill into lakes at slow speed (a round-1 property) and drown the forest in them.
+- One plant community per cell (woody vs herbaceous). There are no species, no shade-tolerance
+  succession, and no natural lightning fire regime. Fire spread ignores wind and slope.
+- Greenness, which drives the browning colour, uses the instantaneous root-zone moisture. At high
+  speed it shows the strobe-sampled season, not an average.
+- Timings: the self-test and bench in `selftest-results.json` were taken while two other agents' test
+  windows held the same GPU at 100 %, so wall times (24 s for the 1000-year cone) and sub-step rates
+  are not comparable with round 1's 5 s.
+
 ## Running it
 
 - **Desktop app:** double-click `start.bat`. On the first run it installs dependencies, downloads
@@ -73,9 +258,12 @@ src/sim/column.js      fused per-cell kernel composed from climate/snow/freezeth
 src/sim/water.js       virtual-pipe shallow water + conservative sediment transport
 src/sim/groundwater.js lateral Darcy flow of groundwater, springs where the ground saturates
 src/sim/erosion.js     capacity erosion/deposition (sub-step hook) + talus/creep/rock fall
+src/sim/vegetation.js  plant cover (woody + grass), succession, burial, burn decay (round 2)
+src/sim/events.js      weather brushes: storm, drought, 100-year flood, wildfire (round 2)
 src/sim/stats.js       GPU reductions, flux log ring, async readback
 src/render/            raw WebGPU renderer from the Artist build (shaders.js, lighting.js for shadows/AO) + orbit camera
 src/ui/panel.js        side panel, date card, time bar (layout from the Artist build); legend.js
+src/ui/brush.js        event brush tool: terrain ray picking, cursor ring, click/drag (round 2)
 electron/main.cjs      app:// protocol, GPU switches, self-test/eval harness
 scripts/launch.cjs     download Electron if needed, rebuild if stale, launch
 tests/                 harness scripts + their recorded outputs
@@ -192,7 +380,7 @@ years. No NaN in any case, and every balance error was below 5e-4 %.
 - Erosion constants are calibrated to look plausible (a few metres of incision per 1000 years), not
   fitted to field data. The "Erosion rate" slider scales them.
 - Snow does not redistribute (no wind drift or avalanches), and glaciers accumulate but do not flow.
-- Groundwater flows only through a shallow store of fixed capacity per preset; there is no deep aquifer.
+- Groundwater flows only through a shallow store whose capacity depends on soil depth (round 2); there is no deep aquifer.
 - The f32 solids audit drifts slightly over very long runs (hundreds of m³ against 10⁵–10⁷ m³ of
   sediment moved).
 - At 1024², the per-sub-step cost exceeds L2 cache and becomes DRAM-bandwidth bound (5.4× the cost
