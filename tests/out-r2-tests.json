@@ -1,0 +1,148 @@
+{
+  "pass": {
+    "balance": true,
+    "noNaN": true,
+    "stormScaling": true,
+    "placement": true,
+    "noGpuErrors": true
+  },
+  "balance": {
+    "none @ 1 day/s": {
+      "balPct": 0.0000021853772369002417,
+      "nan": false,
+      "meanVeg": 0.894,
+      "burnedFrac": 0
+    },
+    "none @ 1000 yr/s": {
+      "balPct": 0.0000018387424145945693,
+      "nan": false,
+      "meanVeg": 0.874,
+      "burnedFrac": 0
+    },
+    "storm @ 1 day/s": {
+      "balPct": 0.000002197594774103934,
+      "nan": false,
+      "meanVeg": 0.894,
+      "burnedFrac": 0
+    },
+    "storm @ 1000 yr/s": {
+      "balPct": 0.0000022084939249452414,
+      "nan": false,
+      "meanVeg": 0.874,
+      "burnedFrac": 0
+    },
+    "drought @ 1 day/s": {
+      "balPct": 0.000002185716346248025,
+      "nan": false,
+      "meanVeg": 0.894,
+      "burnedFrac": 0
+    },
+    "drought @ 1000 yr/s": {
+      "balPct": -1.0210431274206735e-7,
+      "nan": false,
+      "meanVeg": 0.874,
+      "burnedFrac": 0
+    },
+    "flood @ 1 day/s": {
+      "balPct": 0.0000022022727634922884,
+      "nan": false,
+      "meanVeg": 0.894,
+      "burnedFrac": 0
+    },
+    "flood @ 1000 yr/s": {
+      "balPct": 0.0000020531144886801746,
+      "nan": false,
+      "meanVeg": 0.874,
+      "burnedFrac": 0
+    },
+    "wildfire @ 1 day/s": {
+      "balPct": 0.0000021851458276610325,
+      "nan": false,
+      "meanVeg": 0.831,
+      "burnedFrac": 0.0858917236328125,
+      "burnedCells": 5629
+    },
+    "wildfire @ 1000 yr/s": {
+      "balPct": 1.3159683695187919e-7,
+      "nan": false,
+      "meanVeg": 0.873,
+      "burnedFrac": 0,
+      "burnedCells": 5652
+    }
+  },
+  "maxAbsBalancePct": 0.0000022084939249452414,
+  "stormScaling": {
+    "1 day/s": {
+      "stormWaterPainted_m3": 66777,
+      "extraPrecipDelivered_m3": 66777,
+      "ratio": 1,
+      "balPct": 0.00002542377346685489
+    },
+    "1 yr/s": {
+      "stormWaterPainted_m3": 66777,
+      "extraPrecipDelivered_m3": 66777,
+      "ratio": 1,
+      "balPct": 0.000009200017769126645
+    },
+    "1000 yr/s": {
+      "stormWaterPainted_m3": 66777,
+      "extraPrecipDelivered_m3": 66781,
+      "ratio": 1.0001,
+      "balPct": 0.000007681302548261028
+    }
+  },
+  "placement": {
+    "apiStorm": {
+      "asked": {
+        "x": 70,
+        "y": 180
+      },
+      "got": {
+        "x": 70,
+        "y": 180
+      }
+    },
+    "pickRoundTrip": {
+      "screenPointsHit": 21,
+      "worstErrorPx": 0.01
+    },
+    "screen": {
+      "x": 890,
+      "y": 485
+    },
+    "clickDrought": {
+      "asked": {
+        "x": 180.7645316135867,
+        "y": 208.18270797845213
+      },
+      "got": {
+        "x": 180.76,
+        "y": 208.19
+      }
+    },
+    "errCells": {
+      "apiStorm": 0,
+      "click": 0.01
+    },
+    "fire": {
+      "type": "wildfire",
+      "x": 120,
+      "y": 200,
+      "radius": 10,
+      "intensity": 1,
+      "days": 0,
+      "spreadSteps": 12,
+      "burnedCells": 487,
+      "burnedArea_ha": 4.87,
+      "centroid": {
+        "x": 120.02,
+        "y": 200.93
+      }
+    }
+  },
+  "gpuErrors": 0,
+  "allPass": true,
+  "gpuFeatureStatusWebGPU": "enabled",
+  "electron": "45.2.1",
+  "chrome": "156.0.8078.75"
+}
