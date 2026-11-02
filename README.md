@@ -5,6 +5,165 @@ second. All of the simulation runs on the graphics card (WebGPU compute shaders)
 
 **To run it, double-click `start.bat`** (or the "Landscape Time-Lapse" shortcut on the desktop).
 
+## Round 2 (branch `r2-showman`): plants, soil and weather you paint on the map
+
+**What you can do now**
+- Plants grow by themselves: grass, shrubs and forest wherever there is warmth, water and soil.
+  There is a treeline. Aspens turn gold in a Colorado autumn, and maples turn red in Temperate.
+  Conifers carry snow in winter, and everything browns in a drought.
+- **Weather events** (new panel section, keys 1-5, Esc to stop): pick a tool, then click or drag on
+  the land. A dashed ring shows where it will land and how big it is, a ripple confirms the click,
+  and a short message says what just happened. Some messages have a button that sets a good speed
+  to watch, for example "Watch in slow motion".
+  - **Storm:** a cloudburst with a dark cloud, a rain (or snow) curtain, lightning and a cloud
+    shadow. Drag to steer it.
+  - **Drought:** five dry, hot years. The sky turns dusty, grass goes gold then brown, mud cracks,
+    lakes shrink and groundwater sinks.
+  - **Flood:** a 100-year flood wave pours in at the click and runs down the valley.
+  - **Wildfire:** a glowing fire front with smoke that runs uphill and downwind. It leaves a
+    charred scar with dead snags, which sheds mud in the next storms and greens up over the years.
+- New overlay **Plants & burn scars**, with a legend. "Show trees in 3D" can be switched off.
+- The speed dial now goes down to **slow motion** (about 15 minutes to 1 hour per second), where
+  water moves at its real speed and you can watch a flood wave travel.
+- The "What's happening" panel shows how much ground is covered by plants and how much recently burned.
+
+### Simulation design
+New layers (`world.js`): `veg` (cover 0..1, f32), `burn` (burn severity 0..1, f32), `plant`
+(vec4: woody share of the cover, moisture memory, ground height at the last batch, active fire) and
+`fireNext` (scratch).
+
+`src/sim/vegetation.js` exports `{ name, init, step, record(pass) }` and runs at the end of every
+batch, after erosion. It has two kernels:
+- **fire:** a race-free spread step. Fire needs fuel and dry ground, snow and standing water
+  block it, and it runs faster uphill and downwind.
+- **grow:** the cover relaxes toward an equilibrium V\* = warmth × water × soil × slope ×
+  (no standing water) × (no glacier), using exact exponential integration over the batch, so the
+  result does not depend on batch length:
+  - Warmth: `smoothstep(3, 9.5, Tw)`, where Tw is the warmest-month mean temperature.
+    Trees need `smoothstep(8.5, 11.5, Tw)`, which puts the treeline near the 10 °C July isotherm.
+  - Water: the climate's aridity P/PET, which a drought lowers at once, plus a **moisture memory**.
+    The memory is the groundwater fill smoothed over about 1 year. The column kernel integrates it
+    at sub-day resolution, so it is the same at every speed.
+  - Rates: growth 0.35/yr, die-back 0.8/yr, woody plants 0.045/yr up and 0.25/yr down.
+  - Burial by fresh deposits and stripping by erosion act as a mortality rate built from the
+    ground-height change since the last batch: (dz⁺/0.25 m + dz⁻/0.15 m)/t.
+  - Burn scars fade with a 3-year e-folding time.
+  - The kernel also writes `temp`, which moved here from the column so the column stays at 10 bindings.
+
+At 1000 yr/s a frame is about 16 years, so cover sits at equilibrium and follows the climate
+sliders within a few frames. At 1 day/s it changes over years, as it should.
+
+**Feedbacks**
+
+| Process | Effect of plants (cover v) | Effect of burn (b) |
+|---|---|---|
+| Infiltration (`water.js soilStep`) | × (0.7 + 1.0 v) | × (1 − 0.75 b): ash and water-repellent soil |
+| Evapotranspiration | PET × (0.4 + 0.8 v), drawn from the groundwater store, logged as evap | |
+| Erodibility (`erosion.js`) | pickup × mix(1, 0.12, v) | × (1 + 3 b) |
+| Transport capacity | × mix(1, 0.35, v): vegetated sheet flow drops its load | × (1 + 8 b); the thin-flow limiter relaxes, so mm-deep sheetwash moves loose ash (post-fire rilling and debris flows) |
+| Creep / talus | creep × (1 − 0.6 v̄), talus × (1 − 0.3 v̄); v̄ is the pair mean, so the gather stays exactly conservative | |
+| Weathering (`freezethaw.js`) | frost shattering × (1 − 0.6 v); chemical and biotic soil production × (1 + 2.5 v) | |
+| Groundwater capacity (`common.js gwCap`) | gwMax × (0.15 + 0.85 · min(soil, 2 m)): thin rocky soil holds little | |
+
+**Start-up spin-up:** after a load, `_spinUp()` runs the column and lateral groundwater over a
+few representative years with nothing routed (fR = 0), then sets the cover to equilibrium. A new
+landscape therefore starts green where it should, with realistic groundwater and snow. Accounting
+starts afterwards, so the books are unaffected.
+
+**Exact water books at tiny batches (fix that also helps round-1 code):** at 1 day/s,
+groundwater and snow change per batch by less than their own f32 rounding step. The summed fluxes
+and the actual storage change used to drift apart by about 0.018 % of precipitation. Two fixes:
+- The column now closes each cell exactly: outputs = P − ΔStorage, as the multi-year path already did.
+- The column and groundwater kernels log their remaining f32 roundoff as outflow.
+
+The 1 day/s balance error went from 0.0175 % to 0.00003 %.
+
+### Events (`src/sim/events.js`), all in simulated time and averaged over each batch like `stormFactor`
+| Event | Physical meaning | Water accounting |
+|---|---|---|
+| Storm | Local cloudburst with a cosine-bell profile over the circle: 80 mm/day at the centre × strength for 3 days. Rain or snow by temperature through the normal snow and soil model | Precipitation in the column (4 slots, uniforms only) |
+| Drought | **Map-wide** (a real drought is far larger than this 5 km map) for 5 years: precipitation × 0.3, ET × 1.3, +1.5 °C | Reduced precipitation |
+| Flood | **A 100-year flood arriving from upstream**: a triangular hydrograph peaking at 150 m³/s × strength over 12 hours (3.2 million m³), entering at the click over a disc of radius 6-14 cells. Water is added at every hydraulic sub-step (a sub-step hook) so the wave travels | Logged as precipitation. The share the routed solver cannot carry at high speed (1 − fR) is logged as precipitation and fast outflow in float64 on the CPU |
+| Wildfire | Ignites the cover in the circle, applied immediately even while paused. Spread runs one step per batch ("visual time": a real fire runs its course within a day or two, a blink at any speed of the dial). The front lasts a few seconds; "fire weather" fades over about 10 s | No water |
+
+A 3-day storm brushed at 1000 yr/s delivers the same water as at 1 day/s (test 8: 20,181 vs
+20,178 m³; expected 20,178 m³).
+
+### Rendering
+- The terrain now draws the real `veg`, `woody`, `burn`, `fire` and moisture layers, replacing the
+  old `vegAmt` heuristic:
+  - Grass is green in the growing season, gold when dry, tan when dormant, and patchy when sparse.
+  - The canopy colour per species is conifer, broadleaf (seasonal) or pinyon-juniper.
+  - Burn scars show char and ash that fade to dark earth, with green shoots on top.
+  - Drought shows paler soil with mud cracks.
+  - Fire shows as an animated glow plus embers.
+- To stay within the vertex shader's 8 storage buffers, `light` is now `vec4<u32>`, packed by
+  `lighting.js` (see the header there): `pack2x16unorm(sun, ao)`, `pack2x16unorm(gw fill, spring
+  code)`, `pack4x8unorm(veg, woody, burn, fire)`, `pack4x8unorm(moisture, ...)`.
+  **Any shader that reads `light` must unpack it.**
+- **3D trees:** a compaction compute pass (every lighting update) appends visible tree and snag
+  cells to an instance list with an atomic counter that is also the `drawIndirect` argument.
+  Frustum culling and a sub-pixel LOD apply. Each tree is a 36-vertex double cone shaped per
+  species, with wind sway, snow on boughs, drought browning and fire glow.
+- Other new passes:
+  - **Smoke:** billboards over burning cells.
+  - **Storm clouds:** a cloud deck plus rain or snow curtain per active storm, with lightning flashes.
+  - **Ground markers:** event markers, the brush cursor and the click ripple are drawn on the
+    ground in the terrain shader.
+  - Event visuals last at least a few seconds of wall time, even when the simulated event is over
+    in one frame at high speed.
+- **Picking:** CPU ray march against a cached height field. The cache is a readback of bedrock +
+  soil about once a second while a tool is selected. The ray uses the renderer's own inverse
+  view-projection, including the panel lens shift. Clicks on the side of the block map to the edge cell.
+
+### Test hook additions
+- `sim.brush(type, {x, y, radius, intensity, days})`: does exactly what a click does, including
+  the message.
+- `sim.setTool(name)`, `sim.pick(clientX, clientY)`, `sim.screenOf(x, y)`, `sim.refreshHeights()`, `sim.brushTool`.
+- `stats()` adds `meanVeg`, `vegCoveredFrac` (cover ≥ 0.3), `burnedFrac` (burn ≥ 0.1) and `meanWoodyCover`.
+- `sim.load(..., { spinUp: false })` skips the spin-up.
+
+### Round-2 results (RTX 4060 Ti, Electron 45). `tests/round2.js` → `tests/out-round2.json`: all 10 checks pass
+| Check | Result |
+|---|---|
+| Water balance with plants and each brush, at 1 day/s batches and at 1000 yr/s | worst 0.00004 % |
+| No NaN, live with rendering, fire + storm at 1 day/s, then flood + drought at 1000 yr/s (8,000 years) | no NaN, 0 GPU errors, 60 fps |
+| Burned vs identical unburned patch (V-valley wall, two cloudbursts, one year) | burned 1.1 mm mean lowering (6 mm max cut); unburned 0 |
+| Recovery after fire (Temperate) | cover 0.66 → 0.09 after the fire → 0.23 (1 yr) → 0.49 (5 yr) → 0.58 (60 yr); woody 0.56 → 0.06 → 0.46 (60 yr) |
+| Mean cover after 20 years (random terrain) | Utah 0.15, Colorado 0.48, Pacific NW 0.52, Temperate 0.53 |
+| Treeline (Colorado cone) | tree cover 0.96 at 2,910 m, 0.10 at 3,000-3,130 m, 0.01 above 3,340 m; tundra cover 0.45 up top |
+| Brush lands where clicked (synthetic pointer events) | worst 0.008 cells; screen round trip 0.008 px; fire burn centroid within 0.02 cells |
+| Storm speed scaling (3-day storm) | 20,178 m³ at real time and 20,181 m³ at 1000 yr/s (expected 20,178) |
+| Flood surge (valley) | front travels from row 177 to the outlet in about 1.4 h; peak depth 9 m; balance 4e-7 % |
+| 5-year drought (Temperate) | cover 0.51 → 0.14, groundwater −57 % against the no-drought run; full recovery 15 years later |
+
+- **Self-test** (`selftest-results.json`): cone 1000 years, balance 5e-7 %, no NaN, 5.8 s.
+  Bench at 60 fps at 256, 512 and 1024. Sub-steps/s: 56k at 256², 10.8k at 512² (was 11.7k),
+  1.8k at 1024² (was 2.2k).
+- **Everything on at 512²** (`tests/perf.js`): trees, fire, smoke and a storm cloud at 1 day/s
+  and at 1000 yr/s. Steady 60 fps, with sim 4.3 ms + render 2.2 ms of GPU time and the governor
+  at its 128 sub-step cap.
+- **Screenshots** in `tests/`:
+  - `shot-plants-colorado-summer.png` and `shot-plants-colorado-autumn.png` (gold aspens)
+  - `shot-plants-pnw.png` and `shot-plants-utah.png`
+  - `shot-fire-burning.png` and `shot-burn-scar-1yr.png`
+  - `shot-storm-brush.png`, `shot-drought.png`, `shot-flood.png` (slow motion)
+  - `shot-overlay-plants.png` and `shot-brush-cursor.png`
+  - Re-make any of them with `sh tests/shoot.sh <name> '<window.__ settings>'`; see `tests/visual-plants.js`.
+
+### Known limitations of round 2
+- Fire spread is animated in "visual time" (one step per batch), not physical time. Its effects
+  are in simulated time.
+- At 1000 yr/s a burn scar heals within a frame or two, and a 5-year drought is a blip. That is
+  physically right, and the messages say so and offer a better speed.
+- Plant types (conifer, aspen, pinyon-juniper) are a rendering choice from climate and the
+  preset's `forest` mix. The simulation tracks only total cover and woody share.
+- The random terrain is very steep (median slope about 50°), so plants are allowed on thin soil
+  in rock cracks. Without that, half of every map would be bare.
+- At 1024², trees cost render time, so the governor gives the solver fewer hydraulic sub-steps
+  per frame (8 versus 18 in round 1).
+- Slow motion (below 1 day/s) caps the hydraulic sub-steps so water never runs faster than the clock.
+
 ## Where the parts came from
 
 This is the round-1 combination of three competing builds:
@@ -48,7 +207,7 @@ The panel shows which adapter is in use.
 
 ### Test hook (`window.sim`)
 `load(scenario, {size, seed, preset, cellSize, ruggedness, relief})`, `run(days, {batchDays?, nSub?})`,
-`setSpeed(daysPerSec)`, `pause()`, `play()`, `stats()`, `bench(sizes?)`. Also `sim.engine` (the
+`setSpeed(daysPerSec)`, `pause()`, `play()`, `stats()`, `bench(sizes?)`, `brush(type, opts)` (round 2, see above). Also `sim.engine` (the
 Simulation, including `readLayer(name)` for tests) and `sim.gpuTimes`.
 `stats()` returns all of the required fields, plus `totalGroundwater_m3`, `balanceError_m3`/`balanceErrorPct`,
 `cumSedimentOut_m3`, `solidsError_m3`, `maxErosion_m`, `maxDeposition_m`, `maxWaterDepth`, `dtH`,
