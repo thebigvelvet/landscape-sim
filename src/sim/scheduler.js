@@ -250,8 +250,10 @@ export class Simulation {
     const tsAll = timed ? this.timer?.simPassTimestamps() : undefined;
     let total = 0;
     segs.forEach((D, k) => {
+      // the frame's GPU time spans all pieces: begin stamp on the first pass, end stamp on the last
+      // (a middle piece must get no timestampWrites at all - an empty one is a validation error)
       let ts;
-      if (tsAll) {
+      if (tsAll && (k === 0 || k === segs.length - 1)) {
         ts = { querySet: tsAll.querySet };
         if (k === 0) ts.beginningOfPassWriteIndex = tsAll.beginningOfPassWriteIndex;
         if (k === segs.length - 1) ts.endOfPassWriteIndex = tsAll.endOfPassWriteIndex;
