@@ -43,10 +43,16 @@ ${COMMON_WGSL}
 @group(0) @binding(9) var<storage, read> burn : array<f32>;
 
 // Plants hold the ground: pickup x0.12 under full cover. A fresh burn scar (loose ash, dead roots,
-// water-repellent soil) erodes up to 4x faster than bare unburned ground.
+// water-repellent soil) erodes up to 7x faster than bare unburned ground.
 fn erodibility(i : u32) -> f32 {
   let v = clamp(veg[i], 0.0, 1.0);
-  return mix(1.0, 0.12, v) * (1.0 + 3.0 * clamp(burn[i], 0.0, 1.0));
+  return mix(1.0, 0.12, v) * (1.0 + 6.0 * clamp(burn[i], 0.0, 1.0));
+}
+// Combined build: on a fresh burn, flow that gathers into rills and channels bulks up with ash, dead
+// roots and loose soil into debris flows that scour their beds (Cannon et al. 2001; Moody et al.
+// 2013). Extra capacity grows with the burn severity and the depth of the concentrated flow.
+fn debrisMul(i : u32, h : f32) -> f32 {
+  return 1.0 + 20.0 * clamp(burn[i], 0.0, 1.0) * smoothstep(0.005, 0.08, h);
 }
 // Plants also slow the water at the bed (stems, litter: rougher ground), so vegetated sheet flow
 // carries less (x0.35) and drops its load: grassy slopes and riparian strips trap sediment.
@@ -77,7 +83,7 @@ fn main(@builtin(global_invocation_id) gid : vec3<u32>) {
   // thin sheet flow carries little - except loose ash on a fresh burn scar
   let lim = mix(smoothstep(0.0005, 0.03, h), smoothstep(0.0001, 0.004, h), clamp(burn[i], 0.0, 1.0));
   let conc = min(P.kc * sp * S, 0.25);
-  let C = conc * min(h, 1.5) * lim * P.morph * capacityMul(i);     // bed-equivalent capacity (m)
+  let C = conc * min(h, 1.5) * lim * P.morph * capacityMul(i) * debrisMul(i, h);     // bed-equivalent capacity (m)
   if (C > s) {
     // local-relief limit: a sub-step can never dig a cell more than ~half the drop to its
     // downhill neighbour, so pits cannot self-deepen (second half of the morphological CFL)
