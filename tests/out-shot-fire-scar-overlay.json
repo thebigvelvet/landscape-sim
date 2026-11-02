@@ -1,0 +1,25 @@
+{
+  "fire": {
+    "type": "wildfire",
+    "x": 215.04,
+    "y": 317.44,
+    "radius": 45,
+    "intensity": 1,
+    "days": 0,
+    "spreadSteps": 54,
+    "burnedCells": 6698,
+    "burnedArea_ha": 66.98
+  },
+  "stats": {
+    "year": 301.6164383561643,
+    "meanVeg": 0.8007255231495947,
+    "vegCoveredFrac": 0.9891929626464844,
+    "burnedFrac": 0.02555084228515625,
+    "bal": 7.422502615039546e-7,
+    "nan": false
+  },
+  "gpuErrors": 0,
+  "gpuFeatureStatusWebGPU": "enabled",
+  "electron": "45.2.1",
+  "chrome": "156.0.8078.75"
+}

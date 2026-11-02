@@ -1,0 +1,14 @@
+{
+  "stats": {
+    "year": 300.54794520547944,
+    "meanVeg": 0.8625800721347332,
+    "vegCoveredFrac": 0.9944610595703125,
+    "burnedFrac": 0,
+    "bal": 3.37378988799008e-7,
+    "nan": false
+  },
+  "gpuErrors": 0,
+  "gpuFeatureStatusWebGPU": "enabled",
+  "electron": "45.2.1",
+  "chrome": "156.0.8078.75"
+}
