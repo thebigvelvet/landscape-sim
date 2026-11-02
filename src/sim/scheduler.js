@@ -30,6 +30,7 @@ import { vegetation } from './vegetation.js';
 import { Events } from './events.js';
 import { sculptor } from './sculpt.js';
 import { gwCapacity } from './common.js';
+import { makeStrata, packStrata, STRATA_PARAM_FIELDS } from './strata.js';
 import { Stats } from './stats.js';
 
 export const A_CAP = 150;              // max routing intensity (x real-time runoff rate)
@@ -103,8 +104,9 @@ export class Simulation {
     let mn = Infinity, mx = -Infinity, sum = 0;
     for (let i = 0; i < N * N; i++) { const h = height[i]; if (h < mn) mn = h; if (h > mx) mx = h; sum += h; }
     this.terrainRange = { min: mn, max: mx, mean: sum / (N * N) };
-    // rock layers start at the top of the new terrain; beds thicken with the relief slider
-    this.strataTop = mx; this.strataScale = Math.max(0.5, this.relief);
+    // a fresh rock stack for this landscape (same seed, same rocks); beds thicken with the relief slider
+    this.strataInfo = makeStrata(seed, height, N, cellSize, Math.max(0.5, this.relief));
+    this.strataPack = packStrata(this.strataInfo, true);
     this.day = 0; this.frame = 0; this.carry = 0; this.hmax = 0.3; this.consumed = 0;
     this.cum = { precip: 0, outflow: 0, evap: 0, sedOut: 0 };
     this.climate.stormDaysLeft = 0;
@@ -145,6 +147,11 @@ export class Simulation {
     const dm = this.events.climateMods(Dcol);
     cu.tSea += dm.dT; cu.pMean *= dm.pMul; cu.etMul *= dm.etMul;
     const ev = this.events.uniforms(Dcol, n, fR, dx * dx);
+    // rock layers: structure scalars into the plan, bed table straight into the param block
+    const st = this.strataPack, stFields = {};
+    STRATA_PARAM_FIELDS.forEach((name, i) => { stFields[name] = st.head[i]; });
+    stFields.strataOn = this.strata ? 1 : 0;
+    w.params.setArray('stBeds', st.beds);
     const plan = {
       N: w.N, frame: this.frame, logSize: LOG_SIZE, nSub: n,
       cellSize: dx, cellArea: dx * dx, dtH, g: WATER_PARAMS.g,
@@ -161,7 +168,7 @@ export class Simulation {
       creepFrac: Math.min(0.1, EROSION_PARAMS.creepK * this.erosionStrength * yearsE / (dx * dx)),
       rockRate: Math.min(0.4, EROSION_PARAMS.rockFallPerYear * yearsE),
       vegInit: 0,
-      strataOn: this.strata ? 1 : 0, strataTop: this.strataTop ?? 0, strataScale: this.strataScale ?? 1,
+      ...stFields,
       ...ev.fields,
     };
     return { plan, n, A, tau, dm, fastFloodM3: ev.fastFloodM3 };

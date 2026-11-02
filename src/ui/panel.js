@@ -197,6 +197,7 @@ export class Panel {
     $('scenario').value = res.scenario;
     $('size').value = String(res.N);
     $('seed').value = res.seed;
+    $('strata-info').textContent = sim.strataInfo ? `This landscape: ${sim.strataInfo.describe}` : '';
     $('rugged').value = sim.ruggedness;
     $('rugged-out').textContent = (+sim.ruggedness).toFixed(2);
     this.initialSolid = null;

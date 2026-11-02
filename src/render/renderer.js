@@ -10,11 +10,12 @@ import { makeKernels } from './gpu.js';
 import { Lighting } from './lighting.js';
 import { OrbitCamera } from './camera.js';
 import { PRESETS } from '../sim/climate.js';
+import { MAX_BEDS } from '../sim/strata.js';
 
 // Overlay names, in the order of the shader's overlay modes (0 = natural view).
 export const OVERLAYS = ['none', 'water', 'sediment', 'snow', 'frost', 'change', 'groundwater', 'plants'];
 export const TOOL_IDS = { none: 0, storm: 1, drought: 2, flood: 3, wildfire: 4, raise: 5, lower: 5, smooth: 5, flatten: 5, channel: 5 };
-const UB_FLOATS = 160;
+const UB_FLOATS = 156 + 16 + 2 * 4 * MAX_BEDS;
 
 const SAMPLES = 4;
 const WEATHER_VISIBLE_SPEED = 36;   // days/s; above this rain particles and clouds are averaged out
@@ -347,7 +348,11 @@ export class Renderer {
     const P11 = 1 / Math.tan(this.camera.fov / 2);
     const dens = world.N <= 512 ? 1 : world.N <= 1024 ? 0.5 : 0.25;
     u.set([this.canvas.width, this.canvas.height, P11, dens], 152);
-    u.set([sim.strata ? 1 : 0, sim.strataTop ?? 0, sim.strataScale ?? 1, 0], 156);
+    const st = sim.strataPack;
+    if (st) {
+      u.set(st.head, 156); u[156] = sim.strata ? 1 : 0;
+      u.set(st.beds, 172); u.set(st.colors, 172 + 4 * MAX_BEDS);
+    } else u[156] = 0;
     this.device.queue.writeBuffer(this.ub, 0, u);
     this.nStorms = vis.storms.length;
 

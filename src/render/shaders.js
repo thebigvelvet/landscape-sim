@@ -1,4 +1,4 @@
-import { STRATA_WGSL, STRATA_COLOR_WGSL } from '../sim/strata.js';
+import { strataWGSL, MAX_BEDS } from '../sim/strata.js';
 // WGSL for the renderer: shared uniforms, sky, terrain, terrain block sides, water, falling precipitation.
 
 export const UNIFORMS = /* wgsl */ `
@@ -31,20 +31,24 @@ struct R {
   st: array<vec4f, 4>,   // active storm clouds: world x, world z, radius (m), strength 0..1
   stX: vec4f,         // x = cloud base height (world y), y = snow 0..1, z = flash 0..1, w = cloud top height
   view: vec4f,        // viewport width, height (px), projection scale (P11), tree density scale
-  strata: vec4f,      // rock layers (sim/strata.js): on, top of the stack (m), thickness scale, unused
+  // rock layers (sim/strata.js): 16 structure floats in packStrata order, bed table, bed colours
+  stS: array<vec4f, 4>,
+  stBeds: array<vec4f, ${MAX_BEDS}>,
+  stCol: array<vec4f, ${MAX_BEDS}>,
 };
 @group(0) @binding(0) var<uniform> R_: R;
 `;
 
-export const COMMON = STRATA_WGSL + STRATA_COLOR_WGSL + /* wgsl */ `
+const STRATA_R = strataWGSL((i) => `R_.stS[${i >> 2}].${'xyzw'[i & 3]}`, (k) => `R_.stBeds[${k}]`);
+export const COMMON = STRATA_R + /* wgsl */ `
 // Rock colour from the simulated beds at bedrock height z, grid cell g (linear rgb); a = 0 when off.
 fn strataRock(z: f32, g: vec2f) -> vec4f {
-  if (R_.strata.x < 0.5) { return vec4f(0.0); }
-  let L = stLayer(z, g, R_.strata.y, R_.strata.z);
+  if (R_.stS[0].x < 0.5) { return vec4f(0.0); }
+  let L = stLayer(z, g);
   let k = u32(L.x);
   // the contact itself shows as a slightly darker seam
   let seam = 1.0 - 0.25 * (1.0 - smoothstep(0.0, 0.8, min(L.y, L.z)));
-  return vec4f(srgb(stColor(k)) * seam, 1.0);
+  return vec4f(srgb(R_.stCol[k].rgb) * seam, 1.0);
 }
 fn srgb(c: vec3f) -> vec3f { return pow(c, vec3f(2.2)); }
 fn hash2(p: vec2f) -> f32 {
