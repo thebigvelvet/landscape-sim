@@ -15,13 +15,18 @@
 //              Fire consumes cover and woody plants and leaves a burn scar that fades over ~3 years.
 //              Also writes the contract layer `temp` (air temperature at the end of the batch).
 //
-// V* (all factors 0..1):
-//   warmth  smoothstep(1, 7, Tw)      Tw = warmest-month mean air temperature at the cell
-//   trees   smoothstep(8.5, 11.5, Tw)  -> a treeline near the 10 degC July isotherm
-//   water   from the climate's aridity index P/PET (drought lowers it at once) and the moisture
-//           memory (groundwater fill smoothed over ~1 year, kept by the column kernel), so hollows
-//           and springs stay green in a desert and a drought browns the land over a year or two
-//   soil    bare rock carries only lichens; slope: cliffs stay bare; channels and lakes stay bare
+// Carrying capacity (combined build: the Ecologist build's ramps, all smooth, 0..1):
+//   growing season  Lgs = days with a daily mean above 0.9 degC and Tgs = their mean temperature,
+//                   from the cell's annual temperature curve (lapse rate + slope aspect).
+//   trees   Tgs 4.8 -> 7.6 degC and Lgs 60 -> 100 days: the global treeline (Tgs ~6.4 degC,
+//           >= 94 days; Koerner & Paulsen 2004)
+//   grasses Tgs 1 -> 4 degC and Lgs 20 -> 55 days: alpine herbs go higher than trees
+//   water   Wi from the climate's aridity index P/PET (drought lowers it at once) and the moisture
+//           memory (groundwater fill smoothed over ~1 year); trees need Wi 0.18 -> 0.60, grasses
+//           0.05 -> 0.70. Stream banks and springs count as Wi >= 0.8 (riparian corridors).
+//   soil    trees 35% on bare rock -> 100% at 0.6 m; grasses 45% -> 100% at 0.12 m
+//   cliffs, channels, lakes and glaciers stay bare
+//   total V* = T* + G* (1 - T*), woody share W* = T* / V* (or desert shrubs where dry)
 //
 // Plants feed back on the rest of the model elsewhere: infiltration, transpiration and soil
 // production (column.js / water.js / freezethaw.js), erodibility, transport capacity and creep
@@ -122,6 +127,7 @@ ${CLIMATE_WGSL}
 @group(0) @binding(7) var<storage, read> water : array<f32>;
 @group(0) @binding(8) var<storage, read> snowSWE : array<f32>;
 @group(0) @binding(9) var<storage, read_write> temp : array<f32>;
+@group(0) @binding(10) var<storage, read> spring : array<f32>;
 
 fn H(x : i32, y : i32) -> f32 { let j = idxc(x, y); return bedrock[j] + soil[j]; }
 
@@ -155,18 +161,31 @@ fn main(@builtin(global_invocation_id) gid : vec3<u32>) {
   let pl = plant[i];
   let m = pl.y;
   let w = clamp(0.45 * min(ai, 1.5) + 0.6 * m, 0.0, 1.2);
-  let fWarm = smoothstep(3.0, 9.5, Tw);                         // alpine tundra thins out above treeline
-  let fTree = smoothstep(8.5, 11.5, Tw);
-  let fWater = smoothstep(0.0, 0.8, w);
-  let fSoil = 0.55 + 0.45 * smoothstep(0.02, 0.4, so);         // thin soil in rock cracks still carries plants
+  // growing season from the annual cosine: days above 0.9 degC and their mean temperature
+  let amp = max(P.tAmp, 0.1);
+  let th = acos(clamp((0.9 - Tm) / amp, -1.0, 1.0));            // half-width of the season (radians)
+  let Lgs = 365.0 * th / PI;
+  let Tgs = select(-20.0, Tm + amp * sin(th) / max(th, 1e-3), th > 1e-3);
+  // riparian: open water in a neighbouring cell (streams, lake shores) or a spring
+  var hN = 0.0;
+  for (var dy = -2; dy <= 2; dy++) { for (var dx = -2; dx <= 2; dx++) { hN = max(hN, water[idxc(x + dx, y + dy)]); } }
+  let rip = max(smoothstep(0.01, 0.08, hN), smoothstep(3e-5, 1e-3, spring[i]));
+  let Wi = max(clamp(w, 0.0, 1.0), 0.8 * rip);
+  let tT = smoothstep(4.8, 7.6, Tgs) * smoothstep(60.0, 100.0, Lgs);
+  let tG = smoothstep(1.0, 4.0, Tgs) * smoothstep(20.0, 55.0, Lgs);
+  let fWarm = tG;
+  let sT = 0.35 + 0.65 * smoothstep(0.05, 0.6, so);
+  let sG = 0.45 + 0.55 * smoothstep(0.0, 0.12, so);
   let fSlope = 1.0 - 0.85 * smoothstep(1.5, 3.0, slopeTan);     // only cliffs stay bare
-  let fWet = 1.0 - 0.9 * smoothstep(0.03, 0.3, water[i]);
+  let fWet = 1.0 - 0.9 * smoothstep(0.08, 0.5, water[i]);       // channel beds and lakes
   let fIce = 1.0 - smoothstep(1.0, 3.0, snowSWE[i]);
-  let vStar = fWarm * fWater * fSoil * fSlope * fWet * fIce;
-  // woody share: forest where warm and moist enough, shrubland where dry
-  let forest = fTree * smoothstep(0.35, 0.8, w) * (0.35 + 0.65 * smoothstep(0.02, 0.4, so));
-  let shrub = 0.55 * fWarm * (1.0 - smoothstep(0.25, 0.6, w)) * (0.4 + 0.6 * smoothstep(0.02, 0.3, so));
-  let wStar = max(forest, shrub) * fSlope;
+  let site = fSlope * fWet * fIce;
+  let cT = tT * smoothstep(0.18, 0.60, Wi) * sT * site;
+  let cG = tG * smoothstep(0.05, 0.70, Wi) * sG * site;
+  let vStar = clamp(cT + cG * (1.0 - cT), 0.0, 1.0);
+  // woody share: trees where the site carries them, desert shrubs (sage, blackbrush) where dry
+  let shrub = 0.55 * tG * (1.0 - smoothstep(0.25, 0.6, Wi)) * (0.4 + 0.6 * smoothstep(0.02, 0.3, so));
+  let wStar = clamp(max(cT / max(vStar, 1e-4), shrub), 0.0, 1.0) * fSlope;
 
   var V = clamp(veg[i], 0.0, 1.0);
   var W = clamp(pl.x, 0.0, 1.0);
@@ -240,10 +259,10 @@ class VegetationModule {
     this.device = device; this.world = world;
     const B = world.buffers, prm = world.params.buffer;
     this.kf = makeKernel(device, 'veg.fire', FIRE_WGSL, ['r', 'r', 'r', 'r', 'r', 'rw', 'r']);
-    this.kg = makeKernel(device, 'veg.grow', fill(GROW_WGSL), ['rw', 'rw', 'rw', 'r', 'r', 'r', 'r', 'r', 'rw']);
+    this.kg = makeKernel(device, 'veg.grow', fill(GROW_WGSL), ['rw', 'rw', 'rw', 'r', 'r', 'r', 'r', 'r', 'rw', 'r']);
     this.ki = makeKernel(device, 'veg.ignite', IGNITE_WGSL, ['r', 'rw']);
     this.bf = this.kf.bind(prm, [B.veg, B.plant, B.snowSWE, B.bedrock, B.soil, B.fireNext, B.water]);
-    this.bg = this.kg.bind(prm, [B.veg, B.burn, B.plant, B.fireNext, B.bedrock, B.soil, B.water, B.snowSWE, B.temp]);
+    this.bg = this.kg.bind(prm, [B.veg, B.burn, B.plant, B.fireNext, B.bedrock, B.soil, B.water, B.snowSWE, B.temp, B.spring]);
     this.iub = device.createBuffer({ size: 32, usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST, label: 'ignite' });
     this.bi = this.ki.bind(this.iub, [B.veg, B.plant]);
   }

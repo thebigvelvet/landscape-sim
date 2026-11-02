@@ -339,7 +339,8 @@ fn overlay(mode: i32, m0: vec4f, m1: vec4f, m3: vec2f, m4: vec4f) -> vec4f {
   let vegC = mix(herb, canopy, smoothstep(0.1, 0.7, woody));
   // Patchy cover: sparse plants read as clumps, not a tint.
   let patchN = vnoise(p2 * 0.22) * 0.55 + vnoise(p2 * 0.9) * 0.45;
-  let cov = smoothstep(0.0, 0.25, veg * 1.15 - (patchN - 0.5) * 0.7 - 0.12) * smoothstep(0.0, 0.05, veg);
+  // (combined build: proportional, so sparse plants in rock cracks read as rock with green flecks)
+  let cov = smoothstep(0.0, 0.45, veg * 1.1 - (patchN - 0.5) * 0.6 - 0.2) * smoothstep(0.0, 0.05, veg);
   albedo = mix(albedo, vegC, cov);
   // Burn scar: char with grey ash, fading to dark earth as it ages; green shoots come back on top.
   let ashN = vnoise(p2 * 0.8);

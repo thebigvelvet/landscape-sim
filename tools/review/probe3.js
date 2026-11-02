@@ -1,0 +1,1 @@
+(async () => { await window.sim.load('random', { size: 512, seed: 7, preset: 'Temperate' }); await window.sim.run(73000); window.sim.setOverlay('groundwater'); window.sim.renderer.camera.autoRotate = false; await new Promise(r => setTimeout(r, 1500)); return (await window.sim.stats()).balanceErrorPct; })()
