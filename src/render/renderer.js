@@ -164,7 +164,9 @@ export class Renderer {
     // Clouds follow the weather (smoothed so time-lapse flicker stays gentle).
     const rate = lc?.precipRate_mm_per_day ?? 0;
     const mean = Math.max(0.2, c.precipAt(doy));
-    const target = lc ? Math.min(1, (rate / mean) * 0.35) : 0;
+    // a painted storm or flood is overhead: clouds and rain even if the map-wide weather is dry
+    const painted = (sim.events?.active || []).some((e) => (e.type === 'storm' || e.type === 'flood') && e.until > sim.day);
+    const target = painted ? 1 : lc ? Math.min(1, (rate / mean) * 0.35) : 0;
     this.cloud += (target - this.cloud) * (fast ? 0.02 : 0.08);
     const cl = this.cloud;
     zenith = lerp3(zenith, [0.50, 0.53, 0.58], cl * 0.8);
@@ -172,7 +174,7 @@ export class Renderer {
     const sunColor = lerp3([1.0, 0.86, 0.70], [1.0, 0.96, 0.90], summer);
     const sun = sunDirection(doy);
     // Rain/snow particles only when the weather is visible in real time.
-    const precipTarget = !fast && !sim.paused && rate > 0.3 ? Math.min(1, rate / 15 + 0.25) : 0;
+    const precipTarget = !fast && !sim.paused && (rate > 0.3 || painted) ? Math.min(1, painted ? 0.9 : rate / 15 + 0.25) : 0;
     this.precipVis += (precipTarget - this.precipVis) * 0.1;
     const midZ = sim.datum + (sim.terrainRange ? (sim.terrainRange.min + sim.terrainRange.max) * 0.5 : 0);
     const snowTarget = lc && c.airTempAt(doy, midZ) < 0.5 ? 1 : 0;

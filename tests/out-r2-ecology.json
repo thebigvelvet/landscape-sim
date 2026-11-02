@@ -1,0 +1,900 @@
+{
+  "pass": {
+    "desertSparserThanPNW": true,
+    "treeline": true,
+    "desertNorthFacesGreener": true,
+    "riparianCorridors": true,
+    "soilThickerUnderForest": true,
+    "droughtBrownsAndDrains": true,
+    "droughtRecovers": true,
+    "sliderFollowsWithinSeconds": true,
+    "noGpuErrors": true
+  },
+  "presets": {
+    "Utah desert": {
+      "stats": {
+        "year": 300,
+        "balPct": 0.0000015340900861854885,
+        "nan": false,
+        "meanVeg": 0.3047163874725811,
+        "vegCoveredFrac": 0.5310516357421875,
+        "burnedFrac": 0
+      },
+      "N": 256,
+      "zmin": 1457,
+      "zmax": 2528,
+      "channelFrac": 0.002,
+      "meanVeg": 0.305,
+      "meanWoody": 0.155,
+      "burnedFrac": 0,
+      "treelineElevation": null,
+      "northFaceVeg": 0.413,
+      "southFaceVeg": 0.202,
+      "northFaceWoody": 0.26,
+      "southFaceWoody": 0.055,
+      "riparianVeg": 0.991,
+      "uplandVeg": 0.292,
+      "riparianCells": 860,
+      "riparianExcessSameElevation": 0.758,
+      "uplandCells": 50033,
+      "soilUnderForest": 1.792,
+      "soilBare": 2.613,
+      "bands": [
+        {
+          "z": 1457,
+          "cells": 4010,
+          "veg": 0.255,
+          "woody": 0.125,
+          "Wi": 0.202,
+          "Tgs": 14.462,
+          "soil": 1.306,
+          "vegNorth": 0.257,
+          "vegSouth": 0.127,
+          "woodyNorth": 0.097,
+          "woodySouth": 0.011
+        },
+        {
+          "z": 1564,
+          "cells": 8261,
+          "veg": 0.221,
+          "woody": 0.074,
+          "Wi": 0.233,
+          "Tgs": 14.281,
+          "soil": 1.243,
+          "vegNorth": 0.318,
+          "vegSouth": 0.151,
+          "woodyNorth": 0.149,
+          "woodySouth": 0.021
+        },
+        {
+          "z": 1671,
+          "cells": 12067,
+          "veg": 0.263,
+          "woody": 0.109,
+          "Wi": 0.258,
+          "Tgs": 14.039,
+          "soil": 1.622,
+          "vegNorth": 0.354,
+          "vegSouth": 0.168,
+          "woodyNorth": 0.185,
+          "woodySouth": 0.028
+        },
+        {
+          "z": 1778,
+          "cells": 10947,
+          "veg": 0.288,
+          "woody": 0.132,
+          "Wi": 0.282,
+          "Tgs": 13.762,
+          "soil": 2.138,
+          "vegNorth": 0.401,
+          "vegSouth": 0.187,
+          "woodyNorth": 0.235,
+          "woodySouth": 0.038
+        },
+        {
+          "z": 1886,
+          "cells": 10372,
+          "veg": 0.332,
+          "woody": 0.178,
+          "Wi": 0.301,
+          "Tgs": 13.48,
+          "soil": 2.414,
+          "vegNorth": 0.439,
+          "vegSouth": 0.218,
+          "woodyNorth": 0.287,
+          "woodySouth": 0.061
+        },
+        {
+          "z": 1993,
+          "cells": 7630,
+          "veg": 0.356,
+          "woody": 0.206,
+          "Wi": 0.321,
+          "Tgs": 13.151,
+          "soil": 2.73,
+          "vegNorth": 0.48,
+          "vegSouth": 0.244,
+          "woodyNorth": 0.348,
+          "woodySouth": 0.084
+        },
+        {
+          "z": 2100,
+          "cells": 4352,
+          "veg": 0.383,
+          "woody": 0.236,
+          "Wi": 0.343,
+          "Tgs": 12.83,
+          "soil": 2.316,
+          "vegNorth": 0.507,
+          "vegSouth": 0.274,
+          "woodyNorth": 0.385,
+          "woodySouth": 0.109
+        },
+        {
+          "z": 2207,
+          "cells": 2275,
+          "veg": 0.431,
+          "woody": 0.291,
+          "Wi": 0.366,
+          "Tgs": 12.48,
+          "soil": 1.905,
+          "vegNorth": 0.559,
+          "vegSouth": 0.309,
+          "woodyNorth": 0.439,
+          "woodySouth": 0.146
+        },
+        {
+          "z": 2314,
+          "cells": 1293,
+          "veg": 0.475,
+          "woody": 0.331,
+          "Wi": 0.397,
+          "Tgs": 12.107,
+          "soil": 1.093,
+          "vegNorth": 0.598,
+          "vegSouth": 0.345,
+          "woodyNorth": 0.472,
+          "woodySouth": 0.175
+        },
+        {
+          "z": 2421,
+          "cells": 297,
+          "veg": 0.491,
+          "woody": 0.332,
+          "Wi": 0.437,
+          "Tgs": 11.795,
+          "soil": 0.539,
+          "vegNorth": 0.597,
+          "vegSouth": 0.366,
+          "woodyNorth": 0.43,
+          "woodySouth": 0.207
+        }
+      ]
+    },
+    "Colorado alpine": {
+      "stats": {
+        "year": 300,
+        "balPct": -0.0000015660812626030234,
+        "nan": false,
+        "meanVeg": 0.913140891585499,
+        "vegCoveredFrac": 0.98883056640625,
+        "burnedFrac": 0
+      },
+      "N": 256,
+      "zmin": 2957,
+      "zmax": 4028,
+      "channelFrac": 0.007,
+      "meanVeg": 0.915,
+      "meanWoody": 0.477,
+      "burnedFrac": 0,
+      "treelineElevation": 3600,
+      "northFaceVeg": 0.906,
+      "southFaceVeg": 0.916,
+      "northFaceWoody": 0.45,
+      "southFaceWoody": 0.46,
+      "riparianVeg": 0.985,
+      "uplandVeg": 0.914,
+      "riparianCells": 2073,
+      "riparianExcessSameElevation": 0.062,
+      "uplandCells": 41067,
+      "soilUnderForest": 1.919,
+      "soilBare": 1.09,
+      "bands": [
+        {
+          "z": 2957,
+          "cells": 4006,
+          "veg": 0.948,
+          "woody": 0.855,
+          "Wi": 0.698,
+          "Tgs": 7.743,
+          "soil": 1.17,
+          "vegNorth": 0.989,
+          "vegSouth": 0.923,
+          "woodyNorth": 0.858,
+          "woodySouth": 0.829
+        },
+        {
+          "z": 3064,
+          "cells": 8282,
+          "veg": 0.933,
+          "woody": 0.753,
+          "Wi": 0.731,
+          "Tgs": 7.458,
+          "soil": 1.001,
+          "vegNorth": 0.948,
+          "vegSouth": 0.912,
+          "woodyNorth": 0.761,
+          "woodySouth": 0.724
+        },
+        {
+          "z": 3171,
+          "cells": 12092,
+          "veg": 0.921,
+          "woody": 0.654,
+          "Wi": 0.786,
+          "Tgs": 7.049,
+          "soil": 1.25,
+          "vegNorth": 0.934,
+          "vegSouth": 0.902,
+          "woodyNorth": 0.673,
+          "woodySouth": 0.603
+        },
+        {
+          "z": 3278,
+          "cells": 10897,
+          "veg": 0.912,
+          "woody": 0.542,
+          "Wi": 0.83,
+          "Tgs": 6.697,
+          "soil": 1.865,
+          "vegNorth": 0.916,
+          "vegSouth": 0.913,
+          "woodyNorth": 0.561,
+          "woodySouth": 0.53
+        },
+        {
+          "z": 3385,
+          "cells": 10352,
+          "veg": 0.926,
+          "woody": 0.39,
+          "Wi": 0.87,
+          "Tgs": 6.252,
+          "soil": 2.425,
+          "vegNorth": 0.922,
+          "vegSouth": 0.926,
+          "woodyNorth": 0.377,
+          "woodySouth": 0.368
+        },
+        {
+          "z": 3493,
+          "cells": 7622,
+          "veg": 0.92,
+          "woody": 0.201,
+          "Wi": 0.9,
+          "Tgs": 5.825,
+          "soil": 3.027,
+          "vegNorth": 0.934,
+          "vegSouth": 0.908,
+          "woodyNorth": 0.129,
+          "woodySouth": 0.231
+        },
+        {
+          "z": 3600,
+          "cells": 4363,
+          "veg": 0.921,
+          "woody": 0.064,
+          "Wi": 0.919,
+          "Tgs": 5.309,
+          "soil": 3.072,
+          "vegNorth": 0.911,
+          "vegSouth": 0.937,
+          "woodyNorth": 0.01,
+          "woodySouth": 0.101
+        },
+        {
+          "z": 3707,
+          "cells": 2284,
+          "veg": 0.91,
+          "woody": 0.014,
+          "Wi": 0.947,
+          "Tgs": 4.809,
+          "soil": 2.756,
+          "vegNorth": 0.886,
+          "vegSouth": 0.943,
+          "woodyNorth": 0,
+          "woodySouth": 0.028
+        },
+        {
+          "z": 3814,
+          "cells": 1309,
+          "veg": 0.623,
+          "woody": 0,
+          "Wi": 0.941,
+          "Tgs": 3.28,
+          "soil": 1.342,
+          "vegNorth": 0.304,
+          "vegSouth": 0.898,
+          "woodyNorth": 0,
+          "woodySouth": 0
+        },
+        {
+          "z": 3921,
+          "cells": 297,
+          "veg": 0.467,
+          "woody": 0,
+          "Wi": 0.587,
+          "Tgs": -5.533,
+          "soil": 0.54,
+          "vegNorth": 0,
+          "vegSouth": 0.856,
+          "woodyNorth": 0,
+          "woodySouth": 0
+        }
+      ]
+    },
+    "Pacific NW wet": {
+      "stats": {
+        "year": 300,
+        "balPct": -1.577981687527612e-7,
+        "nan": false,
+        "meanVeg": 0.9158323302399367,
+        "vegCoveredFrac": 0.9915924072265625,
+        "burnedFrac": 0
+      },
+      "N": 256,
+      "zmin": 207,
+      "zmax": 1278,
+      "channelFrac": 0.013,
+      "meanVeg": 0.917,
+      "meanWoody": 0.738,
+      "burnedFrac": 0,
+      "treelineElevation": null,
+      "northFaceVeg": 0.922,
+      "southFaceVeg": 0.921,
+      "northFaceWoody": 0.739,
+      "southFaceWoody": 0.731,
+      "riparianVeg": 0.986,
+      "uplandVeg": 0.922,
+      "riparianCells": 2403,
+      "riparianExcessSameElevation": 0.054,
+      "uplandCells": 40074,
+      "soilUnderForest": 2.563,
+      "soilBare": 1.688,
+      "bands": [
+        {
+          "z": 207,
+          "cells": 4010,
+          "veg": 0.928,
+          "woody": 0.821,
+          "Wi": 0.788,
+          "Tgs": 9.323,
+          "soil": 1.19,
+          "vegNorth": 0.991,
+          "vegSouth": 0.965,
+          "woodyNorth": 0.864,
+          "woodySouth": 0.821
+        },
+        {
+          "z": 314,
+          "cells": 8282,
+          "veg": 0.936,
+          "woody": 0.756,
+          "Wi": 0.824,
+          "Tgs": 8.996,
+          "soil": 0.983,
+          "vegNorth": 0.954,
+          "vegSouth": 0.934,
+          "woodyNorth": 0.769,
+          "woodySouth": 0.735
+        },
+        {
+          "z": 421,
+          "cells": 12091,
+          "veg": 0.915,
+          "woody": 0.722,
+          "Wi": 0.864,
+          "Tgs": 8.705,
+          "soil": 1.224,
+          "vegNorth": 0.924,
+          "vegSouth": 0.909,
+          "woodyNorth": 0.715,
+          "woodySouth": 0.709
+        },
+        {
+          "z": 528,
+          "cells": 10907,
+          "veg": 0.908,
+          "woody": 0.714,
+          "Wi": 0.893,
+          "Tgs": 8.589,
+          "soil": 1.817,
+          "vegNorth": 0.907,
+          "vegSouth": 0.911,
+          "woodyNorth": 0.708,
+          "woodySouth": 0.723
+        },
+        {
+          "z": 635,
+          "cells": 10340,
+          "veg": 0.918,
+          "woody": 0.74,
+          "Wi": 0.919,
+          "Tgs": 8.52,
+          "soil": 2.364,
+          "vegNorth": 0.909,
+          "vegSouth": 0.923,
+          "woodyNorth": 0.733,
+          "woodySouth": 0.731
+        },
+        {
+          "z": 743,
+          "cells": 7607,
+          "veg": 0.914,
+          "woody": 0.74,
+          "Wi": 0.938,
+          "Tgs": 8.455,
+          "soil": 3.023,
+          "vegNorth": 0.928,
+          "vegSouth": 0.914,
+          "woodyNorth": 0.775,
+          "woodySouth": 0.718
+        },
+        {
+          "z": 850,
+          "cells": 4374,
+          "veg": 0.919,
+          "woody": 0.744,
+          "Wi": 0.951,
+          "Tgs": 8.25,
+          "soil": 3.234,
+          "vegNorth": 0.912,
+          "vegSouth": 0.929,
+          "woodyNorth": 0.755,
+          "woodySouth": 0.747
+        },
+        {
+          "z": 957,
+          "cells": 2287,
+          "veg": 0.921,
+          "woody": 0.751,
+          "Wi": 0.964,
+          "Tgs": 8.045,
+          "soil": 2.879,
+          "vegNorth": 0.912,
+          "vegSouth": 0.942,
+          "woodyNorth": 0.749,
+          "woodySouth": 0.76
+        },
+        {
+          "z": 1064,
+          "cells": 1307,
+          "veg": 0.89,
+          "woody": 0.692,
+          "Wi": 0.979,
+          "Tgs": 7.713,
+          "soil": 1.638,
+          "vegNorth": 0.893,
+          "vegSouth": 0.895,
+          "woodyNorth": 0.691,
+          "woodySouth": 0.681
+        },
+        {
+          "z": 1171,
+          "cells": 299,
+          "veg": 0.818,
+          "woody": 0.493,
+          "Wi": 0.99,
+          "Tgs": 7.244,
+          "soil": 0.623,
+          "vegNorth": 0.772,
+          "vegSouth": 0.86,
+          "woodyNorth": 0.335,
+          "woodySouth": 0.645
+        }
+      ]
+    },
+    "Temperate": {
+      "stats": {
+        "year": 300,
+        "balPct": 1.3210340591912833e-7,
+        "nan": false,
+        "meanVeg": 0.8995949751697481,
+        "vegCoveredFrac": 0.997406005859375,
+        "burnedFrac": 0
+      },
+      "N": 256,
+      "zmin": 357,
+      "zmax": 1428,
+      "channelFrac": 0.005,
+      "meanVeg": 0.901,
+      "meanWoody": 0.742,
+      "burnedFrac": 0,
+      "treelineElevation": null,
+      "northFaceVeg": 0.925,
+      "southFaceVeg": 0.869,
+      "northFaceWoody": 0.742,
+      "southFaceWoody": 0.721,
+      "riparianVeg": 0.991,
+      "uplandVeg": 0.898,
+      "riparianCells": 1859,
+      "riparianExcessSameElevation": 0.102,
+      "uplandCells": 42197,
+      "soilUnderForest": 2.533,
+      "soilBare": 1.58,
+      "bands": [
+        {
+          "z": 357,
+          "cells": 4011,
+          "veg": 0.882,
+          "woody": 0.825,
+          "Wi": 0.575,
+          "Tgs": 11.338,
+          "soil": 1.184,
+          "vegNorth": 0.984,
+          "vegSouth": 0.794,
+          "woodyNorth": 0.864,
+          "woodySouth": 0.731
+        },
+        {
+          "z": 464,
+          "cells": 8279,
+          "veg": 0.888,
+          "woody": 0.752,
+          "Wi": 0.643,
+          "Tgs": 11.185,
+          "soil": 1.037,
+          "vegNorth": 0.95,
+          "vegSouth": 0.823,
+          "woodyNorth": 0.764,
+          "woodySouth": 0.7
+        },
+        {
+          "z": 571,
+          "cells": 12092,
+          "veg": 0.898,
+          "woody": 0.73,
+          "Wi": 0.704,
+          "Tgs": 10.991,
+          "soil": 1.27,
+          "vegNorth": 0.933,
+          "vegSouth": 0.842,
+          "woodyNorth": 0.72,
+          "woodySouth": 0.702
+        },
+        {
+          "z": 678,
+          "cells": 10912,
+          "veg": 0.894,
+          "woody": 0.719,
+          "Wi": 0.752,
+          "Tgs": 10.801,
+          "soil": 1.839,
+          "vegNorth": 0.912,
+          "vegSouth": 0.867,
+          "woodyNorth": 0.71,
+          "woodySouth": 0.726
+        },
+        {
+          "z": 786,
+          "cells": 10348,
+          "veg": 0.913,
+          "woody": 0.746,
+          "Wi": 0.79,
+          "Tgs": 10.548,
+          "soil": 2.336,
+          "vegNorth": 0.913,
+          "vegSouth": 0.899,
+          "woodyNorth": 0.735,
+          "woodySouth": 0.739
+        },
+        {
+          "z": 893,
+          "cells": 7598,
+          "veg": 0.913,
+          "woody": 0.744,
+          "Wi": 0.822,
+          "Tgs": 10.272,
+          "soil": 2.975,
+          "vegNorth": 0.931,
+          "vegSouth": 0.901,
+          "woodyNorth": 0.776,
+          "woodySouth": 0.718
+        },
+        {
+          "z": 1000,
+          "cells": 4372,
+          "veg": 0.918,
+          "woody": 0.744,
+          "Wi": 0.851,
+          "Tgs": 9.983,
+          "soil": 3.22,
+          "vegNorth": 0.914,
+          "vegSouth": 0.925,
+          "woodyNorth": 0.757,
+          "woodySouth": 0.746
+        },
+        {
+          "z": 1107,
+          "cells": 2286,
+          "veg": 0.923,
+          "woody": 0.753,
+          "Wi": 0.881,
+          "Tgs": 9.675,
+          "soil": 2.882,
+          "vegNorth": 0.915,
+          "vegSouth": 0.944,
+          "woodyNorth": 0.751,
+          "woodySouth": 0.762
+        },
+        {
+          "z": 1214,
+          "cells": 1307,
+          "veg": 0.893,
+          "woody": 0.703,
+          "Wi": 0.918,
+          "Tgs": 9.369,
+          "soil": 1.64,
+          "vegNorth": 0.897,
+          "vegSouth": 0.898,
+          "woodyNorth": 0.713,
+          "woodySouth": 0.682
+        },
+        {
+          "z": 1321,
+          "cells": 299,
+          "veg": 0.819,
+          "woody": 0.594,
+          "Wi": 0.946,
+          "Tgs": 9.049,
+          "soil": 0.637,
+          "vegNorth": 0.771,
+          "vegSouth": 0.861,
+          "woodyNorth": 0.536,
+          "woodySouth": 0.645
+        }
+      ]
+    }
+  },
+  "summary": {
+    "meanCover": {
+      "Utah desert": 0.3047163874725811,
+      "Colorado alpine": 0.913140891585499,
+      "Pacific NW wet": 0.9158323302399367,
+      "Temperate": 0.8995949751697481
+    },
+    "coveredFrac": {
+      "Utah desert": 0.5310516357421875,
+      "Colorado alpine": 0.98883056640625,
+      "Pacific NW wet": 0.9915924072265625,
+      "Temperate": 0.997406005859375
+    },
+    "coloradoTreeline_m": 3600,
+    "utahNorthVsSouthCover": [
+      0.413,
+      0.202
+    ],
+    "utahRiparianExcess": 0.758,
+    "soilForestVsBare": {
+      "Utah desert": [
+        1.792,
+        2.613
+      ],
+      "Colorado alpine": [
+        1.919,
+        1.09
+      ],
+      "Pacific NW wet": [
+        2.563,
+        1.688
+      ],
+      "Temperate": [
+        2.533,
+        1.58
+      ]
+    },
+    "treelineBandTgs": 5.309
+  },
+  "drought": {
+    "drought": {
+      "before": {
+        "veg": 0.8798109407279943,
+        "woody": 0.1929381124502881,
+        "gw": 0.11983560758077194,
+        "soil": 1.3570524292006878
+      },
+      "brush": {
+        "type": "drought",
+        "x": 76.8,
+        "y": 128,
+        "radius": 40,
+        "intensity": 1,
+        "days": 1825,
+        "precipFactor": 0.4
+      },
+      "year3summer": {
+        "veg": 0.5946797625901417,
+        "woody": 0.19744466226065924,
+        "gw": 0.04852937202498681,
+        "soil": 1.3686401554229823
+      },
+      "year5": {
+        "veg": 0.5313685452220673,
+        "woody": 0.19909534918947158,
+        "gw": 0.07940953034342582,
+        "soil": 1.377805355817809
+      },
+      "year25": {
+        "veg": 0.7015135668137974,
+        "woody": 0.17290562206226237,
+        "gw": 0.10379952453024036,
+        "soil": 1.5245153044419382
+      },
+      "year65": {
+        "veg": 0.7187836791523646,
+        "woody": 0.17629476873064384,
+        "gw": 0.10152678746099086,
+        "soil": 1.8482804951319287
+      },
+      "balPct": 0.000008474531020779395
+    },
+    "control": {
+      "before": {
+        "veg": 0.8798109407279943,
+        "woody": 0.1929381124502881,
+        "gw": 0.11983560758077194,
+        "soil": 1.3570524292006878
+      },
+      "year3summer": {
+        "veg": 0.7205821495357374,
+        "woody": 0.18708884524049055,
+        "gw": 0.09911804816016992,
+        "soil": 1.3715035521494146
+      },
+      "year5": {
+        "veg": 0.6253453215780587,
+        "woody": 0.17840885578328733,
+        "gw": 0.1016182569769745,
+        "soil": 1.383862172726458
+      },
+      "year25": {
+        "veg": 0.6966892198132036,
+        "woody": 0.17181316852026698,
+        "gw": 0.10433490686303415,
+        "soil": 1.530531908349736
+      },
+      "year65": {
+        "veg": 0.7135486585988469,
+        "woody": 0.17333015399209561,
+        "gw": 0.10182912026754429,
+        "soil": 1.8523714297090736
+      },
+      "balPct": 0.000008814455028995283
+    }
+  },
+  "sliderResponse": {
+    "start": 0.913,
+    "dryAt": 0,
+    "wetAgainAt": 4,
+    "track": [
+      {
+        "wallSeconds": 0.1,
+        "meanVeg": 0.555
+      },
+      {
+        "wallSeconds": 0.2,
+        "meanVeg": 0.549
+      },
+      {
+        "wallSeconds": 0.3,
+        "meanVeg": 0.544
+      },
+      {
+        "wallSeconds": 0.4,
+        "meanVeg": 0.542
+      },
+      {
+        "wallSeconds": 0.5,
+        "meanVeg": 0.54
+      },
+      {
+        "wallSeconds": 0.6,
+        "meanVeg": 0.538
+      },
+      {
+        "wallSeconds": 0.7,
+        "meanVeg": 0.537
+      },
+      {
+        "wallSeconds": 0.8,
+        "meanVeg": 0.536
+      },
+      {
+        "wallSeconds": 0.9,
+        "meanVeg": 0.535
+      },
+      {
+        "wallSeconds": 1,
+        "meanVeg": 0.531
+      },
+      {
+        "wallSeconds": 1.5,
+        "meanVeg": 0.528
+      },
+      {
+        "wallSeconds": 2,
+        "meanVeg": 0.524
+      },
+      {
+        "wallSeconds": 2.5,
+        "meanVeg": 0.52
+      },
+      {
+        "wallSeconds": 3,
+        "meanVeg": 0.517
+      },
+      {
+        "wallSeconds": 3.5,
+        "meanVeg": 0.514
+      },
+      {
+        "wallSeconds": 4,
+        "meanVeg": 0.512
+      },
+      {
+        "wallSeconds": 4.5,
+        "meanVeg": 0.863
+      },
+      {
+        "wallSeconds": 5,
+        "meanVeg": 0.856
+      },
+      {
+        "wallSeconds": 5.5,
+        "meanVeg": 0.849
+      },
+      {
+        "wallSeconds": 6,
+        "meanVeg": 0.843
+      },
+      {
+        "wallSeconds": 6.5,
+        "meanVeg": 0.838
+      },
+      {
+        "wallSeconds": 7,
+        "meanVeg": 0.832
+      },
+      {
+        "wallSeconds": 7.5,
+        "meanVeg": 0.827
+      },
+      {
+        "wallSeconds": 8,
+        "meanVeg": 0.822
+      },
+      {
+        "wallSeconds": 8.5,
+        "meanVeg": 0.818
+      },
+      {
+        "wallSeconds": 9,
+        "meanVeg": 0.814
+      },
+      {
+        "wallSeconds": 9.5,
+        "meanVeg": 0.811
+      },
+      {
+        "wallSeconds": 10,
+        "meanVeg": 0.809
+      }
+    ],
+    "fractionOfChangeAfter1s": 0.953
+  },
+  "gpuErrors": 0,
+  "allPass": true,
+  "gpuFeatureStatusWebGPU": "enabled",
+  "electron": "45.2.1",
+  "chrome": "156.0.8078.75"
+}
