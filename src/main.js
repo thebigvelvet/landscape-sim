@@ -6,6 +6,7 @@ import { PRESETS } from './sim/climate.js';
 import { GpuTimer } from './gpuTimer.js';
 import { BrushTool } from './ui/brush.js';
 import { strataLayer, makeStrata } from './sim/strata.js';
+import { bedsAt, depositSummary } from './sim/deposits.js';
 
 const $ = (id) => document.getElementById(id);
 
@@ -247,6 +248,9 @@ async function main() {
     get strataBeds() { return sim.strataInfo?.beds; },
     get strataStructure() { return sim.strataInfo?.struct; },
     makeStrata,
+    // sediment beds (sim/deposits.js): one cell's stack (top bed first) and a whole-map summary
+    bedsAt: async (x, y) => bedsAt(await sim.readLayer('deposit'), y * sim.N + x),
+    depositStats: async () => depositSummary(await sim.readLayer('deposit'), sim.world.cells, sim.world.cellSize ** 2),
     get engine() { return sim; },
     get renderer() { return renderer; },
     get gpuTimes() { return { timed: timer.ok, simMs: timer.simMs, renderMs: timer.renderMs, nSub: sim.nSub }; },

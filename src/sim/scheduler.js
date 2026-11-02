@@ -31,6 +31,7 @@ import { Events } from './events.js';
 import { sculptor } from './sculpt.js';
 import { gwCapacity } from './common.js';
 import { makeStrata, packStrata, STRATA_PARAM_FIELDS } from './strata.js';
+import { deposits, DEP_EPOCHS } from './deposits.js';
 import { Stats } from './stats.js';
 
 export const A_CAP = 150;              // max routing intensity (x real-time runoff rate)
@@ -87,6 +88,7 @@ export class Simulation {
       groundwater.init(this.device, this.world);
       vegetation.init(this.device, this.world);
       avalanche.init(this.device, this.world);
+      deposits.init(this.device, this.world);
       this.events.init(this.device, this.world);
       sculptor.init(this.device, this.world);
       this.statsK = new Stats(this.device, this.world);
@@ -108,6 +110,7 @@ export class Simulation {
     this.strataInfo = makeStrata(seed, height, N, cellSize, Math.max(0.5, this.relief));
     this.strataPack = packStrata(this.strataInfo, true);
     this.day = 0; this.frame = 0; this.carry = 0; this.hmax = 0.3; this.consumed = 0;
+    this.depEpoch = 0; this.depEpochStart = 0;
     this.cum = { precip: 0, outflow: 0, evap: 0, sedOut: 0 };
     this.climate.stormDaysLeft = 0;
     this.climate.resetWeather(seed);
@@ -168,6 +171,7 @@ export class Simulation {
       creepFrac: Math.min(0.1, EROSION_PARAMS.creepK * this.erosionStrength * yearsE / (dx * dx)),
       rockRate: Math.min(0.4, EROSION_PARAMS.rockFallPerYear * yearsE),
       vegInit: 0,
+      depEpoch: this.depEpoch % DEP_EPOCHS, depOn: this.sedimentBeds ? 1 : 0,
       ...stFields,
       ...ev.fields,
     };
@@ -202,6 +206,8 @@ export class Simulation {
     const p = this.world.params;
     const zRef = this.datum + (this.terrainRange?.mean ?? 0);
     this.climate.advanceWeather(this.day, Dcol);
+    // sediment beds: a new bed can start once per bedDays of sim time (about 2 s of watching)
+    if (this.day - this.depEpochStart >= this.bedDays) { this.depEpoch++; this.depEpochStart = this.day; }
     const { plan, n, A, tau, dm, fastFloodM3 } = this._plan(Dcol, Deros, nSub);
     p.set(plan);
     p.upload();
@@ -217,7 +223,9 @@ export class Simulation {
     const pass = enc.beginComputePass({ label: 'sim', timestampWrites: timed ? this.timer?.simPassTimestamps() : undefined });
     column.record(pass);
     groundwater.record(pass);
+    deposits.snapshot(pass);
     water.record(pass, n);
+    deposits.record(pass);
     erosion.recordThermal(pass);
     avalanche.record(pass);
     vegetation.record(pass);
@@ -261,6 +269,9 @@ export class Simulation {
   get canUndo() { return sculptor.canUndo; }
   // rock layers on/off (sim/strata.js); on by default, takes effect at the next batch
   strata = true;
+  // sediment beds on/off (sim/deposits.js), and the sim time between new beds (set from the speed)
+  sedimentBeds = true;
+  bedDays = 7;
 
   // snow avalanches on/off (sim/snow.js); on by default
   get avalanches() { return avalanche.enabled; }
@@ -271,6 +282,7 @@ export class Simulation {
     if (!this.world || this.paused || this.running) return 0;
     const dt = Math.min(Math.max(realDt, 0), 0.1);
     const target = Math.min(this.speed * dt, MAX_DAYS_PER_FRAME * 2);
+    this.bedDays = Math.min(Math.max(2 * this.speed, 7), 500 * 365);
     if (target <= 0) return 0;
     let Dcol;
     if (this.speed * dt > STROBE_DAYS_PER_FRAME) {
@@ -304,6 +316,7 @@ export class Simulation {
       // Batch length: enough batches that the hydraulic solver gets RUN_HYDRO_SUBSTEPS sub-steps in
       // total (flow networks need ~1e5 s of hydraulic time to establish on a 5 km domain), never more
       // than MAX_DAYS_PER_FRAME per batch, never less than ~1 hour of climate per batch.
+      this.bedDays = opts.bedDays || Math.min(Math.max(days / 40, 7), 500 * 365);
       const Db = opts.batchDays || Math.min(MAX_DAYS_PER_FRAME, Math.max(days / Math.ceil(RUN_HYDRO_SUBSTEPS / nSub), Math.min(days, 0.05)));
       let k = 0;
       while (remaining > 1e-9) {

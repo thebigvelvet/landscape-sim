@@ -53,6 +53,13 @@ export const OVERLAYS = [
     labels: ['bare', 'grass', 'forest'],
     note: 'Plants need warmth (there is a treeline), water and some soil. Red patches burned recently; they turn green again as grass, then shrubs, then trees come back. Orange is fire burning now.',
   },
+  {
+    id: 8, name: 'Sediment beds', dot: 'linear-gradient(90deg,#8cb3cc,#e6c780,#fae040,#8c4d26)',
+    desc: 'The beds of mud, sand and gravel the water has laid down, by the grain of the top bed.',
+    gradient: 'linear-gradient(90deg, rgb(140,179,204), rgb(230,199,128) 33%, rgb(250,224,64) 66%, rgb(140,77,38))',
+    labels: ['clay', 'silt', 'sand', 'gravel'],
+    note: 'Fast channels drop gravel, spreading floodwater drops silt and sand, still ponds drop clay. Stronger colour means a thicker fill. The beds stack up over time and show as bands on the block sides and wherever a stream cuts back down.',
+  },
 ];
 
 export function showLegend(id) {

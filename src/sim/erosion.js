@@ -17,7 +17,9 @@
 //   limited to 0.12*dz (explicit-diffusion stability for 8 neighbours) and to soil/8.5 of the donor.
 //   Bedrock steeper than its bed's cliff angle (rockTan with rock layers off) converts to soil
 //   (rock fall) at rockRate per frame. Rock layers (sim/strata.js) also scale kRock per bed.
+//   What slumps and creeps is recorded as sediment beds (sim/deposits.js).
 import { COMMON_WGSL, makeKernel, dispatchGrid } from './common.js';
+import { DEPOSIT_WGSL } from './deposits.js';
 
 export const EROSION_PARAMS = {
   kc: 0.001,         // capacity coefficient (dimensionless concentration per (m/s))
@@ -114,17 +116,21 @@ const THERMAL_GATHER_WGSL = /* wgsl */`
 ${COMMON_WGSL}
 @group(0) @binding(1) var<storage, read> bedrock : array<f32>;
 @group(0) @binding(2) var<storage, read> soil : array<f32>;
-@group(0) @binding(3) var<storage, read_write> delta : array<vec2<f32>>;
+@group(0) @binding(3) var<storage, read_write> delta : array<vec4<f32>>;
 @group(0) @binding(4) var<storage, read> veg : array<f32>;
 
 // vm: mean plant cover of the pair (symmetric, so the gather stays exactly conservative).
 // Roots slow soil creep by up to 60% and stiffen loose slopes against slumping by up to 30%.
-fn pairFlux(dz : f32, dist : f32, donorSoil : f32, vm : f32) -> f32 {
+// Returns (flux, share of it that is slumping talus rather than creep) - the share sets the grain
+// of the bed it lays down (sim/deposits.js): talus is coarse rubble, creep is finer slope wash.
+fn pairFlux(dz : f32, dist : f32, donorSoil : f32, vm : f32) -> vec2<f32> {
   let excess = dz - P.talusTan * dist;
   let r = P.cellSize / dist;
-  var F = 0.5 * P.thermalRate * max(excess, 0.0) * (1.0 - 0.3 * vm) + P.creepFrac * r * r * dz * (1.0 - 0.6 * vm);
-  F = min(F, 0.12 * dz);
-  return min(F, donorSoil / 8.5);
+  let slump = 0.5 * P.thermalRate * max(excess, 0.0) * (1.0 - 0.3 * vm);
+  let creep = P.creepFrac * r * r * dz * (1.0 - 0.6 * vm);
+  var F = min(slump + creep, 0.12 * dz);
+  F = min(F, donorSoil / 8.5);
+  return vec2<f32>(F, select(0.0, slump / (slump + creep), slump + creep > 0.0));
 }
 
 @compute @workgroup_size(16, 16)
@@ -138,6 +144,8 @@ fn main(@builtin(global_invocation_id) gid : vec3<u32>) {
   let v0 = clamp(veg[i], 0.0, 1.0);
   let cliffTan = rockAt(bedrock[i], x, y).z;   // sandstone holds near-vertical faces, shale does not
   var net = 0.0;
+  var gain = 0.0;
+  var gainTalus = 0.0;
   var rockEx = 0.0;
   for (var dy = -1; dy <= 1; dy++) {
     for (var dx = -1; dx <= 1; dx++) {
@@ -150,15 +158,17 @@ fn main(@builtin(global_invocation_id) gid : vec3<u32>) {
       let dist = P.cellSize * select(1.0, 1.41421356, dx != 0 && dy != 0);
       let vm = 0.5 * (v0 + clamp(veg[j], 0.0, 1.0));
       if (dz > 0.0) {
-        net -= pairFlux(dz, dist, so, vm);
+        net -= pairFlux(dz, dist, so, vm).x;
         rockEx = max(rockEx, dz - cliffTan * dist);
       } else if (dz < 0.0) {
-        net += pairFlux(-dz, dist, sn, vm);
+        let f = pairFlux(-dz, dist, sn, vm);
+        net += f.x; gain += f.x; gainTalus += f.x * f.y;
       }
     }
   }
   let rock = min(P.rockRate, 0.5) * max(rockEx, 0.0);
-  delta[i] = vec2<f32>(net, rock);
+  // (net soil change, rock fall, material arriving from neighbours, coarse share of it)
+  delta[i] = vec4<f32>(net, rock, gain, select(0.0, gainTalus / gain, gain > 0.0));
 }
 `;
 
@@ -166,7 +176,9 @@ const THERMAL_APPLY_WGSL = /* wgsl */`
 ${COMMON_WGSL}
 @group(0) @binding(1) var<storage, read_write> bedrock : array<f32>;
 @group(0) @binding(2) var<storage, read_write> soil : array<f32>;
-@group(0) @binding(3) var<storage, read> delta : array<vec2<f32>>;
+@group(0) @binding(3) var<storage, read> delta : array<vec4<f32>>;
+@group(0) @binding(4) var<storage, read_write> deposit : array<vec4<f32>>;
+${DEPOSIT_WGSL}
 
 @compute @workgroup_size(16, 16)
 fn main(@builtin(global_invocation_id) gid : vec3<u32>) {
@@ -175,6 +187,17 @@ fn main(@builtin(global_invocation_id) gid : vec3<u32>) {
   if (x >= N || y >= N) { return; }
   let i = idx(x, y);
   let d = delta[i];
+  // sediment beds: what slumps or creeps away leaves from the top beds first; what arrives is laid
+  // on top as a new bed (talus rubble, or finer slope wash from creep)
+  let loss = max(d.z - d.x, 0.0);
+  if (P.depOn > 0.5 && d.z > 1e-7) {
+    var b = bedsLoad(i);
+    if (loss > 0.0) { b = bedsRemoveTop(b, loss); }
+    bedsStore(i, bedsAdd(b, d.z, mix(0.45, 0.95, d.w)));
+  } else if (d.x < 0.0) {
+    let b = bedsLoad(i);
+    if (b.th[0] > 0.0) { bedsStore(i, bedsRemoveTop(b, -d.x)); }
+  }
   var so = soil[i] + d.x;
   if (d.y > 0.0) {
     let br = bedrock[i];
@@ -194,11 +217,11 @@ class ErosionModule {
     const B = world.buffers, prm = world.params.buffer;
     this.kx = makeKernel(device, 'erosion.exchange', EXCHANGE_WGSL, ['r', 'r', 'r', 'r', 'rw', 'rw', 'rw', 'r', 'r']);
     this.kg = makeKernel(device, 'erosion.thermalGather', THERMAL_GATHER_WGSL, ['r', 'r', 'rw', 'r']);
-    this.ka = makeKernel(device, 'erosion.thermalApply', THERMAL_APPLY_WGSL, ['rw', 'rw', 'r']);
+    this.ka = makeKernel(device, 'erosion.thermalApply', THERMAL_APPLY_WGSL, ['rw', 'rw', 'r', 'rw']);
     const W = [B.water, B.water2], S = [B.sediment, B.sediment2];
     this.xBG = [0, 1].map((p) => this.kx.bind(prm, [W[p], B.velX, B.velY, B.slope, S[p], B.soil, B.bedrock, B.veg, B.burn]));
     this.gBG = this.kg.bind(prm, [B.bedrock, B.soil, B.thermalDelta, B.veg]);
-    this.aBG = this.ka.bind(prm, [B.bedrock, B.soil, B.thermalDelta]);
+    this.aBG = this.ka.bind(prm, [B.bedrock, B.soil, B.thermalDelta, B.deposit]);
     // register the per-sub-step exchange with the water module's hydraulic loop
     const hooks = world.substepHooks || (world.substepHooks = []);
     this.hook = (pass, parity) => {

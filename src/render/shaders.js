@@ -51,6 +51,21 @@ fn strataRock(z: f32, g: vec2f) -> vec4f {
   return vec4f(srgb(R_.stCol[k].rgb) * seam, 1.0);
 }
 fn srgb(c: vec3f) -> vec3f { return pow(c, vec3f(2.2)); }
+// Sediment bed colour (linear rgb) from its grain (0 clay, 0.33 silt, 0.66 sand, 1 gravel) and a
+// per-bed hash h (0..1) that shades neighbouring beds apart, so a cut bank reads as bands.
+fn bedColor(grain: f32, h: f32) -> vec3f {
+  let clay = srgb(vec3f(0.60, 0.63, 0.58));
+  let silt = srgb(vec3f(0.72, 0.63, 0.48));
+  let sand = R_.sand.rgb;
+  let grav = srgb(vec3f(0.52, 0.47, 0.41));
+  var c = mix(clay, silt, smoothstep(0.08, 0.33, grain));
+  c = mix(c, sand, smoothstep(0.4, 0.66, grain));
+  c = mix(c, grav, smoothstep(0.72, 0.95, grain));
+  // each bed a little lighter or darker and warmer or cooler than its neighbours, as real beds are
+  let warm = fract(h * 7.31);
+  return c * (0.78 + 0.44 * h) * mix(vec3f(1.06, 1.0, 0.92), vec3f(0.94, 1.0, 1.07), warm);
+}
+fn bedHash(epoch: f32) -> f32 { return fract(sin(epoch * 12.9898 + 4.1) * 43758.547); }
 fn hash2(p: vec2f) -> f32 {
   let q = fract(p * vec2f(0.1031, 0.1030));
   let r = q + dot(q, q.yx + 33.33);
@@ -191,7 +206,7 @@ struct VO {
   @location(4) m2: vec4f,   // ground height (m), grid x, grid y, ground slope (tan)
   @location(5) m3: vec2f,   // groundwater fill 0..1, spring discharge (m/day)
   @location(6) m4: vec4f,   // plant cover, woody share, burn, fire
-  @location(7) m5: vec2f,   // moisture memory, unused
+  @location(7) m5: vec4f,   // moisture memory, sediment bed thickness (sqrt(t/16 m)), top bed grain, top bed hash
 };
 @vertex fn vs(@builtin(vertex_index) vi: u32) -> VO {
   let n = u32(R_.grid.x);
@@ -222,7 +237,7 @@ struct VO {
   o.m2 = vec4f(ground, f32(x), f32(y), gslope);
   o.m3 = vec2f(lb.x, springDecode(lb.y));
   o.m4 = unpack4x8unorm(L.z);
-  o.m5 = vec2f(unpack4x8unorm(L.w).x, 0.0);
+  o.m5 = unpack4x8unorm(L.w);
   return o;
 }
 
@@ -233,7 +248,16 @@ fn ramp3(t: f32, a: vec3f, b: vec3f, c: vec3f) -> vec3f {
 }
 
 // Overlay colour maps. Must match the legends drawn in src/ui/legend.js.
-fn overlay(mode: i32, m0: vec4f, m1: vec4f, m3: vec2f, m4: vec4f) -> vec4f {
+fn overlay(mode: i32, m0: vec4f, m1: vec4f, m3: vec2f, m4: vec4f, m5: vec4f) -> vec4f {
+  if (mode == 8) { // sediment beds: top bed grain, stronger where the fill is thicker
+    let t = m5.y * m5.y * 16.0;
+    if (t < 0.01) { return vec4f(0.0); }
+    let g = m5.z;
+    var c = mix(vec3f(0.55, 0.70, 0.80), vec3f(0.90, 0.78, 0.50), smoothstep(0.08, 0.33, g));
+    c = mix(c, vec3f(0.98, 0.88, 0.25), smoothstep(0.4, 0.66, g));
+    c = mix(c, vec3f(0.55, 0.30, 0.15), smoothstep(0.72, 0.95, g));
+    return vec4f(c * (0.9 + 0.2 * m5.w), 0.35 + 0.6 * smoothstep(0.01, 2.0, t));
+  }
   if (mode == 7) { // plants: bare -> grass -> forest, recent burns in red
     let v = m4.x; let w = m4.y; let b = m4.z;
     var c = ramp3(v, vec3f(0.93, 0.86, 0.62), vec3f(0.62, 0.84, 0.32), vec3f(0.10, 0.48, 0.16));
@@ -316,9 +340,12 @@ fn overlay(mode: i32, m0: vec4f, m1: vec4f, m3: vec2f, m4: vec4f) -> vec4f {
   let steep = smoothstep(0.35, 0.75, slopeTan);
   var looseC = mix(R_.soilC.rgb, R_.talus.rgb, steep);
   looseC = looseC * (0.9 + 0.2 * nzf);
-  // Fresh deposits (alluvium) since the start show as sand/gravel.
-  let fresh = smoothstep(0.15, 2.0, i.m1.w);
-  looseC = mix(looseC, R_.sand.rgb * (0.85 + 0.3 * nzf), fresh * 0.6);
+  // Sediment beds laid down by the water (sim/deposits.js): the top bed's own colour - gravel bars
+  // in channels, sand and silt on flats, clay in old ponds.
+  let depM = i.m5.y * i.m5.y * 16.0;
+  let gravelS = smoothstep(0.7, 1.0, i.m5.z) * (vnoise(p2 * 2.1) - 0.5) * 0.5;
+  let bedC = bedColor(i.m5.z, i.m5.w) * (0.9 + 0.2 * nzf + gravelS);
+  looseC = mix(looseC, bedC, smoothstep(0.02, 0.3, depM) * 0.85);
   // Gravelly speckle so broad soil and talus areas are not flat colour.
   let grit = vnoise(p2 * 1.3) * 0.6 + vnoise(p2 * 3.7) * 0.4;
   looseC = looseC * (0.82 + 0.3 * grit);
@@ -408,7 +435,7 @@ fn overlay(mode: i32, m0: vec4f, m1: vec4f, m3: vec2f, m4: vec4f) -> vec4f {
   col = applyHaze(col, wp);
   var outc = tonemap(col);
   // --- Overlay, blended in display space so colours match the legend.
-  let ov = overlay(i32(R_.skyZenith.w), i.m0, i.m1, i.m3, i.m4);
+  let ov = overlay(i32(R_.skyZenith.w), i.m0, i.m1, i.m3, i.m4, i.m5);
   if (i32(R_.skyZenith.w) > 0) {
     // Mute the natural colours so the overlay reads clearly.
     let g = dot(outc, vec3f(0.3, 0.55, 0.15));
@@ -472,11 +499,46 @@ fn overlay(mode: i32, m0: vec4f, m1: vec4f, m3: vec2f, m4: vec4f) -> vec4f {
   return vec4f(outc, 1.0);
 }`;
 
-// Sides of the terrain block, showing soil over bedrock in cross-section.
+// Sides of the terrain block, showing sediment beds over soil over bedrock in cross-section.
 export const SKIRT = UNIFORMS + COMMON + /* wgsl */ `
 @group(0) @binding(1) var<storage, read> bedrock: array<f32>;
 @group(0) @binding(2) var<storage, read> soil: array<f32>;
-struct VO { @builtin(position) pos: vec4f, @location(0) wpos: vec3f, @location(1) info: vec3f, @location(2) nrm: vec3f, @location(3) gxy: vec2f };
+@group(0) @binding(3) var<storage, read> deposit: array<vec4f>;
+struct VO {
+  @builtin(position) pos: vec4f, @location(0) wpos: vec3f, @location(1) info: vec3f, @location(2) nrm: vec3f, @location(3) gxy: vec2f,
+  @location(4) ek: f32,                              // position along the edge, in cells
+  @location(5) @interpolate(flat) edge: u32,
+};
+// grid cell at position kk along edge 0..3 (same walk as the vertex shader)
+fn edgeCell(edge: u32, kk: u32) -> u32 {
+  let n = u32(R_.grid.x);
+  if (edge == 0u) { return kk; }
+  if (edge == 1u) { return kk * n + n - 1u; }
+  if (edge == 2u) { return (n - 1u) * n + n - 1u - kk; }
+  return (n - 1u - kk) * n;
+}
+// Sediment bed at depth below the ground in cell i: rgb, a = 1 inside a bed (0 below the stack).
+// Depth and the soil depth it is cut off at come from the interpolated side so the beds follow the
+// face smoothly. Each bed has a darker seam at its base.
+fn bedAt(i: u32, depth: f32, soilD: f32, y: f32, along: f32) -> vec4f {
+  if (depth < 0.0 || depth > soilD) { return vec4f(0.0); }
+  let ta = deposit[4u * i]; let tb = deposit[4u * i + 1u];
+  let th = array<f32, 8>(ta.x, ta.y, ta.z, ta.w, tb.x, tb.y, tb.z, tb.w);
+  let ga = deposit[4u * i + 2u]; let gb = deposit[4u * i + 3u];
+  let tg = array<f32, 8>(ga.x, ga.y, ga.z, ga.w, gb.x, gb.y, gb.z, gb.w);
+  var top = 0.0;
+  for (var k = 0; k < 8; k++) {
+    let base = top + th[k];
+    if (th[k] > 1e-4 && depth < base) {
+      let gr = fract(tg[k]) / 0.99;
+      let speck = 1.0 + smoothstep(0.7, 1.0, gr) * (vnoise(vec2f(along * 1.7, y * 6.0)) - 0.5) * 0.5;
+      let seam = 1.0 - 0.3 * (1.0 - smoothstep(0.0, max(0.06 * th[k], 0.03), base - depth));
+      return vec4f(bedColor(gr, bedHash(floor(tg[k]))) * 0.9 * speck * seam, 1.0);
+    }
+    top = base;
+  }
+  return vec4f(0.0);
+}
 @vertex fn vs(@builtin(vertex_index) vi: u32) -> VO {
   let n = u32(R_.grid.x);
   let dx = R_.grid.y;
@@ -507,6 +569,8 @@ struct VO { @builtin(position) pos: vec4f, @location(0) wpos: vec3f, @location(1
   o.info = vec3f(y, b, g);
   o.gxy = vec2f(f32(gx), f32(gy));
   o.nrm = nrm;
+  o.ek = f32(kk);
+  o.edge = edge;
   return o;
 }
 @fragment fn fs(i: VO) -> @location(0) vec4f {
@@ -521,6 +585,17 @@ struct VO { @builtin(position) pos: vec4f, @location(0) wpos: vec3f, @location(1
   c = mix(c, stc.rgb * 0.8, stc.a * 0.9);
   // Soil layer sits on top of bedrock (exaggerated a little so thin soils stay visible).
   if (y > b - 0.3) { c = R_.soilC.rgb * 0.9; }
+  // Sediment beds on top of the soil, youngest at the top: the stacks of the two nearest columns,
+  // blended along the edge so beds run on as sheets and pinch out smoothly instead of in 10 m blocks.
+  let n = u32(R_.grid.x);
+  let k0 = min(u32(max(floor(i.ek), 0.0)), n - 1u);
+  let f = clamp(i.ek - f32(k0), 0.0, 1.0);
+  let dep = i.info.z - y;
+  let sd = i.info.z - i.info.y;
+  let cL = bedAt(edgeCell(i.edge, k0), dep, sd, y, along);
+  let cR = bedAt(edgeCell(i.edge, min(k0 + 1u, n - 1u)), dep, sd, y, along);
+  let wL = cL.a * (1.0 - f); let wR = cR.a * f;
+  if (wL + wR > 0.0) { c = mix(c, (cL.rgb * wL + cR.rgb * wR) / (wL + wR), smoothstep(0.0, 0.6, wL + wR)); }
   let L = normalize(R_.sunDir.xyz);
   let ndl = max(dot(i.nrm, L), 0.0);
   let shade = 0.45 + 0.55 * ndl * R_.sunDir.w;

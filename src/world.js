@@ -12,7 +12,7 @@
 //   slope              sin(terrain tilt), written by the flux kernel, read by erosion.
 //   acc                vec4 per cell: (precip, outflow, evap, sedimentOut) in metres, accumulated over
 //                      one frame and folded into a GPU log by the reduction kernel.
-//   thermalDelta       vec2 per cell scratch for the race-free talus/creep kernel.
+//   thermalDelta       vec4 per cell scratch for the race-free talus/creep kernel (snow.js reuses it as vec2).
 //   initHeight         terrain height at load, moved along by the sculpt brushes (erosion overlay,
 //                      solids balance and edge base level all measure from it).
 //   spring             recent spring discharge (m/day), for display; see sim/groundwater.js.
@@ -23,10 +23,12 @@
 //                      active fire 0..1).
 //   fireNext           f32 scratch: next fire state (race-free fire spread).
 //   sculptScratch      f32 scratch for the sculpt brushes (smoothing copy, undo deltas), sim/sculpt.js.
+//   soilPrev           soil depth before the water sub-steps of the batch (sim/deposits.js).
+//   deposit            16 floats per cell: the stack of sediment beds on top of the soil (sim/deposits.js).
 //   statPartials, accPartials, fluxLog   reduction scratch / log ring.
 
 export const LAYERS = ['bedrock', 'soil', 'water', 'sediment', 'snowSWE', 'frostDepth', 'temp', 'velX', 'velY'];
-export const EXTRA1 = ['water2', 'sediment2', 'groundwater', 'slope', 'initHeight', 'spring', 'veg', 'burn', 'fireNext', 'sculptScratch'];
+export const EXTRA1 = ['water2', 'sediment2', 'groundwater', 'slope', 'initHeight', 'spring', 'veg', 'burn', 'fireNext', 'sculptScratch', 'soilPrev'];
 export const STAT_GROUPS = 256;   // workgroups in the stats reduction
 export const STAT_STRIDE = 16;    // floats per partial
 export const LOG_SIZE = 4096;     // entries in the GPU flux log ring
@@ -46,9 +48,10 @@ export class World {
     for (const n of EXTRA1) mk(n);
     mk('flux', 4);
     mk('acc', 4);
-    mk('thermalDelta', 2);
+    mk('thermalDelta', 4);
     mk('gwFlux', 4);  // groundwater transfers through the four faces (-x, +x, -y, +y)
     mk('plant', 4);   // (woody, moisture memory, previous ground height, fire)
+    mk('deposit', 16); // 8 sediment beds: thicknesses then tags (sim/deposits.js)
     mk('light', 4);   // renderer: (sun visibility, ambient occlusion, groundwater fill, springs), from render/lighting.js
     this.buffers.statPartials = device.createBuffer({ size: STAT_GROUPS * STAT_STRIDE * 4, usage, label: 'statPartials' });
     this.buffers.accPartials = device.createBuffer({ size: STAT_GROUPS * 16, usage, label: 'accPartials' });
@@ -64,7 +67,7 @@ export class World {
   upload(layers) {
     const q = this.device.queue;
     const zero = new Float32Array(this.cells * 4);
-    for (const name of [...LAYERS, ...EXTRA1, 'flux', 'acc', 'thermalDelta', 'gwFlux', 'plant']) {
+    for (const name of [...LAYERS, ...EXTRA1, 'flux', 'acc', 'thermalDelta', 'gwFlux', 'plant', 'deposit']) {
       const buf = this.buffers[name];
       const src = layers[name];
       if (src) q.writeBuffer(buf, 0, src);

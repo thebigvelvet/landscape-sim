@@ -110,6 +110,19 @@ export class Panel {
     r.overlay = id;
     for (const d of document.querySelectorAll('.overlay-opt')) d.classList.toggle('active', +d.dataset.id === r.mode);
     showLegend(r.mode);
+    // sediment beds: add live numbers to the legend note while that view is open
+    clearInterval(this.bedsTimer);
+    if (r.mode === 8) {
+      const base = document.getElementById('legend-note').textContent;
+      const upd = async () => {
+        const st = await window.sim?.depositStats?.().catch(() => null);
+        if (!st || r.mode !== 8) return;
+        document.getElementById('legend-note').textContent = st.maxThickness_m < 0.01 ? `${base} (Nothing laid down yet.)`
+          : `${base} Now: up to ${st.maxThickness_m.toFixed(st.maxThickness_m < 10 ? 1 : 0)} m thick and ${st.maxBeds} beds deep, covering ${(100 * st.coveredFrac).toFixed(0)}% of the map.`;
+      };
+      upd();
+      this.bedsTimer = setInterval(upd, 3000);
+    }
   }
 
   bindControls() {

@@ -6,7 +6,8 @@
 //   y = pack2x16unorm(groundwater fill of the cell's capacity, spring code)   spring code s: 0 = none,
 //       else discharge = 1e-5 * 10^(5 s) m/day (decode with springDecode in shaders.js)
 //   z = pack4x8unorm(plant cover, woody share, burn severity, active fire)
-//   w = pack4x8unorm(moisture memory, 0, 0, 0)
+//   w = pack4x8unorm(moisture memory, sediment bed thickness sqrt(t / 16 m), top bed grain, top bed hash)
+//       (the last three come from a second pass, `dep`, so the main pass keeps its bindings)
 import { WGSL_COMMON, makeKernels, dispatch } from './gpu.js';
 
 const CODE = /* wgsl */ `
@@ -82,6 +83,26 @@ fn main(@builtin(global_invocation_id) g: vec3u) {
     pack4x8unorm(vec4f(clamp(finiteOr(pl.y, 0.0), 0.0, 1.0), 0.0, 0.0, 0.0)));
 }`;
 
+// Sediment bed summary for the terrain shader (sim/deposits.js stack layout).
+const DEP_CODE = /* wgsl */ `
+struct U { N: u32, dx: f32, sunX: f32, sunZ: f32, tanElev: f32, vex: f32, snowDen: f32, gwMax: f32 };
+@group(0) @binding(0) var<uniform> u: U;
+@group(0) @binding(1) var<storage, read> deposit: array<vec4f>;
+@group(0) @binding(2) var<storage, read_write> light: array<vec4u>;
+@compute @workgroup_size(16, 16)
+fn dep(@builtin(global_invocation_id) id: vec3u) {
+  let n = u.N;
+  if (id.x >= n || id.y >= n) { return; }
+  let i = id.y * n + id.x;
+  let t = dot(deposit[4u * i], vec4f(1.0)) + dot(deposit[4u * i + 1u], vec4f(1.0));
+  let tg = deposit[4u * i + 2u].x;
+  let h = fract(sin(floor(tg) * 12.9898 + 4.1) * 43758.547);   // = bedHash() in shaders.js
+  let L = light[i];
+  let m = unpack4x8unorm(L.w).x;
+  let tt = select(0.0, t, t == t && t < 1e6);
+  light[i] = vec4u(L.x, L.y, L.z, pack4x8unorm(clamp(vec4f(m, sqrt(tt / 16.0), fract(tg) / 0.99, h), vec4f(0.0), vec4f(1.0))));
+}`;
+
 export class Lighting {
   constructor(device, world) {
     this.device = device;
@@ -90,6 +111,8 @@ export class Lighting {
     this.ub = device.createBuffer({ size: 32, usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST });
     this.bg = this.k.bind([this.ub, world.bedrock, world.soil, world.snowSWE, world.light, world.groundwater, world.spring, world.veg, world.burn, world.plant]);
     this.data = new ArrayBuffer(32);
+    this.kd = makeKernels(device, 'lightingDep', DEP_CODE, ['uniform', 'read', 'storage'], ['dep']);
+    this.bgd = this.kd.bind([this.ub, world.deposit, world.light]);
   }
   update(encoder, sunDir, vex, gwMax = 0.25) {
     const f = new Float32Array(this.data), u = new Uint32Array(this.data);
@@ -104,5 +127,6 @@ export class Lighting {
     f[7] = gwMax;
     this.device.queue.writeBuffer(this.ub, 0, this.data);
     dispatch(encoder, this.k.pipes.main, this.bg, this.world.N);
+    dispatch(encoder, this.kd.pipes.dep, this.bgd, this.world.N);
   }
 }
