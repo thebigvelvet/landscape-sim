@@ -19,7 +19,7 @@
 //   Bedrock steeper than its bed's cliff angle (rockTan with rock layers off) converts to soil
 //   (rock fall) at rockRate per frame. Rock layers (sim/strata.js) also scale kRock per bed.
 //   What slumps and creeps is recorded as sediment beds (sim/deposits.js).
-import { COMMON_WGSL, makeKernel, dispatchGrid } from './common.js';
+import { COMMON_WGSL, ROCK_WGSL, makeKernel, dispatchGrid } from './common.js';
 import { DEPOSIT_WGSL } from './deposits.js';
 
 export const EROSION_PARAMS = {
@@ -45,6 +45,8 @@ ${COMMON_WGSL}
 @group(0) @binding(7) var<storage, read_write> bedrock : array<f32>;
 @group(0) @binding(8) var<storage, read> veg : array<f32>;
 @group(0) @binding(9) var<storage, read> burn : array<f32>;
+@group(0) @binding(10) var<storage, read> volcRock : array<vec4<f32>>;
+${ROCK_WGSL}
 
 // Plants hold the ground: pickup x0.12 under full cover. A fresh burn scar (loose ash, dead roots,
 // water-repellent soil) erodes up to 7x faster than bare unburned ground.
@@ -120,6 +122,8 @@ ${COMMON_WGSL}
 @group(0) @binding(3) var<storage, read_write> delta : array<vec4<f32>>;
 @group(0) @binding(4) var<storage, read> veg : array<f32>;
 @group(0) @binding(5) var<storage, read> deposit : array<vec4<f32>>;
+@group(0) @binding(6) var<storage, read> volcRock : array<vec4<f32>>;
+${ROCK_WGSL}
 
 // Loose sand on top (a sand-grain top sediment bed, e.g. a dune) slides at its own ~33 degree angle
 // of repose, which keeps dune slip faces sharp; other soil and talus stand at talusTan.
@@ -229,12 +233,12 @@ class ErosionModule {
   init(device, world) {
     this.device = device; this.world = world;
     const B = world.buffers, prm = world.params.buffer;
-    this.kx = makeKernel(device, 'erosion.exchange', EXCHANGE_WGSL, ['r', 'r', 'r', 'r', 'rw', 'rw', 'rw', 'r', 'r']);
-    this.kg = makeKernel(device, 'erosion.thermalGather', THERMAL_GATHER_WGSL, ['r', 'r', 'rw', 'r', 'r']);
+    this.kx = makeKernel(device, 'erosion.exchange', EXCHANGE_WGSL, ['r', 'r', 'r', 'r', 'rw', 'rw', 'rw', 'r', 'r', 'r']);
+    this.kg = makeKernel(device, 'erosion.thermalGather', THERMAL_GATHER_WGSL, ['r', 'r', 'rw', 'r', 'r', 'r']);
     this.ka = makeKernel(device, 'erosion.thermalApply', THERMAL_APPLY_WGSL, ['rw', 'rw', 'r', 'rw']);
     const W = [B.water, B.water2], S = [B.sediment, B.sediment2];
-    this.xBG = [0, 1].map((p) => this.kx.bind(prm, [W[p], B.velX, B.velY, B.slope, S[p], B.soil, B.bedrock, B.veg, B.burn]));
-    this.gBG = this.kg.bind(prm, [B.bedrock, B.soil, B.thermalDelta, B.veg, B.deposit]);
+    this.xBG = [0, 1].map((p) => this.kx.bind(prm, [W[p], B.velX, B.velY, B.slope, S[p], B.soil, B.bedrock, B.veg, B.burn, B.volcRock]));
+    this.gBG = this.kg.bind(prm, [B.bedrock, B.soil, B.thermalDelta, B.veg, B.deposit, B.volcRock]);
     this.aBG = this.ka.bind(prm, [B.bedrock, B.soil, B.thermalDelta, B.deposit]);
     // register the per-sub-step exchange with the water module's hydraulic loop
     const hooks = world.substepHooks || (world.substepHooks = []);

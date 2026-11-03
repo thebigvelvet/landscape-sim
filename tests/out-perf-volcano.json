@@ -1,0 +1,40 @@
+{
+  "quiet 1 day/s": {
+    "fpsMin": 59.942376468797434,
+    "fpsAvg": 59.94825323002699,
+    "simMs": 4.7378850901587946,
+    "renderMs": 4.733685950981595,
+    "lavaK": 0,
+    "erupting": false
+  },
+  "quiet 1000 yr/s": {
+    "fpsMin": 59.93065254658984,
+    "fpsAvg": 59.94981930176018,
+    "simMs": 6.283164484094519,
+    "renderMs": 4.70053248304169,
+    "lavaK": 0,
+    "erupting": false
+  },
+  "erupting 1 day/s": {
+    "fpsMin": 59.93701694212348,
+    "fpsAvg": 59.94939810266542,
+    "simMs": 4.814448417725637,
+    "renderMs": 4.7424274598927685,
+    "lavaK": 2,
+    "erupting": true
+  },
+  "erupting 1000 yr/s": {
+    "fpsMin": 59.94178765540198,
+    "fpsAvg": 59.95327298969862,
+    "simMs": 6.301822971030274,
+    "renderMs": 4.718341967336467,
+    "lavaK": 64,
+    "erupting": true
+  },
+  "nan": false,
+  "bal": 1.9503426158713073e-7,
+  "gpuErrors": 0,
+  "gpuFeatureStatusWebGPU": "enabled",
+  "electron": "45.2.1",
+  "chrome": "156.0.8078.75"
+}

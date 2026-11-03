@@ -46,18 +46,18 @@
         "footSWE_m": 0.37296956558950195,
         "footCells": 4962,
         "totalSnow_m3": 2448576.036834717,
-        "meanWoody": 0.1765530323130062,
-        "balPct": 0.0000017405222568724352,
+        "meanWoody": 0.1765530360087095,
+        "balPct": 0.0000017670909567122268,
         "nan": false
       },
       "on": {
-        "cliffSWE_m": 0.17079644245513056,
+        "cliffSWE_m": 0.1707964233112461,
         "cliffCells": 36059,
-        "footSWE_m": 0.4461939183450701,
+        "footSWE_m": 0.44619394270475915,
         "footCells": 4961,
-        "totalSnow_m3": 2607005.6884765625,
-        "meanWoody": 0.13124412881360606,
-        "balPct": 0.0000013141126196098584,
+        "totalSnow_m3": 2607005.6224823,
+        "meanWoody": 0.13124398784866184,
+        "balPct": -9.8831363313818e-8,
         "nan": false
       }
     },
@@ -65,15 +65,15 @@
       "pass": true,
       "nan": false,
       "years": 6638.6583333333265,
-      "bal": 2.3618274085573155e-7,
-      "fps": 59.963929843977304,
+      "bal": 8.785282745555554e-8,
+      "fps": 59.95536267488423,
       "gpuErrors": 0
     }
   },
   "gpuErrorMsgs": [],
   "allPass": true,
   "failed": [],
-  "wallSeconds": 13.656,
+  "wallSeconds": 13.69569999998808,
   "gpuFeatureStatusWebGPU": "enabled",
   "electron": "45.2.1",
   "chrome": "156.0.8078.75"

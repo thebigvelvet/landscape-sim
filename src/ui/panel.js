@@ -183,6 +183,7 @@ export class Panel {
     $('trees').addEventListener('change', () => { app.renderer.showTrees = $('trees').checked; });
     $('strata').addEventListener('change', () => { app.sim.strata = $('strata').checked; });
     $('glaciers').addEventListener('change', () => { app.sim.glaciers = $('glaciers').checked; });
+    $('old-volcanoes').addEventListener('change', () => { app.sim.oldVolcanoes = $('old-volcanoes').checked; });
     // wind: on/off, a compass dial for where it blows from, strength and steadiness
     $('wind-on').addEventListener('change', () => { app.sim.windOn = $('wind-on').checked; this.syncWind(); });
     $('wind-speed').addEventListener('input', () => { c.windSpeed = +$('wind-speed').value; this.syncWind(); });

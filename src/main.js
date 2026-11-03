@@ -6,6 +6,7 @@ import { PRESETS } from './sim/climate.js';
 import { GpuTimer } from './gpuTimer.js';
 import { BrushTool } from './ui/brush.js';
 import { strataLayer, makeStrata } from './sim/strata.js';
+import { volcLayer } from './sim/volcano.js';
 import { bedsAt, depositSummary } from './sim/deposits.js';
 
 const $ = (id) => document.getElementById(id);
@@ -286,6 +287,33 @@ async function main() {
       }
       const A = sim.world.cellSize ** 2;
       return { iceVolume_m3: ice * A, iceCoverFrac: n / cells, maxThickness_m: maxH, maxSpeed_m_per_yr: maxU, debris_m3: deb * A, lowestIce_m: n ? zLow : null, highestIce_m: n ? zHigh : null };
+    },
+    // volcanoes (sim/volcano.js): old volcanoes in new maps on/off, the rock type at bedrock height z
+    // in cell (x, y) from a volcRock readback (0 plateau rock, 1 basalt, 2 cinders, 3 plug), and a
+    // whole-map summary
+    get oldVolcanoes() { return sim.oldVolcanoes; },
+    set oldVolcanoes(v) { sim.oldVolcanoes = !!v; const el = document.getElementById('old-volcanoes'); if (el) el.checked = sim.oldVolcanoes; },
+    get volcanoInfo() { return sim.volcanoInfo; },
+    volcLayer: (vr, x, y, z) => volcLayer(vr, y * sim.N + x, z),
+    volcanoStats: async () => {
+      const [vr, lv, b] = await Promise.all(['volcRock', 'lava', 'bedrock'].map((n) => sim.readLayer(n)));
+      const cells = sim.world.cells, A = sim.world.cellSize ** 2;
+      const vol = [0, 0, 0, 0], area = [0, 0, 0, 0];
+      let molten = 0, hot = 0;
+      for (let i = 0; i < cells; i++) {
+        molten += lv[4 * i]; if (lv[4 * i] > 0.01 && lv[4 * i + 1] >= 0.15) hot++;
+        if (vr[8 * i + 4] < 0.5) continue;
+        // thickness of each unit still standing in this cell
+        for (let k = 0; k < 4; k++) {
+          const t = vr[8 * i + 4 + k];
+          if (t < 0.5) break;
+          const lo = vr[8 * i + k], hi = k < 3 && vr[8 * i + 5 + k] > 0.5 ? vr[8 * i + 1 + k] : Infinity;
+          const th = Math.min(hi, b[i]) - lo;
+          if (th > 0) { vol[t] += th * A; if (b[i] <= hi) area[t] += A; }
+        }
+      }
+      const vents = sim.volcanoes.vents.map((e) => ({ id: e.id, x: e.x, y: e.y, coneHeight_m: e.H || 0, left_days: Math.max(e.left, 0), source: e.src }));
+      return { basalt_m3: vol[1], cinders_m3: vol[2], plug_m3: vol[3], basaltArea_m2: area[1], cindersArea_m2: area[2], plugArea_m2: area[3], moltenLava_m3: molten * A, hotLavaCells: hot, erupting: sim.volcanoes.erupting, erupted_m3: sim.cum.erupted, vents };
     },
     get engine() { return sim; },
     get renderer() { return renderer; },

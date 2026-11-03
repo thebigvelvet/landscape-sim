@@ -1,5 +1,5 @@
 import { PARAMS_WGSL } from './params.js';
-import { strataWGSL, STRATA_PARAM_FIELDS } from './strata.js';
+import { strataWGSL, STRATA_PARAM_FIELDS, VOLCANIC } from './strata.js';
 
 // Shared WGSL prelude: params uniform at @group(0) @binding(0) plus grid helpers.
 // All grid kernels use 16x16 workgroups (256 threads, good occupancy on NVIDIA/AMD/Intel and
@@ -21,11 +21,50 @@ const PI : f32 = 3.14159265;
 // alluvium hold more. Equals the preset's gwMax at 1 m of soil. Mirrored on the CPU by gwCapacity().
 fn gwCap(soilDepth : f32) -> f32 { return P.gwMax * (0.15 + 0.85 * min(max(soilDepth, 0.0), 2.0)); }
 ${strataWGSL((i) => `P.${STRATA_PARAM_FIELDS[i]}`, (k) => `P.stBeds[${k}]`)}
-// Rock at bedrock elevation z in cell (x, y): (erode multiplier, weather multiplier, cliff tan).
-// With rock layers off every cell is the same uniform rock as before.
-fn rockAt(z : f32, x : i32, y : i32) -> vec3<f32> {
+// Plateau rock at bedrock elevation z in cell (x, y): (erode multiplier, weather multiplier, cliff
+// tan). With rock layers off every cell is the same uniform rock as before.
+fn rockStrata(z : f32, x : i32, y : i32) -> vec3<f32> {
   if (P.strataOn < 0.5) { return vec3<f32>(1.0, 1.0, P.rockTan); }
   return stProps(z, vec2<f32>(f32(x), f32(y)));
+}
+`;
+
+// Volcanic rock on top of the plateau stack (sim/volcano.js). world.volcRock holds 2 vec4 per cell:
+//   [2i]   the bases of up to 4 units, bottom first (bedrock heights, m)
+//   [2i+1] their type codes (strata.js VOLCANIC: 1 basalt, 2 cinders, 3 plug; 0 = no unit)
+// Unit k runs from its base up to the next unit's base; the top unit runs up to the rock surface.
+// Below the lowest base the plateau beds apply. Erosion simply cuts down through the units: a unit
+// whose base is above the rock top is gone (vrAdd tidies such units up when it next adds one).
+// Kernels that call rockAt include ROCK_WGSL and declare `volcRock : array<vec4<f32>>`.
+const v = (t) => VOLCANIC[t];
+export const VOLC_WGSL = /* wgsl */`
+fn vrProps(t : f32) -> vec3<f32> {
+  if (t < 1.5) { return vec3<f32>(${v(1).erode}, ${v(1).weather}, ${v(1).cliffTan}); }
+  if (t < 2.5) { return vec3<f32>(${v(2).erode}, ${v(2).weather}, ${v(2).cliffTan}); }
+  return vec3<f32>(${v(3).erode}, ${v(3).weather}, ${v(3).cliffTan});
+}
+// index of the unit holding height z (-1: below the pile, or no pile)
+fn vrUnit(z : f32, c : vec4<f32>, t : vec4<f32>) -> i32 {
+  if (t.x < 0.5 || z < c.x) { return -1; }
+  var k = 0;
+  if (t.y > 0.5 && z >= c.y) { k = 1; }
+  if (k == 1 && t.z > 0.5 && z >= c.z) { k = 2; }
+  if (k == 2 && t.w > 0.5 && z >= c.w) { k = 3; }
+  return k;
+}
+`;
+export const ROCK_WGSL = VOLC_WGSL + /* wgsl */`
+// Rock at bedrock elevation z in cell (x, y): volcanic units first, else the plateau beds, with a
+// ~1 m blend across each base so the erosion rates do not jump.
+fn rockAt(z : f32, x : i32, y : i32) -> vec3<f32> {
+  let i = idx(x, y);
+  let t = volcRock[2u * i + 1u];
+  if (t.x < 0.5) { return rockStrata(z, x, y); }
+  let c = volcRock[2u * i];
+  let k = vrUnit(z, c, t);
+  if (k < 0) { return rockStrata(z, x, y); }
+  let below = select(rockStrata(z, x, y), vrProps(t[max(k - 1, 0)]), k > 0);
+  return mix(below, vrProps(t[k]), smoothstep(0.0, 1.0, z - c[k]));
 }
 `;
 export function gwCapacity(soilDepth, gwMax) { return gwMax * (0.15 + 0.85 * Math.min(Math.max(soilDepth, 0), 2)); }

@@ -31,7 +31,7 @@
 // Time scaling: real dunes travel ~1-5 cells (10 m) a year. Each iteration lifts at most ~8 cm per
 // cell, so at the fastest speeds (more than about a year per frame) dunes travel slower than they
 // really would - believable, not exact, like the thermal-rate caps in the scheduler.
-import { COMMON_WGSL, makeKernel, dispatchGrid } from './common.js';
+import { COMMON_WGSL, ROCK_WGSL, makeKernel, dispatchGrid } from './common.js';
 import { CLIMATE_WGSL } from './climate.js';
 import { DEPOSIT_WGSL } from './deposits.js';
 
@@ -177,6 +177,8 @@ ${WIND_UNIFORM_WGSL}
 @group(0) @binding(6) var<storage, read_write> deposit : array<vec4<f32>>;
 @group(0) @binding(7) var<storage, read_write> acc : array<vec4<f32>>;
 @group(0) @binding(8) var<uniform> W : WindIter;
+@group(0) @binding(9) var<storage, read> volcRock : array<vec4<f32>>;
+${ROCK_WGSL}
 ${HOPS_WGSL}
 ${DEPOSIT_WGSL}
 // put a bed of thickness d (tag tg) on top as its own bed, however thin (bedsAdd would blend a thin
@@ -329,14 +331,14 @@ class WindModule {
     this.device = device; this.world = world;
     const B = world.buffers, prm = world.params.buffer;
     this.kp = makeKernel(device, 'wind.prep', PREP_WGSL, ['r', 'r', 'r', 'r', 'r', 'r', 'r', 'r', 'rw', 'rw', 'u', 'r']);
-    this.kt = makeKernel(device, 'wind.transfer', TRANSFER_WGSL, ['r', 'r', 'rw', 'rw', 'rw', 'rw', 'rw', 'u']);
+    this.kt = makeKernel(device, 'wind.transfer', TRANSFER_WGSL, ['r', 'r', 'rw', 'rw', 'rw', 'rw', 'rw', 'u', 'r']);
     this.ubufs = []; this.pBG = []; this.tBG = [];
     for (let k = 0; k < KMAX; k++) {
       const u = device.createBuffer({ size: 32, usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST, label: `wind.iter${k}` });
       this.ubufs.push(u);
       // thermalDelta is free scratch here: erosion's thermal step has used it, avalanches come after
       this.pBG.push(this.kp.bind(prm, [B.bedrock, B.soil, B.water, B.snowSWE, B.frostDepth, B.veg, B.plant, B.deposit, B.thermalDelta, B.wind, u, B.glacier]));
-      this.tBG.push(this.kt.bind(prm, [B.thermalDelta, B.wind, B.bedrock, B.soil, B.snowSWE, B.deposit, B.acc, u]));
+      this.tBG.push(this.kt.bind(prm, [B.thermalDelta, B.wind, B.bedrock, B.soil, B.snowSWE, B.deposit, B.acc, u, B.volcRock]));
     }
   }
 

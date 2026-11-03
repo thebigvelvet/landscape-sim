@@ -5,7 +5,7 @@
 // a baked drought look, event markers, the brush cursor and click ripples.
 // Reads the simulation storage buffers directly (no copies, no CPU readback). The frame is encoded
 // into the caller's command encoder so simulation and rendering share one submission.
-import { SKY, TERRAIN, SKIRT, WATER, PRECIP, COMPACT, TREES, SMOKE, STORMFX } from './shaders.js';
+import { SKY, TERRAIN, SKIRT, WATER, PRECIP, COMPACT, TREES, SMOKE, STORMFX, PLUME, PLUME_PUFFS } from './shaders.js';
 import { makeKernels } from './gpu.js';
 import { Lighting } from './lighting.js';
 import { OrbitCamera } from './camera.js';
@@ -13,14 +13,15 @@ import { PRESETS } from '../sim/climate.js';
 import { MAX_BEDS } from '../sim/strata.js';
 
 // Overlay names, in the order of the shader's overlay modes (0 = natural view).
-export const OVERLAYS = ['none', 'water', 'sediment', 'snow', 'frost', 'change', 'groundwater', 'plants', 'beds', 'wind', 'glaciers'];
-export const TOOL_IDS = { none: 0, storm: 1, drought: 2, flood: 3, wildfire: 4, raise: 5, lower: 5, smooth: 5, flatten: 5, channel: 5 };
-const UB_FLOATS = 156 + 16 + 2 * 4 * MAX_BEDS;
+export const OVERLAYS = ['none', 'water', 'sediment', 'snow', 'frost', 'change', 'groundwater', 'plants', 'beds', 'wind', 'glaciers', 'volcanic'];
+export const TOOL_IDS = { none: 0, storm: 1, drought: 2, flood: 3, wildfire: 4, raise: 5, lower: 5, smooth: 5, flatten: 5, channel: 5, volcano: 6 };
+const VENT_AT = 156 + 16 + 2 * 4 * MAX_BEDS;   // R.vent (after the bed tables)
+const UB_FLOATS = VENT_AT + 8;
 
 const SAMPLES = 4;
 const WEATHER_VISIBLE_SPEED = 36;   // days/s; above this rain particles and clouds are averaged out
 
-const TOOL_RGB = { 1: [0.35, 0.70, 1.0], 2: [1.0, 0.72, 0.25], 3: [0.20, 0.95, 0.95], 4: [1.0, 0.38, 0.12] };
+const TOOL_RGB = { 1: [0.35, 0.70, 1.0], 2: [1.0, 0.72, 0.25], 3: [0.20, 0.95, 0.95], 4: [1.0, 0.38, 0.12], 6: [0.95, 0.22, 0.12] };
 
 function lerp3(a, b, t) { return [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t, a[2] + (b[2] - a[2]) * t]; }
 
@@ -106,6 +107,7 @@ export class Renderer {
     this.pTrees = mk(TREES, 'trees');
     this.pSmoke = mk(SMOKE, 'smoke', { blend: true, depthWrite: false });
     this.pStorm = mk(STORMFX, 'stormfx', { blend: true, depthWrite: false });
+    this.pPlume = mk(PLUME, 'plume', { blend: true, depthWrite: false });
     this.kCompact = makeKernels(d, 'compact', COMPACT, ['uniform', 'read', 'read', 'read', 'storage', 'storage', 'storage'], ['main', 'clampArgs']);
   }
 
@@ -138,8 +140,8 @@ export class Renderer {
     const w = world;
     this.bgSky = bg(this.pSky, [this.ub]);
     this.bgPrecip = bg(this.pPrecip, [this.ub]);
-    this.bgTerrain = bg(this.pTerrain, [this.ub, w.bedrock, w.soil, w.snowSWE, w.water, w.sediment, w.frostDepth, w.light, w.height0, w.wind, w.glacier]);
-    this.bgSkirt = bg(this.pSkirt, [this.ub, w.bedrock, w.soil, w.deposit]);
+    this.bgTerrain = bg(this.pTerrain, [this.ub, w.bedrock, w.soil, w.snowSWE, w.water, w.sediment, w.frostDepth, w.light, w.height0, w.wind, w.glacier, w.volcRock, w.lava]);
+    this.bgSkirt = bg(this.pSkirt, [this.ub, w.bedrock, w.soil, w.deposit, w.volcRock]);
     this.bgWater = bg(this.pWater, [this.ub, w.bedrock, w.soil, w.water, w.velX, w.velY, w.sediment, w.light, w.snowSWE, w.glacier]);
     this.lighting = new Lighting(d, world);
     this.lightDirty = true;
@@ -155,6 +157,7 @@ export class Renderer {
     this.bgTrees = bg(this.pTrees, [this.ub, w.bedrock, w.soil, w.light, this.treeList, w.snowSWE]);
     this.bgSmoke = bg(this.pSmoke, [this.ub, w.bedrock, w.soil, w.light, this.fireList]);
     this.bgStorm = bg(this.pStorm, [this.ub]);
+    this.bgPlume = bg(this.pPlume, [this.ub]);
   }
 
   // ---- brush cursor / feedback (grid cell coordinates) ----
@@ -171,8 +174,8 @@ export class Renderer {
   // of wall time even when the simulated event is over in a blink at high speed.
   eventVisuals(sim, now) {
     const ev = sim.events;
-    const storms = [], markers = [];
-    const minWall = { storm: 4000, drought: 3000, flood: 6000, wildfire: 3500 };
+    const storms = [], markers = [], vents = [];
+    const minWall = { storm: 4000, drought: 3000, flood: 6000, wildfire: 3500, volcano: 4000 };
     for (let k = ev.log.length - 1; k >= 0; k--) {
       const e = ev.log[k];
       let v = this.visuals.get(e.id);
@@ -187,9 +190,12 @@ export class Renderer {
       const [wx, wz] = this.gridToWorld(e.x, e.y);
       const r = e.r * this.world.cellSize;
       if (e.type === 'storm' && storms.length < 4) storms.push([wx, wz, r, a, e]);
-      if (markers.length < 4 && e.type !== 'drought') markers.push([wx, wz, r, e.type === 'storm' ? 1 : e.type === 'flood' ? 3 : 4, a * (e.type === 'storm' ? 0.5 : 1)]);
+      if (markers.length < 4 && e.type !== 'drought' && e.type !== 'volcano') markers.push([wx, wz, r, e.type === 'storm' ? 1 : e.type === 'flood' ? 3 : 4, a * (e.type === 'storm' ? 0.5 : 1)]);
+      // eruption plume over the cone, while it erupts and a few seconds after
+      const vent = e.type === 'volcano' && sim.volcanoes.vents.find((q) => q.id === e.id);
+      if (vent && vent.z0 !== null && vents.length < 2) vents.push([wx, wz, (vent.z0 + (vent.H || 0)) * this.vex, a]);
     }
-    return { storms, markers };
+    return { storms, markers, vents };
   }
 
   /** Called after new terrain is uploaded: frame the camera on it. */
@@ -353,8 +359,10 @@ export class Renderer {
       u.set(st.head, 156); u[156] = sim.strata ? 1 : 0;
       u.set(st.beds, 172); u.set(st.colors, 172 + 4 * MAX_BEDS);
     } else u[156] = 0;
+    for (let k = 0; k < 2; k++) u.set(vis.vents[k] || [0, 0, 0, 0], VENT_AT + 4 * k);
     this.device.queue.writeBuffer(this.ub, 0, u);
     this.nStorms = vis.storms.length;
+    this.nVents = vis.vents.length;
 
     if (this.frameCount % 2 === 0 || this.lightDirty) {
       this.lighting.update(encoder, atm.sun, this.vex, atm.preset.gwMax);
@@ -406,6 +414,11 @@ export class Renderer {
       pass.setPipeline(this.pSmoke);
       pass.setBindGroup(0, this.bgSmoke);
       pass.drawIndirect(this.drawArgs, 16);
+    }
+    if (this.nVents > 0) {
+      pass.setPipeline(this.pPlume);
+      pass.setBindGroup(0, this.bgPlume);
+      pass.draw(PLUME_PUFFS * 6, this.nVents);
     }
     if (this.nStorms > 0) {
       pass.setPipeline(this.pStorm);

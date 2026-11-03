@@ -74,6 +74,13 @@ export const OVERLAYS = [
     labels: ['1 m/yr', '15 m/yr', '200 m/yr'],
     note: 'Ice moves fastest in the middle of a glacier and slows to a stop at its snout, where it melts. Thin ice at the edges is pale. Brown marks rock the ice is carrying, which it drops as moraines. Glaciers need snow that lasts all summer: turn the temperature down to grow them.',
   },
+  {
+    id: 11, name: 'Volcanic rock', dot: 'linear-gradient(135deg,#333d73,#e64d26,#8c33b3)',
+    desc: 'Rock made by volcanoes, under the soil or at the surface, and lava that is still molten.',
+    gradient: 'linear-gradient(90deg, rgb(51,61,115) 0 25%, rgb(230,77,38) 25% 50%, rgb(140,51,179) 50% 75%, rgb(255,166,26) 75%)',
+    labels: ['basalt', 'cinders', 'plug', 'molten lava'],
+    note: 'Basalt is set lava: very hard, so old flows end up capping ridges and mesas. Cinders are loose and frothy and wash away quickly. The plug is lava that set in the throat of the volcano; it outlasts the cone as a rocky neck. Paint a volcano with the Volcano brush, or load maps until one starts with an old volcano.',
+  },
 ];
 
 export function showLegend(id) {

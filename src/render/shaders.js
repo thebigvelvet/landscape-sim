@@ -1,4 +1,5 @@
-import { strataWGSL, MAX_BEDS } from '../sim/strata.js';
+import { strataWGSL, MAX_BEDS, VOLCANIC } from '../sim/strata.js';
+import { VOLC_WGSL } from '../sim/common.js';
 // WGSL for the renderer: shared uniforms, sky, terrain, terrain block sides, water, falling precipitation.
 
 export const UNIFORMS = /* wgsl */ `
@@ -35,10 +36,12 @@ struct R {
   stS: array<vec4f, 4>,
   stBeds: array<vec4f, ${MAX_BEDS}>,
   stCol: array<vec4f, ${MAX_BEDS}>,
+  vent: array<vec4f, 2>,   // erupting vents (sim/volcano.js): world x, world z, cone top (world y), strength 0..1
 };
 @group(0) @binding(0) var<uniform> R_: R;
 `;
 
+const vc = (k, f) => VOLCANIC[k][f].map((x) => x.toFixed(3)).join(', ');
 const STRATA_R = strataWGSL((i) => `R_.stS[${i >> 2}].${'xyzw'[i & 3]}`, (k) => `R_.stBeds[${k}]`);
 export const COMMON = STRATA_R + /* wgsl */ `
 // Rock colour from the simulated beds at bedrock height z, grid cell g (linear rgb); a = 0 when off.
@@ -51,6 +54,15 @@ fn strataRock(z: f32, g: vec2f) -> vec4f {
   return vec4f(srgb(R_.stCol[k].rgb) * seam, 1.0);
 }
 fn srgb(c: vec3f) -> vec3f { return pow(c, vec3f(2.2)); }
+// Volcanic rock colour (linear rgb) of type t (sim/strata.js VOLCANIC) at ground position p: mottled
+// between the fresh look and rusty, weathered patches, with a rough clinker speckle.
+fn volcCol(t: f32, p: vec2f) -> vec3f {
+  var f = vec3f(${vc(1, 'fresh')}); var o = vec3f(${vc(1, 'old')});
+  if (t > 1.5) { f = vec3f(${vc(2, 'fresh')}); o = vec3f(${vc(2, 'old')}); }
+  if (t > 2.5) { f = vec3f(${vc(3, 'fresh')}); o = vec3f(${vc(3, 'old')}); }
+  let m = vnoise(p * 0.03) * 0.6 + vnoise(p * 0.21) * 0.4;
+  return srgb(mix(f, o, smoothstep(0.45, 0.85, m) * 0.7)) * (0.75 + 0.5 * vnoise(p * 1.9));
+}
 // Sediment bed colour (linear rgb) from its grain (0 clay, 0.33 silt, 0.66 sand, 1 gravel) and a
 // per-bed hash h (0..1) that shades neighbouring beds apart, so a cut bank reads as bands.
 fn bedColor(grain: f32, h: f32) -> vec3f {
@@ -109,6 +121,7 @@ fn toolColor(t: f32) -> vec3f {
   if (t < 2.5) { return vec3f(1.0, 0.72, 0.25); }      // drought: amber
   if (t < 3.5) { return vec3f(0.20, 0.95, 0.95); }     // flood: cyan
   if (t < 4.5) { return vec3f(1.0, 0.38, 0.12); }      // fire: orange
+  if (t > 5.5) { return vec3f(0.95, 0.22, 0.12); }     // volcano: red
   return vec3f(0.95, 0.95, 0.88);                      // sculpt tools: chalk white
 }
 // Voronoi edge distance (cracked mud)
@@ -180,6 +193,34 @@ struct VO { @builtin(position) pos: vec4f, @location(0) ndc: vec2f };
   return vec4f(tonemap(c), 1.0);
 }`;
 
+// Volcanic rock lookups for shaders that bind volcRock (terrain, block sides).
+const VOLC_DATA = VOLC_WGSL + /* wgsl */ `
+// volcanic unit type at bedrock height z in cell i (0 = plateau rock)
+fn volcType(i: u32, z: f32) -> f32 {
+  let t = volcRock[2u * i + 1u];
+  if (t.x < 0.5) { return 0.0; }
+  let k = vrUnit(z, volcRock[2u * i], t);
+  if (k < 0) { return 0.0; }
+  return t[k];
+}
+// colour of the volcanic rock at height z around grid point g, blended over the 4 nearest cells so
+// flow edges are smooth; a = how much of it is volcanic
+fn volcRockColor(z: f32, g: vec2f, p: vec2f) -> vec4f {
+  let n = i32(R_.grid.x);
+  let g0 = floor(g); let f = g - g0;
+  var c = vec3f(0.0); var w = 0.0;
+  for (var k = 0; k < 4; k++) {
+    let o = vec2f(f32(k & 1), f32(k >> 1u));
+    let wk = select(1.0 - f.x, f.x, o.x > 0.5) * select(1.0 - f.y, f.y, o.y > 0.5);
+    let q = g0 + o;
+    let t = volcType(u32(clamp(i32(q.y), 0, n - 1) * n + clamp(i32(q.x), 0, n - 1)), z);
+    if (t > 0.5) { c += volcCol(t, p) * wk; w += wk; }
+  }
+  if (w <= 0.0) { return vec4f(0.0); }
+  return vec4f(c / w, smoothstep(0.2, 0.6, w));
+}
+`;
+
 const TERRAIN_DATA = /* wgsl */ `
 @group(0) @binding(1) var<storage, read> bedrock: array<f32>;
 @group(0) @binding(2) var<storage, read> soil: array<f32>;
@@ -191,11 +232,14 @@ const TERRAIN_DATA = /* wgsl */ `
 @group(0) @binding(8) var<storage, read> height0: array<f32>;
 @group(0) @binding(9) var<storage, read> windF: array<vec4f>;   // sim/wind.js: (.., .., local wind speed, shelter)
 @group(0) @binding(10) var<storage, read> glacier: array<vec4f>; // sim/glacier.js: (ice m, debris m, speed m/yr, ..)
+@group(0) @binding(11) var<storage, read> volcRock: array<vec4f>; // sim/volcano.js: unit bases, unit types
+@group(0) @binding(12) var<storage, read> lava: array<vec4f>;     // sim/volcano.js: (molten m, temperature, afterglow, ..)
+${VOLC_DATA}
 fn gi(x: i32, y: i32) -> u32 {
   let n = i32(R_.grid.x);
   return u32(clamp(y, 0, n - 1) * n + clamp(x, 0, n - 1));
 }
-fn dispH(i: u32) -> f32 { return bedrock[i] + soil[i] + snowSWE[i] / 0.33 + glacier[i].x; }
+fn dispH(i: u32) -> f32 { return bedrock[i] + soil[i] + snowSWE[i] / 0.33 + glacier[i].x + lava[i].x; }
 `;
 
 export const TERRAIN = UNIFORMS + COMMON + TERRAIN_DATA + /* wgsl */ `
@@ -211,6 +255,7 @@ struct VO {
   @location(7) m5: vec4f,   // moisture memory, sediment bed thickness (sqrt(t/16 m)), top bed grain, top bed hash
   @location(8) m6: vec2f,   // local wind speed, shelter (0 = in the lee), sim/wind.js
   @location(9) m7: vec4f,   // glacier ice thickness (m), debris (m), ice speed (m/yr), ice surface slope (tan)
+  @location(10) m8: vec4f,  // molten lava depth (m), its temperature 0..1, afterglow of fresh rock 0..1, unused
 };
 @vertex fn vs(@builtin(vertex_index) vi: u32) -> VO {
   let n = u32(R_.grid.x);
@@ -245,6 +290,8 @@ struct VO {
   o.m6 = windF[i].zw;
   let gk = glacier[i];
   o.m7 = vec4f(gk.x, gk.y, gk.z, length(vec2f(hr - hl, hb - ht)) / (2.0 * dx));
+  let lv = lava[i];
+  o.m8 = vec4f(lv.x, select(0.0, lv.y, lv.x > 0.01), lv.z, 0.0);
   return o;
 }
 
@@ -361,6 +408,9 @@ fn overlay(mode: i32, m0: vec4f, m1: vec4f, m3: vec2f, m4: vec4f, m5: vec4f, m6:
   let stc = strataRock(ground - soilD, i.m2.yz);
   rockC = mix(rockC, stc.rgb * (0.85 + 0.3 * nz), stc.a * 0.85);
   rockC = rockC * (0.8 + 0.3 * band2 * bandStr + 0.25 * (nzf - 0.5));
+  // Volcanic rock (sim/volcano.js) on top of the beds: black basalt, red-black cinders, the plug.
+  let vrc = volcRockColor(ground - soilD, i.m2.yz, p2);
+  rockC = mix(rockC, vrc.rgb, vrc.a);
   // --- Loose material: talus on steep slopes, soil on gentle ground.
   let steep = smoothstep(0.35, 0.75, slopeTan);
   var looseC = mix(R_.soilC.rgb, R_.talus.rgb, steep);
@@ -450,6 +500,11 @@ fn overlay(mode: i32, m0: vec4f, m1: vec4f, m3: vec2f, m4: vec4f, m5: vec4f, m6:
   let snowC = srgb(vec3f(0.93, 0.95, 0.98));
   albedo = mix(albedo, snowC, snowCov);
 
+  // --- Lava (sim/volcano.js): a black, ropy crust over the moving flow.
+  let lavaCov = smoothstep(0.02, 0.3, i.m8.x);
+  let rope = vnoise(p2 * vec2f(0.6, 0.25)) * 0.5 + vnoise(p2 * 2.4) * 0.5;
+  albedo = mix(albedo, srgb(vec3f(0.07, 0.065, 0.07)) * (0.7 + 0.6 * rope), lavaCov);
+
   // --- Lighting.
   let L = normalize(R_.sunDir.xyz);
   let sunVis = i.m1.y;
@@ -481,7 +536,15 @@ fn overlay(mode: i32, m0: vec4f, m1: vec4f, m3: vec2f, m4: vec4f, m5: vec4f, m6:
   col = applyHaze(col, wp);
   var outc = tonemap(col);
   // --- Overlay, blended in display space so colours match the legend.
-  let ov = overlay(i32(R_.skyZenith.w), i.m0, i.m1, i.m3, i.m4, i.m5, i.m6, i.m7);
+  var ov = overlay(i32(R_.skyZenith.w), i.m0, i.m1, i.m3, i.m4, i.m5, i.m6, i.m7);
+  if (i32(R_.skyZenith.w) == 11) { // volcanic rock: basalt, cinders, plug; molten and fresh-hot lava on top
+    let ix = vec2i(round(i.m2.yz));
+    let n = i32(R_.grid.x);
+    let vt = volcType(u32(clamp(ix.y, 0, n - 1) * n + clamp(ix.x, 0, n - 1)), ground - soilD);
+    if (vt > 0.5) { ov = vec4f(select(select(vec3f(0.55, 0.20, 0.70), vec3f(0.90, 0.30, 0.15), vt < 2.5), vec3f(0.20, 0.24, 0.45), vt < 1.5), 0.9); }
+    if (i.m8.z > 0.05) { ov = vec4f(mix(ov.rgb, vec3f(1.0, 0.25, 0.1), i.m8.z), max(ov.a, i.m8.z)); }
+    if (lavaCov > 0.0 && i.m8.y > 0.15) { ov = vec4f(1.0, 0.65, 0.1, lavaCov); }
+  }
   if (i32(R_.skyZenith.w) > 0) {
     // Mute the natural colours so the overlay reads clearly.
     let g = dot(outc, vec3f(0.3, 0.55, 0.15));
@@ -493,6 +556,14 @@ fn overlay(mode: i32, m0: vec4f, m1: vec4f, m3: vec2f, m4: vec4f, m5: vec4f, m6:
   }
   // ---- Fire: glowing front, embers in the fresh scar ----
   let tt = R_.camPos.w;
+  // ---- Lava: glowing cracks in the crust, bright where it is hottest; freshly set rock still glows dull red ----
+  let heat = max(i.m8.y * lavaCov, 0.35 * i.m8.z);
+  if (heat > 0.01) {
+    let cr = 1.0 - smoothstep(0.0, 0.08 + 0.3 * heat, crackDist(p2 * 0.09 + vec2f(tt * 0.004, 0.0)));
+    let glowC = mix(vec3f(0.60, 0.05, 0.01), vec3f(1.0, 0.62, 0.14), smoothstep(0.35, 0.95, heat));
+    let fl = 0.8 + 0.2 * vnoise(p2 * 0.2 + vec2f(tt * 0.7, -tt * 0.4));
+    outc = outc * (1.0 - 0.5 * heat * cr) + glowC * (cr * 1.3 + smoothstep(0.8, 1.0, heat) * 0.5) * heat * fl;
+  }
   if (fire > 0.02) {
     let fl = vnoise(p2 * 0.09 + vec2f(tt * 0.9, -tt * 1.3)) * 0.6 + vnoise(p2 * 0.35 - vec2f(tt * 2.1, tt * 1.7)) * 0.4;
     let g = fire * (0.45 + 0.9 * fl);
@@ -550,6 +621,8 @@ export const SKIRT = UNIFORMS + COMMON + /* wgsl */ `
 @group(0) @binding(1) var<storage, read> bedrock: array<f32>;
 @group(0) @binding(2) var<storage, read> soil: array<f32>;
 @group(0) @binding(3) var<storage, read> deposit: array<vec4f>;
+@group(0) @binding(4) var<storage, read> volcRock: array<vec4f>;
+${VOLC_DATA}
 struct VO {
   @builtin(position) pos: vec4f, @location(0) wpos: vec3f, @location(1) info: vec3f, @location(2) nrm: vec3f, @location(3) gxy: vec2f,
   @location(4) ek: f32,                              // position along the edge, in cells
@@ -629,6 +702,21 @@ fn bedAt(i: u32, depth: f32, soilD: f32, y: f32, along: f32) -> vec4f {
   var c = mix(R_.rock.rgb, R_.rock2.rgb, band * max(R_.rock.w, 0.35)) * 0.8;
   let stc = strataRock(y, i.gxy);
   c = mix(c, stc.rgb * 0.8, stc.a * 0.9);
+  // Volcanic rock on top of the beds, from the two nearest columns (so flows pinch out smoothly)
+  {
+    let n = u32(R_.grid.x);
+    let k0 = min(u32(max(floor(i.ek), 0.0)), n - 1u);
+    let f = clamp(i.ek - f32(k0), 0.0, 1.0);
+    let tL = volcType(edgeCell(i.edge, k0), y); let tR = volcType(edgeCell(i.edge, min(k0 + 1u, n - 1u)), y);
+    let wL = select(0.0, 1.0 - f, tL > 0.5); let wR = select(0.0, f, tR > 0.5);
+    if (wL + wR > 0.0) {
+      let q = vec2f(i.wpos.x + i.wpos.z, y * 3.0);
+      let vcol = (volcCol(max(tL, 0.5), q) * wL + volcCol(max(tR, 0.5), q) * wR) / (wL + wR);
+      // columnar joints in the basalt
+      let cols = select(1.0, 0.8 + 0.2 * smoothstep(0.1, 0.25, abs(fract((i.wpos.x + i.wpos.z) / 4.0) - 0.5)), max(tL, tR) < 1.5);
+      c = mix(c, vcol * 0.85 * cols, smoothstep(0.0, 0.6, wL + wR));
+    }
+  }
   // Soil layer sits on top of bedrock (exaggerated a little so thin soils stay visible).
   if (y > b - 0.3) { c = R_.soilC.rgb * 0.9; }
   // Sediment beds on top of the soil, youngest at the top: the stacks of the two nearest columns,
@@ -1110,4 +1198,71 @@ const SEG: u32 = 40u;
   if (a < 0.004) { discard; }
   c = applyHaze(c, i.wpos);
   return vec4f(tonemap(c), clamp(a, 0.0, 0.95));
+}`;
+
+
+// Eruption plume over each active vent (sim/volcano.js): glowing lava bombs thrown out of the crater
+// and falling back, and a column of ash and steam rising and drifting off with the wind.
+// PLUME_PUFFS billboards per vent; the first 16 are the lava fountain.
+export const PLUME_PUFFS = 56;
+export const PLUME = UNIFORMS + COMMON + /* wgsl */ `
+struct VO {
+  @builtin(position) pos: vec4f,
+  @location(0) q: vec2f,
+  @location(1) a: vec4f,      // alpha, phase, seed, kind (1 = lava bomb)
+  @location(2) wpos: vec3f,
+};
+fn hh(n: u32) -> f32 { return fract(sin(f32(n) * 12.9898 + 78.233) * 43758.5453); }
+@vertex fn vs(@builtin(vertex_index) vi: u32, @builtin(instance_index) ii: u32) -> VO {
+  let v = R_.vent[ii];
+  let k = vi / 6u; let cr = vi % 6u;
+  let qs = array<vec2f, 6>(vec2f(-1.0, -1.0), vec2f(1.0, -1.0), vec2f(1.0, 1.0), vec2f(-1.0, -1.0), vec2f(1.0, 1.0), vec2f(-1.0, 1.0));
+  let q = qs[cr];
+  let h = hh(ii * 131u + k * 7u);
+  let t = R_.camPos.w;
+  let vex = R_.sunColor.w;
+  let wind = vec2f(R_.camRight.w, R_.camUp.w);
+  var c = vec3f(v.x, v.z, v.y);
+  var size = 0.0; var alpha = 0.0; var kind = 0.0; var ph = 0.0;
+  if (k < 16u) {
+    ph = fract(t * (0.35 + 0.3 * h) + h * 7.0);
+    let ang = h * 40.0;
+    let sp = 0.3 + 0.7 * hh(k * 19u + ii + 3u);
+    c += vec3f(cos(ang) * sp * 70.0 * ph, 4.0 * 140.0 * sp * ph * (1.0 - ph) * vex, sin(ang) * sp * 70.0 * ph);
+    size = 4.0 + 5.0 * h;
+    alpha = v.w * (1.0 - 0.6 * ph);
+    kind = 1.0;
+  } else {
+    ph = fract(t * 0.045 + h + f32(k) / ${PLUME_PUFFS}.0);
+    let drift = pow(ph, 1.4) * 1100.0;
+    c += vec3f(wind.x * drift + (h - 0.5) * 120.0 * ph, ph * 1300.0 * vex, wind.y * drift + (hh(k * 3u + ii) - 0.5) * 120.0 * ph);
+    size = (35.0 + 280.0 * ph) * (0.7 + 0.6 * h);
+    alpha = v.w * (1.0 - ph) * smoothstep(0.0, 0.06, ph) * 0.7;
+  }
+  let wp = c + R_.camRight.xyz * q.x * size + R_.camUp.xyz * q.y * size;
+  var o: VO;
+  o.pos = R_.viewProj * vec4f(wp, 1.0);
+  o.q = q;
+  o.a = vec4f(alpha, ph, h, kind);
+  o.wpos = wp;
+  return o;
+}
+@fragment fn fs(i: VO) -> @location(0) vec4f {
+  let d = length(i.q);
+  if (i.a.w > 0.5) {
+    let a = i.a.x * (1.0 - smoothstep(0.25, 1.0, d));
+    if (a < 0.01) { discard; }
+    let c = mix(vec3f(1.0, 0.9, 0.55), vec3f(1.0, 0.35, 0.06), smoothstep(0.0, 0.8, d + 0.4 * i.a.y));
+    return vec4f(c, a);
+  }
+  let nz = vnoise(i.q * 2.0 + vec2f(i.a.z * 40.0, R_.camPos.w * 0.25));
+  let a = i.a.x * (1.0 - smoothstep(0.3, 1.0, d + (nz - 0.5) * 0.55));
+  if (a < 0.003) { discard; }
+  let sunI = R_.sunDir.w;
+  // dark ash low down, paler steam higher up, lit orange from below by the fountain
+  let ash = mix(srgb(vec3f(0.22, 0.21, 0.21)), srgb(vec3f(0.62, 0.61, 0.60)), smoothstep(0.1, 0.7, i.a.y) * (0.6 + 0.4 * nz));
+  var c = ash * (R_.sunColor.rgb * 1.5 * sunI + mix(R_.skyHorizon.rgb, R_.skyZenith.rgb, 0.5) * 0.6);
+  c = mix(c, srgb(vec3f(1.0, 0.42, 0.10)) * 2.2, (1.0 - smoothstep(0.0, 0.12, i.a.y)) * 0.6);
+  c = applyHaze(c, i.wpos);
+  return vec4f(tonemap(c), a);
 }`;

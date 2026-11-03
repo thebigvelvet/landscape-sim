@@ -21,6 +21,8 @@
 //            (1 - fR, see scheduler.js) is logged as fast outflow like any other runoff.
 //   Wildfire sets the plants inside the circle on fire (vegetation.ignite). Dry fuel nearby can
 //            catch; the fire runs uphill and downwind for a few seconds, then dies down.
+//   Volcano  opens a vent at the click: a year (default) of cinders building a cone and lava pouring
+//            out at its foot (volcano.erupt, see sim/volcano.js). Intensity scales both.
 import { COMMON_WGSL, makeKernel, dispatchGrid } from './common.js';
 
 export const EVENT_DEFAULTS = {
@@ -28,8 +30,9 @@ export const EVENT_DEFAULTS = {
   drought: { radius: 0, intensity: 1, days: 5 * 365, pMul: 0.3, etMul: 1.3, dT: 1.5 },
   flood: { radius: 4, intensity: 1, days: 0.5, peak: 150 },           // m3/s
   wildfire: { radius: 12, intensity: 1, days: 0 },
+  volcano: { radius: 3, intensity: 1, days: 365 },
 };
-export const EVENT_TYPES = ['storm', 'drought', 'flood', 'wildfire'];
+export const EVENT_TYPES = ['storm', 'drought', 'flood', 'wildfire', 'volcano'];
 
 const FLOOD_WGSL = /* wgsl */`
 ${COMMON_WGSL}
@@ -105,7 +108,7 @@ export class Events {
     }
   }
 
-  get active() { return this.storms.length > 0 || this.floods.length > 0 || !!this.drought || this.fireWeather > 0.02; }
+  get active() { return this.storms.length > 0 || this.floods.length > 0 || !!this.drought || this.fireWeather > 0.02 || !!this.volcano?.erupting; }
   droughtInfo() { return this.drought ? { yearsLeft: this.drought.left / 365, years: this.drought.days / 365 } : null; }
 
   // Fraction of the batch [0, D) covered by an event with `left` days remaining.
@@ -192,6 +195,13 @@ export class Events {
       this.fireWeather = Math.min(1.5, 0.8 + 0.4 * I);
       const a = Math.random() * Math.PI * 2;
       this.wind = this.prevailing ? [...this.prevailing] : [Math.cos(a), Math.sin(a)];
+    } else if (type === 'volcano') {
+      this.volcano = ctx.volcano;
+      // the brush ring is the cone's footprint; the throat is a small share of it
+      const e = ctx.volcano.erupt(x, y, { id, radius: def.radius, intensity: I, days: o.days ?? def.days }, ctx.readLayer);
+      ev.r = Math.max(4, (1.25 * e.Hfinal / 0.58) / this.world.cellSize);
+      ev.coneHeight = e.Hfinal; ev.cinders = e.cinders; ev.lava = e.lava; ev.days = e.days;
+      ev.ready = e.ready;
     }
     this.log.push(ev);
     if (this.log.length > 24) this.log.shift();
@@ -210,6 +220,7 @@ export class Events {
   remaining(id) {
     const s = this.storms.find((q) => q.id === id); if (s) return s.left;
     const f = this.floods.find((q) => q.id === id); if (f) return f.days - f.t;
+    if (this.volcano) return this.volcano.remaining(id);
     return 0;
   }
 }

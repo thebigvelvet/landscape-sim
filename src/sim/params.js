@@ -42,6 +42,17 @@ export const PARAM_FIELDS = [
   ['s3x', 'f32'], ['s3y', 'f32'], ['s3r', 'f32'], ['s3a', 'f32'],
   ['f0x', 'f32'], ['f0y', 'f32'], ['f0r', 'f32'], ['f0d', 'f32'],
   ['f1x', 'f32'], ['f1y', 'f32'], ['f1r', 'f32'], ['f1d', 'f32'],
+  // volcanoes (sim/volcano.js): lava flow iterations this batch, seconds of lava time per iteration,
+  // yield depth (m), viscosity (Pa s); then 2 vents: centre (cells), throat radius (cells), cone height
+  // before and after this batch (m), lava source centre and radius (cells), lava added per source
+  // cell per iteration (m)
+  ['volcOn', 'f32'], ['lavaK', 'f32'], ['lavaDt', 'f32'], ['lavaYield', 'f32'],
+  ['lavaVisc', 'f32'], ['coneTan', 'f32'], ['volcP0', 'f32'], ['volcP1', 'f32'],
+  ['v0x', 'f32'], ['v0y', 'f32'], ['v0r', 'f32'], ['v0h0', 'f32'],
+  ['v0h1', 'f32'], ['v0lx', 'f32'], ['v0ly', 'f32'], ['v0lr', 'f32'],
+  ['v0ld', 'f32'], ['v1x', 'f32'], ['v1y', 'f32'], ['v1r', 'f32'],
+  ['v1h0', 'f32'], ['v1h1', 'f32'], ['v1lx', 'f32'], ['v1ly', 'f32'],
+  ['v1lr', 'f32'], ['v1ld', 'f32'], ['volcP2', 'f32'], ['volcP3', 'f32'],
   // rock layers (sim/strata.js): on/off, top of the stack (m, bedrock frame), dip, monocline, fold
   ...STRATA_PARAM_FIELDS.map((n) => [n, 'f32']),
   // bed table: (base depth m, erode, weather, cliffTan) per bed; must stay last

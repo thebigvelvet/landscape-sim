@@ -22,7 +22,7 @@ const deg = (t) => (Math.atan(t) * 180) / Math.PI;
 // load a map, then replace its ground by a gently tilted plate under `sand` m of loose sand
 // (top bed grain `grain`, gravel 1.0 makes a pavement); returns the starting heights
 async function sandSheet(preset, { sand = 4, grain = 0.62, capGravel = 0 } = {}) {
-  sim.pause(); await sim.load('random', { size: 256, seed: 5, preset }); sim.pause();
+  sim.pause(); await sim.load('random', { size: 256, seed: 5, preset, volcanoes: false }); sim.pause();
   const N = e.N, q = e.device.queue, B = e.world.buffers;
   let rng = 99; const rnd = () => { rng = (rng * 1664525 + 1013904223) >>> 0; return rng / 4294967296; };
   const br = new Float32Array(N * N), so = new Float32Array(N * N), h0 = new Float32Array(N * N), dep = new Float32Array(N * N * 16);

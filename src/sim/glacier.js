@@ -28,7 +28,7 @@
 // Moraines (finish, once per batch): debris released by melting is laid down as soil, plus a coarse
 // "till" sediment bed. It piles up where the ice front stays put (end moraines) and along the
 // melting margins (lateral moraines). Trees cannot grow under the ice.
-import { COMMON_WGSL, makeKernel, dispatchGrid } from './common.js';
+import { COMMON_WGSL, ROCK_WGSL, makeKernel, dispatchGrid } from './common.js';
 import { DEPOSIT_WGSL } from './deposits.js';
 
 export const GLACIER_PARAMS = {
@@ -134,7 +134,9 @@ ${COMMON_WGSL}
 @group(0) @binding(4) var<storage, read> delta : array<vec4<f32>>;
 @group(0) @binding(5) var<storage, read_write> deposit : array<vec4<f32>>;
 @group(0) @binding(6) var<storage, read_write> acc : array<vec4<f32>>;
+@group(0) @binding(7) var<storage, read> volcRock : array<vec4<f32>>;
 ${DEPOSIT_WGSL}
+${ROCK_WGSL}
 
 @compute @workgroup_size(16, 16)
 fn main(@builtin(global_invocation_id) gid : vec3<u32>) {
@@ -224,11 +226,11 @@ class Glaciers {
     this.world = world;
     const B = world.buffers, prm = world.params.buffer;
     this.kg = makeKernel(device, 'glacier.gather', GATHER_WGSL, ['r', 'r', 'r', 'r', 'rw']);
-    this.ka = makeKernel(device, 'glacier.apply', APPLY_WGSL, ['rw', 'rw', 'rw', 'r', 'rw', 'rw']);
+    this.ka = makeKernel(device, 'glacier.apply', APPLY_WGSL, ['rw', 'rw', 'rw', 'r', 'rw', 'rw', 'r']);
     this.kf = makeKernel(device, 'glacier.finish', FINISH_WGSL, ['rw', 'rw', 'rw', 'rw', 'rw']);
     // thermalDelta is free scratch here: erosion's thermal step, wind and avalanches are done with it
     this.gBG = this.kg.bind(prm, [B.bedrock, B.soil, B.snowSWE, B.glacier, B.thermalDelta]);
-    this.aBG = this.ka.bind(prm, [B.bedrock, B.soil, B.glacier, B.thermalDelta, B.deposit, B.acc]);
+    this.aBG = this.ka.bind(prm, [B.bedrock, B.soil, B.glacier, B.thermalDelta, B.deposit, B.acc, B.volcRock]);
     this.fBG = this.kf.bind(prm, [B.soil, B.glacier, B.deposit, B.veg, B.plant]);
   }
   // flow iterations for a batch of D days. Ice moves at most about a cell per iteration, so a fast

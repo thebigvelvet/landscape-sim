@@ -22,7 +22,7 @@
 // Runoff is split: the fraction fR that the hydraulic solver can carry at its routing intensity
 // is added to the surface water layer; the rest is "fast runoff" (event flow that leaves the basin
 // within the frame) and is logged as outflow, so the water balance stays exact at every speed.
-import { COMMON_WGSL, makeKernel, dispatchGrid } from './common.js';
+import { COMMON_WGSL, ROCK_WGSL, makeKernel, dispatchGrid } from './common.js';
 import { CLIMATE_WGSL } from './climate.js';
 import { SNOW_WGSL } from './snow.js';
 import { FREEZETHAW_WGSL } from './freezethaw.js';
@@ -45,6 +45,8 @@ ${WATER_VERTICAL_WGSL}
 @group(0) @binding(9) var<storage, read> burn : array<f32>;
 @group(0) @binding(10) var<storage, read_write> plant : array<vec4<f32>>;
 @group(0) @binding(11) var<storage, read_write> glacier : array<vec4<f32>>;
+@group(0) @binding(12) var<storage, read> volcRock : array<vec4<f32>>;
+${ROCK_WGSL}
 
 // m: moisture memory (groundwater fill smoothed over ~1 year) that plants respond to
 // ice: glacier ice thickness (m); deb: rock debris on/in it (m), which slows the melt
@@ -234,8 +236,8 @@ class ColumnKernel {
     if (this.world === world && this.k) return;
     this.device = device; this.world = world;
     const B = world.buffers;
-    this.k = makeKernel(device, 'column', COLUMN_WGSL(), ['rw', 'rw', 'rw', 'rw', 'rw', 'r', 'rw', 'rw', 'r', 'rw', 'rw']);
-    this.bg = this.k.bind(world.params.buffer, [B.bedrock, B.soil, B.water, B.snowSWE, B.frostDepth, B.veg, B.groundwater, B.acc, B.burn, B.plant, B.glacier]);
+    this.k = makeKernel(device, 'column', COLUMN_WGSL(), ['rw', 'rw', 'rw', 'rw', 'rw', 'r', 'rw', 'rw', 'r', 'rw', 'rw', 'r']);
+    this.bg = this.k.bind(world.params.buffer, [B.bedrock, B.soil, B.water, B.snowSWE, B.frostDepth, B.veg, B.groundwater, B.acc, B.burn, B.plant, B.glacier, B.volcRock]);
     this.lastFrame = -1;
   }
   record(pass) {

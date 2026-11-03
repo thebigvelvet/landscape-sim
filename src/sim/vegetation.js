@@ -27,6 +27,9 @@
 //   soil    trees 15% on bare rock -> 100% at 0.6 m; grasses 12% -> 100% at 0.15 m (the Ecologist's
 //           35%/45% looked like green mountainsides in the Showman renderer)
 //   cliffs, channels, lakes and glaciers stay bare
+//   volcanic soil: where the rock under the soil is basalt, cinders or plug and at least 0.2 m of
+//           soil has formed on it, both caps are 1.3x higher and the cover regrows 1.3x faster
+//           (weathered volcanic rock makes rich soil). Fresh lava has no soil, so it stays barren.
 //   total V* = T* + G* (1 - T*), woody share W* = T* / V* (or desert shrubs where dry)
 //
 // Plants feed back on the rest of the model elsewhere: infiltration, transpiration and soil
@@ -37,7 +40,7 @@
 // day or two, which is a blink at every speed of the dial, so the front is animated over a few
 // seconds instead. Its consequences (lost cover, burn scar, extra runoff and erosion, regrowth)
 // all play out in simulated time.
-import { COMMON_WGSL, makeKernel, dispatchGrid } from './common.js';
+import { COMMON_WGSL, VOLC_WGSL, makeKernel, dispatchGrid } from './common.js';
 import { CLIMATE_WGSL } from './climate.js';
 
 export const VEG_PARAMS = {
@@ -129,6 +132,8 @@ ${CLIMATE_WGSL}
 @group(0) @binding(8) var<storage, read> snowSWE : array<f32>;
 @group(0) @binding(9) var<storage, read_write> temp : array<f32>;
 @group(0) @binding(10) var<storage, read> spring : array<f32>;
+@group(0) @binding(11) var<storage, read> volcRock : array<vec4<f32>>;
+${VOLC_WGSL}
 
 fn H(x : i32, y : i32) -> f32 { let j = idxc(x, y); return bedrock[j] + soil[j]; }
 
@@ -182,8 +187,10 @@ fn main(@builtin(global_invocation_id) gid : vec3<u32>) {
   let fWet = 1.0 - 0.9 * smoothstep(0.08, 0.5, water[i]);       // channel beds and lakes
   let fIce = 1.0 - smoothstep(1.0, 3.0, snowSWE[i]);
   let site = fSlope * fWet * fIce;
-  let cT = tT * smoothstep(0.18, 0.60, Wi) * sT * site;
-  let cG = tG * smoothstep(0.05, 0.70, Wi) * sG * site;
+  let volcanic = vrUnit(bedrock[i] - 0.01, volcRock[2u * i], volcRock[2u * i + 1u]) >= 0;
+  let fert = select(1.0, 1.0 + 0.3 * smoothstep(0.1, 0.2, so), volcanic);
+  let cT = min(tT * smoothstep(0.18, 0.60, Wi) * sT * site * fert, 1.0);
+  let cG = min(tG * smoothstep(0.05, 0.70, Wi) * sG * site * fert, 1.0);
   let vStar = clamp(cT + cG * (1.0 - cT), 0.0, 1.0);
   // woody share: trees where the site carries them, desert shrubs (sage, blackbrush) where dry
   let shrub = 0.55 * tG * (1.0 - smoothstep(0.25, 0.6, Wi)) * (0.4 + 0.6 * smoothstep(0.02, 0.3, so));
@@ -210,7 +217,7 @@ fn main(@builtin(global_invocation_id) gid : vec3<u32>) {
       W = W * exp(-0.08 * fire);
       B = max(B, clamp(fire * (0.35 + 0.65 * smoothstep(0.05, 0.6, fuel0)), 0.0, 1.0));
     }
-    let r = select(${'$'}{DIE}, ${'$'}{GROW} * (0.3 + 0.7 * fWarm), V < vStar);
+    let r = select(${'$'}{DIE}, ${'$'}{GROW} * (0.3 + 0.7 * fWarm) * fert, V < vStar);
     let kk = r + mu;
     let vEq = r * vStar / max(kk, 1e-9);
     V = vEq + (V - vEq) * exp(-kk * t);
@@ -261,10 +268,10 @@ class VegetationModule {
     this.device = device; this.world = world;
     const B = world.buffers, prm = world.params.buffer;
     this.kf = makeKernel(device, 'veg.fire', FIRE_WGSL, ['r', 'r', 'r', 'r', 'r', 'rw', 'r']);
-    this.kg = makeKernel(device, 'veg.grow', fill(GROW_WGSL), ['rw', 'rw', 'rw', 'r', 'r', 'r', 'r', 'r', 'rw', 'r']);
+    this.kg = makeKernel(device, 'veg.grow', fill(GROW_WGSL), ['rw', 'rw', 'rw', 'r', 'r', 'r', 'r', 'r', 'rw', 'r', 'r']);
     this.ki = makeKernel(device, 'veg.ignite', IGNITE_WGSL, ['r', 'rw']);
     this.bf = this.kf.bind(prm, [B.veg, B.plant, B.snowSWE, B.bedrock, B.soil, B.fireNext, B.water]);
-    this.bg = this.kg.bind(prm, [B.veg, B.burn, B.plant, B.fireNext, B.bedrock, B.soil, B.water, B.snowSWE, B.temp, B.spring]);
+    this.bg = this.kg.bind(prm, [B.veg, B.burn, B.plant, B.fireNext, B.bedrock, B.soil, B.water, B.snowSWE, B.temp, B.spring, B.volcRock]);
     this.iub = device.createBuffer({ size: 32, usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST, label: 'ignite' });
     this.bi = this.ki.bind(this.iub, [B.veg, B.plant]);
   }

@@ -110,10 +110,111 @@ function smooth(h, N, passes = 1) {
   }
 }
 
+// initial soil: thick on gentle ground, thin on steep, none on cliffs
+function soilFor(height, N, cellSize) {
+  const soil = new Float32Array(N * N);
+  for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) {
+    const i = y * N + x;
+    const zx = (height[y * N + Math.min(N - 1, x + 1)] - height[y * N + Math.max(0, x - 1)]) / (2 * cellSize);
+    const zy = (height[Math.min(N - 1, y + 1) * N + x] - height[Math.max(0, y - 1) * N + x]) / (2 * cellSize);
+    const sl = Math.hypot(zx, zy);
+    soil[i] = Math.max(0, 1.5 * (1 - Math.min(1, sl / 0.9))) + 0.05;
+  }
+  return soil;
+}
+
+// Old volcanoes (about 1 random map in 3): a worn-down cinder cone with its throat plugged by hard
+// lava, and one to three basalt flows that once ran down the valleys from its foot. They come with
+// their rock (world.volcRock, see ROCK_WGSL in sim/common.js), so the soft cinders wash off and the
+// hard basalt and plug stand up as the map erodes: lava-capped ridges and a volcanic neck.
+// Adds to height in place; returns { volcRock, info } or null. Its own random stream, so maps
+// without volcanoes are exactly as before.
+function oldVolcanoes(height, N, cellSize, seed, noise) {
+  const rnd = mulberry32(seed * 31337 + 5);
+  if (rnd() > 0.35) return null;
+  const count = rnd() < 0.7 ? 1 : 2;
+  const rockTop = soilFor(height, N, cellSize).map((s, i) => height[i] - s);   // bedrock frame for the unit bases
+  const vr = new Float32Array(N * N * 8);
+  const at = (x, y) => height[Math.min(N - 1, Math.max(0, Math.round(y))) * N + Math.min(N - 1, Math.max(0, Math.round(x)))];
+  const unit = (i, base, type) => {
+    const c = 8 * i;
+    let n = 0;
+    while (n < 4 && vr[c + 4 + n] > 0.5) n++;
+    if (n > 0 && vr[c + 4 + n - 1] === type) return;
+    if (n < 4) { vr[c + n] = base; vr[c + 4 + n] = type; }
+  };
+  const info = [];
+  for (let v = 0; v < count; v++) {
+    // cones sit low: on plains and valley sides, not on the peaks
+    let vx = 0, vy = 0, best = Infinity;
+    for (let k = 0; k < 6; k++) {
+      const x = N * (0.2 + 0.6 * rnd()), y = N * (0.2 + 0.6 * rnd());
+      if (at(x, y) < best) { best = at(x, y); vx = x; vy = y; }
+    }
+    const s = 0.45;                                   // worn flanks
+    const Hc = 50 + 110 * rnd();                      // what is left of the cone (m)
+    const rr = 0.25 * Hc / s;
+    // lava flows: from the foot of the cone, down the steepest way with some wander
+    const nFlows = 1 + Math.floor(rnd() * 3);
+    const add = new Float32Array(N * N);
+    for (let f = 0; f < nFlows; f++) {
+      let dir = rnd() * 2 * Math.PI, lowest = Infinity;
+      for (let k = 0; k < 24; k++) {
+        const a = (k / 24) * 2 * Math.PI, z = at(vx + Math.cos(a) * 30, vy + Math.sin(a) * 30) + 40 * rnd();
+        if (z < lowest) { lowest = z; dir = a; }
+      }
+      const R0 = (1.25 * Hc / s) / cellSize;
+      let x = vx + Math.cos(dir) * R0 * 0.8, y = vy + Math.sin(dir) * R0 * 0.8;
+      let hx = Math.cos(dir), hy = Math.sin(dir);
+      const len = Math.round((600 + 1400 * rnd()) / cellSize);
+      const th = 8 + 12 * rnd(), w = (25 + 25 * rnd()) / cellSize;
+      for (let k = 0; k < len; k++) {
+        // steer downhill (with momentum), like the lava did
+        let gx = (at(x + 2, y) - at(x - 2, y)) / 4, gy = (at(x, y + 2) - at(x, y - 2)) / 4;
+        const g = Math.hypot(gx, gy) || 1;
+        hx = 0.8 * hx - 0.2 * gx / g + 0.08 * (rnd() - 0.5); hy = 0.8 * hy - 0.2 * gy / g + 0.08 * (rnd() - 0.5);
+        const hl = Math.hypot(hx, hy) || 1; hx /= hl; hy /= hl;
+        x += hx; y += hy;
+        if (x < 3 || y < 3 || x > N - 4 || y > N - 4) break;
+        const t = th * (1 - 0.4 * k / len), ww = w * (1 + 0.6 * k / len);
+        const W = Math.ceil(ww) + 1;
+        for (let dy = -W; dy <= W; dy++) for (let dx = -W; dx <= W; dx++) {
+          const X = Math.round(x) + dx, Y = Math.round(y) + dy;
+          if (X < 0 || Y < 0 || X >= N || Y >= N) continue;
+          const d = Math.hypot(X - x, Y - y) / ww;
+          if (d >= 1) continue;
+          const i = Y * N + X;
+          add[i] = Math.max(add[i], t * (1 - d ** 6));
+        }
+      }
+    }
+    for (let i = 0; i < N * N; i++) if (add[i] > 0.5) { unit(i, rockTop[i], 1); height[i] += add[i]; rockTop[i] += add[i]; }
+    // the cone, gullied, with a filled-in crater; its throat is a plug of hard lava
+    const R = Math.ceil((Hc / s + rr) / cellSize) + 1, gul = 5 + Math.floor(rnd() * 5), ph = rnd() * 7;
+    for (let y = Math.max(0, Math.floor(vy - R)); y <= Math.min(N - 1, Math.ceil(vy + R)); y++) {
+      for (let x = Math.max(0, Math.floor(vx - R)); x <= Math.min(N - 1, Math.ceil(vx + R)); x++) {
+        const rc = Math.hypot(x - vx, y - vy), r = rc * cellSize;
+        let dz = Math.max(0, Hc - s * Math.max(r - rr, 0)) * (0.92 + 0.08 * Math.cos(r / rr * 1.5));
+        const a = Math.atan2(y - vy, x - vx);
+        const g = 0.5 + 0.5 * Math.sin(a * gul + ph + 2 * noise(x / 9, y / 9));
+        dz *= 1 - 0.3 * g ** 4 * Math.min(1, r / (Hc / s));
+        if (dz < 0.5) continue;
+        const i = y * N + x;
+        if (rc <= 3) { vr.fill(0, 8 * i, 8 * i + 8); vr[8 * i] = rockTop[i] - 200; vr[8 * i + 4] = 3; }
+        else unit(i, rockTop[i], 2);
+        height[i] += dz; rockTop[i] += dz;
+      }
+    }
+    info.push({ x: vx, y: vy, cone_m: Hc, flows: nFlows });
+  }
+  return { volcRock: vr, info };
+}
+
 export const SCENARIOS = ['random', 'cone', 'valley'];
 
-// Returns { height, soil } Float32Arrays (metres above datum)
-export function generateTerrain(scenario, { N = 512, cellSize = 10, seed = 1, ruggedness = 0.5, relief = 1, preErode = true } = {}) {
+// Returns { height, soil, volcRock, volcanoInfo } (metres above datum); volcRock is null when the
+// map has no old volcanoes (volcanoes: false never adds any)
+export function generateTerrain(scenario, { N = 512, cellSize = 10, seed = 1, ruggedness = 0.5, relief = 1, preErode = true, volcanoes = false } = {}) {
   const L = N * cellSize;
   const height = new Float32Array(N * N);
   const noise = makeNoise(seed);
@@ -156,15 +257,8 @@ export function generateTerrain(scenario, { N = 512, cellSize = 10, seed = 1, ru
     const H = (700 + 900 * ruggedness) * relief;
     for (let i = 0; i < N * N; i++) height[i] = height[i] * H + 10;
   }
-  // initial soil: thick on gentle ground, thin on steep, none on cliffs
-  const soil = new Float32Array(N * N);
-  for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) {
-    const i = y * N + x;
-    const zx = (height[y * N + Math.min(N - 1, x + 1)] - height[y * N + Math.max(0, x - 1)]) / (2 * cellSize);
-    const zy = (height[Math.min(N - 1, y + 1) * N + x] - height[Math.max(0, y - 1) * N + x]) / (2 * cellSize);
-    const sl = Math.hypot(zx, zy);
-    soil[i] = Math.max(0, 1.5 * (1 - Math.min(1, sl / 0.9))) + 0.05;
-  }
+  const volc = scenario === 'random' && volcanoes ? oldVolcanoes(height, N, cellSize, seed, noise) : null;
+  const soil = soilFor(height, N, cellSize);
   for (let i = 0; i < N * N; i++) { if (!Number.isFinite(height[i])) height[i] = 0; if (!Number.isFinite(soil[i])) soil[i] = 0.5; }
-  return { height, soil };
+  return { height, soil, volcRock: volc?.volcRock ?? null, volcanoInfo: volc?.info ?? [] };
 }

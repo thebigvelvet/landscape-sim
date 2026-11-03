@@ -34,6 +34,7 @@ import { makeStrata, packStrata, STRATA_PARAM_FIELDS } from './strata.js';
 import { deposits, DEP_EPOCHS } from './deposits.js';
 import { wind, towardVector, WIND_PARAMS } from './wind.js';
 import { glacier, GLACIER_PARAMS } from './glacier.js';
+import { volcano } from './volcano.js';
 import { Stats } from './stats.js';
 
 export const A_CAP = 150;              // max routing intensity (x real-time runoff rate)
@@ -58,7 +59,7 @@ export class Simulation {
     this.frame = 0;
     this.carry = 0;
     this.hmax = 0.3;
-    this.cum = { precip: 0, outflow: 0, evap: 0, sedOut: 0 };
+    this.cum = { precip: 0, outflow: 0, evap: 0, sedOut: 0, erupted: 0 };
     this.consumed = 0;
     this._rb = Promise.resolve();
     this.lastPlan = {};
@@ -93,6 +94,7 @@ export class Simulation {
       deposits.init(this.device, this.world);
       wind.init(this.device, this.world);
       glacier.init(this.device, this.world);
+      volcano.init(this.device, this.world);
       this.events.init(this.device, this.world);
       sculptor.init(this.device, this.world);
       this.statsK = new Stats(this.device, this.world);
@@ -100,12 +102,13 @@ export class Simulation {
       this.nSub = Math.min(this.nSub, this.maxSub);
       this.onWorldChanged?.(this.world);
     }
-    const { height, soil } = generateTerrain(scenario, { N, cellSize, seed, ruggedness: this.ruggedness, relief: this.relief, preErode: opts.preErode !== false });
+    const volcanoes = opts.volcanoes ?? this.oldVolcanoes;
+    const { height, soil, volcRock, volcanoInfo } = generateTerrain(scenario, { N, cellSize, seed, ruggedness: this.ruggedness, relief: this.relief, preErode: opts.preErode !== false, volcanoes });
     const bedrock = new Float32Array(N * N);
     for (let i = 0; i < N * N; i++) bedrock[i] = height[i] - soil[i];
     const gw = new Float32Array(N * N);
     for (let i = 0; i < N * N; i++) gw[i] = 0.3 * gwCapacity(soil[i], this.climate.preset.gwMax);
-    this.world.upload({ bedrock, soil, groundwater: gw, initHeight: height });
+    this.world.upload({ bedrock, soil, groundwater: gw, initHeight: height, volcRock });
     this.datum = this.climate.preset.baseElevation;
     let mn = Infinity, mx = -Infinity, sum = 0;
     for (let i = 0; i < N * N; i++) { const h = height[i]; if (h < mn) mn = h; if (h > mx) mx = h; sum += h; }
@@ -113,16 +116,23 @@ export class Simulation {
     // a fresh rock stack for this landscape (same seed, same rocks); beds thicken with the relief slider
     this.strataInfo = makeStrata(seed, height, N, cellSize, Math.max(0.5, this.relief));
     this.strataPack = packStrata(this.strataInfo, true);
+    this.volcanoInfo = volcanoInfo;
+    if (volcanoInfo?.length) {
+      const flows = volcanoInfo.reduce((s, v) => s + v.flows, 0);
+      this.strataInfo.describe = this.strataInfo.describe.replace(/\.$/, '') +
+        `; ${volcanoInfo.length === 1 ? 'an old volcano' : `${volcanoInfo.length} old volcanoes`} with ${flows} basalt flow${flows === 1 ? '' : 's'}.`;
+    }
     // a readback started before this load (the frame loop asks for stats every few frames) must not
     // fold the old map's flux log into the new books: each load starts a new generation
     this.gen = (this.gen || 0) + 1;
     this.day = 0; this.frame = 0; this.carry = 0; this.hmax = 0.3; this.consumed = 0;
     this.depEpoch = 0; this.depEpochStart = 0;
-    this.cum = { precip: 0, outflow: 0, evap: 0, sedOut: 0 };
+    this.cum = { precip: 0, outflow: 0, evap: 0, sedOut: 0, erupted: 0 };
     this.climate.stormDaysLeft = 0;
     this.climate.resetWeather(seed);
     wind.reset(seed);
     glacier.hasIce = true;
+    volcano.reset();
     this.events.reset();
     sculptor.reset();
     this.world.params.set({ N, cellSize, cellArea: cellSize * cellSize, frame: 0, logSize: LOG_SIZE });
@@ -159,6 +169,8 @@ export class Simulation {
     const dm = this.events.climateMods(Dcol);
     cu.tSea += dm.dT; cu.pMean *= dm.pMul; cu.etMul *= dm.etMul;
     const ev = this.events.uniforms(Dcol, n, fR, dx * dx);
+    // volcanoes: this batch's cone growth and lava (advances the eruptions on the lava clock)
+    const vp = volcano.plan(Dcol);
     // rock layers: structure scalars into the plan, bed table straight into the param block
     const st = this.strataPack, stFields = {};
     STRATA_PARAM_FIELDS.forEach((name, i) => { stFields[name] = st.head[i]; });
@@ -186,8 +198,9 @@ export class Simulation {
       ...GLACIER_PARAMS, glacOn: glacier.enabled ? 1 : 0, glacK: glacier.iterations(Dcol),
       ...stFields,
       ...ev.fields,
+      ...vp.fields,
     };
-    return { plan, n, A, tau, dm, fastFloodM3: ev.fastFloodM3 };
+    return { plan, n, A, tau, dm, fastFloodM3: ev.fastFloodM3, eruptedM3: vp.eruptedM3 };
   }
 
   // Bring groundwater, snow, moisture memory and the plant cover close to equilibrium with the
@@ -220,7 +233,9 @@ export class Simulation {
     this.climate.advanceWeather(this.day, Dcol);
     // sediment beds: a new bed can start once per bedDays of sim time (about 2 s of watching)
     if (this.day - this.depEpochStart >= this.bedDays) { this.depEpoch++; this.depEpochStart = this.day; }
-    const { plan, n, A, tau, dm, fastFloodM3 } = this._plan(Dcol, Deros, nSub);
+    const { plan, n, A, tau, dm, fastFloodM3, eruptedM3 } = this._plan(Dcol, Deros, nSub);
+    // what the vents add to the map (cinders, lava), logged in float64 for the solids books
+    this.cum.erupted += eruptedM3;
     p.set(plan);
     p.upload();
     // wind: this batch's iterations (directions, gusts) go into their own small uniforms; fire and
@@ -248,6 +263,7 @@ export class Simulation {
     avalanche.record(pass);
     vegetation.record(pass);
     glacier.record(pass);          // after the plants, so nothing stays growing on the ice
+    volcano.record(pass);          // last: lava kills what grew under it and melts the ice
     this.statsK.recordAccumulate(pass);
     pass.end();
     this.device.queue.submit([enc.finish()]);
@@ -263,7 +279,9 @@ export class Simulation {
   // Paint a weather event (brush). type: storm | drought | flood | wildfire; x, y in grid cells.
   brush(type, opts = {}) {
     if (!this.world) throw new Error('load() first');
-    return this.events.add(type, opts, { vegetation });
+    const ev = this.events.add(type, opts, { vegetation, volcano, readLayer: (n) => this.readLayer(n) });
+    if (ev.type === 'volcano' && this.terrainRange) this.terrainRange.max = Math.max(this.terrainRange.max, (Number.isFinite(+opts.ground) ? +opts.ground : this.terrainRange.max) + ev.coneHeight);
+    return ev;
   }
 
   // Shape the ground with a brush (one dab; see sim/sculpt.js). op: raise | lower | smooth | flatten |
@@ -300,6 +318,11 @@ export class Simulation {
   // glaciers on/off (sim/glacier.js): snow turning to ice, ice flow and carving; on by default
   get glaciers() { return glacier.enabled; }
   set glaciers(v) { glacier.enabled = !!v; }
+
+  // old volcanoes in newly generated random maps (terrain.js); on by default, takes effect at the
+  // next load. The Volcano brush works either way.
+  oldVolcanoes = true;
+  get volcanoes() { return volcano; }
 
   // snow avalanches on/off (sim/snow.js); on by default
   get avalanches() { return avalanche.enabled; }
@@ -379,6 +402,7 @@ export class Simulation {
       this.consumed = frameAt;
       this.hmax = state.maxWater;
       glacier.hasIce = state.ice > 0;
+      volcano.hasLava = state.hotLava > 0 || volcano.erupting;
       this.lastState = state;
       return state;
     });
@@ -406,7 +430,8 @@ export class Simulation {
     const stored = (s.water + s.snow + s.groundwater + 0.9 * s.ice) * A;
     const c = this.cum;
     const err = c.precip - (stored - this.stored0) - c.outflow - c.evap;
-    const solidsErr = s.solidsChange * A + c.sedOut;   // should be ~0: solids only leave via the boundary
+    // should be ~0: solids only leave via the boundary and only arrive from volcanic vents
+    const solidsErr = s.solidsChange * A + c.sedOut - c.erupted;
     const cells = this.world.cells;
     return {
       day: this.day, year: this.day / 365,
@@ -423,6 +448,7 @@ export class Simulation {
       meanVeg: s.vegSum / cells, vegCoveredFrac: s.vegCovered / cells, burnedFrac: s.burned / cells,
       meanWoodyCover: s.woodySum / cells,
       totalIce_m3: s.ice * A, iceWater_m3: 0.9 * s.ice * A, glacierFrac: s.iceCells / cells,
+      cumErupted_m3: c.erupted, hotLavaCells: s.hotLava, erupting: volcano.erupting,
     };
   }
 }

@@ -35,6 +35,20 @@ export const LITHOLOGY = {
   basement: { name: 'Basement', hard: true, thick: 1e6, sd: 0, erode: 0.2, weather: 0.25, cliffTan: 4.0,
     colors: [[0.45, 0.38, 0.36]] },
 };
+// Volcanic rock (sim/volcano.js), keyed by the type code kept in world.volcRock. These sit on top of
+// the plateau stack wherever a volcano has built them, so they are looked up per cell, not by depth.
+//   Basalt: runny lava that set hard. Columnar joints hold sheer cliffs, and it shrugs off water,
+//           so old flows end up as caps on mesas and ridges (inverted topography).
+//   Cinders: loose, frothy scoria thrown out of the vent. Piles at ~32 deg and washes away easily.
+//   Plug: lava that set in the volcano's throat. Hardest of all; outlasts the cone as a neck.
+export const VOLCANIC = {
+  1: { key: 'basalt', name: 'Basalt lava', erode: 0.15, weather: 0.35, cliffTan: 4.5,
+    fresh: [0.10, 0.10, 0.11], old: [0.30, 0.25, 0.23] },
+  2: { key: 'cinders', name: 'Cinders (scoria)', erode: 3.5, weather: 2.2, cliffTan: 0.62,
+    fresh: [0.30, 0.12, 0.09], old: [0.52, 0.26, 0.18] },
+  3: { key: 'plug', name: 'Volcanic plug', erode: 0.1, weather: 0.25, cliffTan: 6.0,
+    fresh: [0.17, 0.16, 0.17], old: [0.27, 0.25, 0.25] },
+};
 const MEAN_BED = 15;   // rough mean bed thickness (m) of the mix below at scale 1
 const HARD = [['massiveSand', 0.5], ['thinSand', 0.3], ['limestone', 0.2]];
 const SOFT = [['redShale', 0.4], ['grayShale', 0.35], ['siltstone', 0.25]];

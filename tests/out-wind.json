@@ -2,7 +2,7 @@
   "checks": {
     "dunesForm": {
       "pass": true,
-      "relief_m": 29.96536636352539
+      "relief_m": 30.770687103271484
     },
     "dunesTravelDownwind": {
       "pass": true,
@@ -10,20 +10,20 @@
     },
     "slipFaces": {
       "pass": true,
-      "leeP90deg": 30.73863149155851,
-      "stossP90deg": 27.373570756862033
+      "leeP90deg": 30.814670041222033,
+      "stossP90deg": 27.34499476950094
     },
     "crestsAcrossSteadyWind": {
       "pass": true,
-      "alongShare": 0.5700289271587784,
-      "gradientAngleToWind": 31.892109715396465,
-      "coherence": 0.3170501762578099
+      "alongShare": 0.5704811731961095,
+      "gradientAngleToWind": 31.843497143020823,
+      "coherence": 0.31800225526224835
     },
     "booksSand": {
       "pass": true,
-      "solidsError_m3": -117.41299625858665,
-      "sedOut_m3": 6134515.474271808,
-      "balPct": -2.0253840944328064e-9
+      "solidsError_m3": -117.38568541035056,
+      "sedOut_m3": 6135768.1070208885,
+      "balPct": 3.264993948183484e-8
     },
     "linearDunesAlongWind": {
       "pass": true,
@@ -33,8 +33,8 @@
     },
     "directionDial": {
       "pass": true,
-      "alongShare": 0.5038902876272606,
-      "gradientAngleToWind": 42.51363458832756,
+      "alongShare": 0.5041144879192389,
+      "gradientAngleToWind": 42.28139544418096,
       "travelSouthCells": 10
     },
     "protectedSurfaces": {
@@ -55,17 +55,17 @@
     },
     "snowDrifts": {
       "pass": true,
-      "leeGain": 1.3489343299892096,
-      "exposedLoss": 0.24584202522469029,
+      "leeGain": 1.3489343638183844,
+      "exposedLoss": 0.2458419854087486,
       "leeCells": 30548,
       "exposedCells": 18872,
-      "balOn": 5.673007446219818e-7,
-      "snowOn_m3": 1593291.1708831787,
-      "snowOff_m3": 1558312.9331588745
+      "balOn": -1.002725496170757e-7,
+      "snowOn_m3": 1593291.1659240723,
+      "snowOff_m3": 1558312.9314422607
     },
     "booksSnow": {
       "pass": true,
-      "balPct": 5.673007446219818e-7
+      "balPct": -1.002725496170757e-7
     },
     "booksLandscape": {
       "pass": true,
@@ -91,18 +91,18 @@
   },
   "runs": {
     "steady": {
-      "relief": 29.96536636352539,
-      "leeP90deg": 30.73863149155851,
-      "stossP90deg": 27.373570756862033,
-      "leeMedDeg": 16.79930846503678,
-      "stossMedDeg": 14.332759384529298,
-      "crestAngleToWind": 31.892109715396465,
-      "coherence": 0.3170501762578099,
-      "alongShare": 0.5700289271587784,
+      "relief": 30.770687103271484,
+      "leeP90deg": 30.814670041222033,
+      "stossP90deg": 27.34499476950094,
+      "leeMedDeg": 16.852345367352182,
+      "stossMedDeg": 14.241694187527896,
+      "crestAngleToWind": 31.843497143020823,
+      "coherence": 0.31800225526224835,
+      "alongShare": 0.5704811731961095,
       "travelCells50yr": 10,
-      "solidsError_m3": -117.41299625858665,
-      "sedOut_m3": 6134515.474271808,
-      "balPct": -2.0253840944328064e-9,
+      "solidsError_m3": -117.38568541035056,
+      "sedOut_m3": 6135768.1070208885,
+      "balPct": 3.264993948183484e-8,
       "nan": false
     },
     "bimodal": {
@@ -116,14 +116,14 @@
       "alongShare": 0.04289623836335149
     },
     "north": {
-      "relief": 28.842158317565918,
-      "leeP90deg": 29.473574396952728,
-      "stossP90deg": 23.464429503061712,
-      "leeMedDeg": 15.86470046913142,
-      "stossMedDeg": 13.149521610680893,
-      "crestAngleToWind": 42.51363458832756,
-      "coherence": 0.08976039460168818,
-      "alongShare": 0.5038902876272606,
+      "relief": 28.977625846862793,
+      "leeP90deg": 29.505735293982465,
+      "stossP90deg": 23.519764107628173,
+      "leeMedDeg": 15.889523378184249,
+      "stossMedDeg": 13.138747785103574,
+      "crestAngleToWind": 42.28139544418096,
+      "coherence": 0.08684491964002816,
+      "alongShare": 0.5041144879192389,
       "travelCells50yr": 10
     },
     "protected": {
@@ -141,13 +141,13 @@
       "stack": "27 beds, dipping 0.4° to the S; a monocline drops them 444 m at up to 16°; a broad syncline arches them 11 m."
     },
     "snow": {
-      "leeGain": 1.3489343299892096,
-      "exposedLoss": 0.24584202522469029,
+      "leeGain": 1.3489343638183844,
+      "exposedLoss": 0.2458419854087486,
       "leeCells": 30548,
       "exposedCells": 18872,
-      "balOn": 5.673007446219818e-7,
-      "snowOn_m3": 1593291.1708831787,
-      "snowOff_m3": 1558312.9331588745
+      "balOn": -1.002725496170757e-7,
+      "snowOn_m3": 1593291.1659240723,
+      "snowOff_m3": 1558312.9314422607
     },
     "utah1000": {
       "solidsError_m3": -13.796360307605937,
@@ -172,7 +172,7 @@
   },
   "passed": 12,
   "total": 12,
-  "minutes": 0.3508,
+  "minutes": 0.35632833333313463,
   "gpuErrors": 0,
   "gpuFeatureStatusWebGPU": "enabled",
   "electron": "45.2.1",

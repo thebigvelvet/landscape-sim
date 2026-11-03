@@ -28,6 +28,10 @@
 //   wind               vec4 per cell: drifting-snow scratch, local wind speed and shelter (sim/wind.js).
 //   glacier            vec4 per cell: (ice thickness m, rock debris carried by the ice m, ice surface
 //                      speed m/yr, debris released by melting and waiting to be dropped m), sim/glacier.js.
+//   volcRock           8 floats per cell: the volcanic units on top of the old rock (bases, then type
+//                      codes), see ROCK_WGSL in sim/common.js and sim/volcano.js.
+//   lava               vec4 per cell: (molten lava depth m, its temperature 0..1, afterglow of freshly
+//                      set rock 0..1, unused), sim/volcano.js.
 //   statPartials, accPartials, fluxLog   reduction scratch / log ring.
 
 export const LAYERS = ['bedrock', 'soil', 'water', 'sediment', 'snowSWE', 'frostDepth', 'temp', 'velX', 'velY'];
@@ -57,6 +61,8 @@ export class World {
     mk('deposit', 16); // 8 sediment beds: thicknesses then tags (sim/deposits.js)
     mk('wind', 4);    // (snow given to the wind, its settling share, local wind speed, shelter 0 = lee), sim/wind.js
     mk('glacier', 4); // (ice thickness, debris carried, surface speed m/yr, debris to drop), sim/glacier.js
+    mk('volcRock', 8); // volcanic units: 4 bases, 4 type codes (sim/common.js ROCK_WGSL)
+    mk('lava', 4);    // (molten depth m, temperature 0..1, afterglow, unused), sim/volcano.js
     mk('light', 4);   // renderer: (sun visibility, ambient occlusion, groundwater fill, springs), from render/lighting.js
     this.buffers.statPartials = device.createBuffer({ size: STAT_GROUPS * STAT_STRIDE * 4, usage, label: 'statPartials' });
     this.buffers.accPartials = device.createBuffer({ size: STAT_GROUPS * 16, usage, label: 'accPartials' });
@@ -72,7 +78,7 @@ export class World {
   upload(layers) {
     const q = this.device.queue;
     const zero = new Float32Array(this.cells * 4);
-    for (const name of [...LAYERS, ...EXTRA1, 'flux', 'acc', 'thermalDelta', 'gwFlux', 'plant', 'deposit', 'wind', 'glacier']) {
+    for (const name of [...LAYERS, ...EXTRA1, 'flux', 'acc', 'thermalDelta', 'gwFlux', 'plant', 'deposit', 'wind', 'glacier', 'volcRock', 'lava']) {
       const buf = this.buffers[name];
       const src = layers[name];
       if (src) q.writeBuffer(buf, 0, src);

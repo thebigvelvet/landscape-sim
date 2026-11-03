@@ -1,0 +1,86 @@
+[
+  {
+    "yield": 0.12,
+    "visc": 1000000,
+    "d120": {
+      "moltenCells": 1509,
+      "maxDepth": 42.8,
+      "reach_m": 386.59681664489506,
+      "drop_m": 6,
+      "basaltCells": 0,
+      "meanBasaltThick": 0
+    },
+    "d365": {
+      "moltenCells": 2762,
+      "maxDepth": 65.9,
+      "reach_m": 508.1434290654613,
+      "drop_m": 6,
+      "basaltCells": 0,
+      "meanBasaltThick": 0
+    },
+    "d1500": {
+      "moltenCells": 4378,
+      "maxDepth": 91.2,
+      "reach_m": 705.022794235556,
+      "drop_m": 7,
+      "basaltCells": 211,
+      "meanBasaltThick": 12.8
+    }
+  },
+  {
+    "yield": 0.06,
+    "visc": 1000000,
+    "d120": {
+      "moltenCells": 1534,
+      "maxDepth": 42.8,
+      "reach_m": 394.8607279478915,
+      "drop_m": 6,
+      "basaltCells": 0,
+      "meanBasaltThick": 0
+    },
+    "d365": {
+      "moltenCells": 2776,
+      "maxDepth": 65.9,
+      "reach_m": 508.1434290654613,
+      "drop_m": 6,
+      "basaltCells": 0,
+      "meanBasaltThick": 0
+    },
+    "d1500": {
+      "moltenCells": 4389,
+      "maxDepth": 91.1,
+      "reach_m": 719.7326143973771,
+      "drop_m": 15,
+      "basaltCells": 233,
+      "meanBasaltThick": 13.3
+    }
+  },
+  {
+    "yield": 0.12,
+    "visc": 10000000,
+    "d120": {
+      "moltenCells": 1501,
+      "maxDepth": 43,
+      "reach_m": 386.59681664489506,
+      "drop_m": 6,
+      "basaltCells": 1,
+      "meanBasaltThick": 15.5
+    },
+    "d365": {
+      "moltenCells": 2761,
+      "maxDepth": 65.9,
+      "reach_m": 508.1434290654613,
+      "drop_m": 6,
+      "basaltCells": 0,
+      "meanBasaltThick": 0
+    },
+    "d1500": {
+      "moltenCells": 4350,
+      "maxDepth": 91.5,
+      "reach_m": 686.7921467845963,
+      "drop_m": 6,
+      "basaltCells": 211,
+      "meanBasaltThick": 11.4
+    }
+  }
+]

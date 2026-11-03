@@ -1,0 +1,39 @@
+{
+  "mode": "overlay",
+  "day": 1590,
+  "bal": 1.5378076847402793e-7,
+  "solidsErr": -128.13139368593693,
+  "erupted": 20000258.29264832,
+  "nan": false,
+  "volc": {
+    "basalt_m3": 16231859.340667725,
+    "cinders_m3": 4924621.502685547,
+    "plug_m3": 829668.2022094727,
+    "basaltArea_m2": 904500,
+    "cindersArea_m2": 125400,
+    "plugArea_m2": 2900,
+    "moltenLava_m3": 152.74490688594824,
+    "hotLavaCells": 0,
+    "erupting": false,
+    "erupted_m3": 20000258.29264832,
+    "vents": [
+      {
+        "id": 1,
+        "x": 306,
+        "y": 368,
+        "coneHeight_m": 94.14318338527558,
+        "left_days": 0,
+        "source": {
+          "x": 283.98705349442696,
+          "y": 362.1016487608022,
+          "r": 2.5,
+          "cells": 21
+        }
+      }
+    ]
+  },
+  "gpuErrors": 0,
+  "gpuFeatureStatusWebGPU": "enabled",
+  "electron": "45.2.1",
+  "chrome": "156.0.8078.75"
+}
