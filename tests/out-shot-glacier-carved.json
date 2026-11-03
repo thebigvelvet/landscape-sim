@@ -1,0 +1,21 @@
+{
+  "mode": "carved",
+  "day": 511240,
+  "doy": 240,
+  "bal": -0.000001034004207071491,
+  "solidsErr": -1984.0373001508415,
+  "nan": false,
+  "glacier": {
+    "iceVolume_m3": 14215.03291965189,
+    "iceCoverFrac": 0,
+    "maxThickness_m": 0.7485446333885193,
+    "maxSpeed_m_per_yr": 188.9307403564453,
+    "debris_m3": 1.1035921494938716,
+    "lowestIce_m": null,
+    "highestIce_m": null
+  },
+  "gpuErrors": 0,
+  "gpuFeatureStatusWebGPU": "enabled",
+  "electron": "45.2.1",
+  "chrome": "156.0.8078.75"
+}

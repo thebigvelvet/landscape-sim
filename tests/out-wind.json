@@ -55,17 +55,17 @@
     },
     "snowDrifts": {
       "pass": true,
-      "leeGain": 1.403960863999402,
-      "exposedLoss": 0.24593763836760862,
-      "leeCells": 30547,
-      "exposedCells": 18865,
-      "balOn": 6.911255929158137e-7,
-      "snowOn_m3": 1680665.3659820557,
-      "snowOff_m3": 1597635.1415634155
+      "leeGain": 1.3489343299892096,
+      "exposedLoss": 0.24584202522469029,
+      "leeCells": 30548,
+      "exposedCells": 18872,
+      "balOn": 5.673007446219818e-7,
+      "snowOn_m3": 1593291.1708831787,
+      "snowOff_m3": 1558312.9331588745
     },
     "booksSnow": {
       "pass": true,
-      "balPct": 6.911255929158137e-7
+      "balPct": 5.673007446219818e-7
     },
     "booksLandscape": {
       "pass": true,
@@ -141,13 +141,13 @@
       "stack": "27 beds, dipping 0.4° to the S; a monocline drops them 444 m at up to 16°; a broad syncline arches them 11 m."
     },
     "snow": {
-      "leeGain": 1.403960863999402,
-      "exposedLoss": 0.24593763836760862,
-      "leeCells": 30547,
-      "exposedCells": 18865,
-      "balOn": 6.911255929158137e-7,
-      "snowOn_m3": 1680665.3659820557,
-      "snowOff_m3": 1597635.1415634155
+      "leeGain": 1.3489343299892096,
+      "exposedLoss": 0.24584202522469029,
+      "leeCells": 30548,
+      "exposedCells": 18872,
+      "balOn": 5.673007446219818e-7,
+      "snowOn_m3": 1593291.1708831787,
+      "snowOff_m3": 1558312.9331588745
     },
     "utah1000": {
       "solidsError_m3": -13.796360307605937,
@@ -172,7 +172,7 @@
   },
   "passed": 12,
   "total": 12,
-  "minutes": 0.34186666666666665,
+  "minutes": 0.3508,
   "gpuErrors": 0,
   "gpuFeatureStatusWebGPU": "enabled",
   "electron": "45.2.1",

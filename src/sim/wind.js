@@ -80,9 +80,11 @@ ${WIND_UNIFORM_WGSL}
 @group(0) @binding(9) var<storage, read_write> give : array<vec4<f32>>;
 @group(0) @binding(10) var<storage, read_write> field : array<vec4<f32>>;
 @group(0) @binding(11) var<uniform> W : WindIter;
+@group(0) @binding(12) var<storage, read> glacier : array<vec4<f32>>;
 ${HOPS_WGSL}
 
-fn surf(x : i32, y : i32) -> f32 { let j = idxc(x, y); return bedrock[j] + soil[j] + snowSWE[j] / 0.33; }
+// glacier ice is part of the surface the wind sees (and it shelters the soil under it)
+fn surf(x : i32, y : i32) -> f32 { let j = idxc(x, y); return bedrock[j] + soil[j] + snowSWE[j] / 0.33 + glacier[j].x; }
 
 @compute @workgroup_size(16, 16)
 fn main(@builtin(global_invocation_id) gid : vec3<u32>) {
@@ -113,7 +115,8 @@ fn main(@builtin(global_invocation_id) gid : vec3<u32>) {
   let sn = snowSWE[i];
   let dry = 1.0 - smoothstep(0.2, 0.55, plant[i].y);
   let bare = (1.0 - v) * (1.0 - v);
-  let open = bare * select(1.0, 0.0, wet) * (1.0 - smoothstep(0.002, 0.01, sn)) * (1.0 - smoothstep(0.02, 0.1, frostDepth[i]));
+  let open = bare * select(1.0, 0.0, wet) * (1.0 - smoothstep(0.002, 0.01, sn)) * (1.0 - smoothstep(0.02, 0.1, frostDepth[i]))
+    * (1.0 - smoothstep(0.01, 0.1, glacier[i].x));
   // what the surface is made of: the top sediment bed if there is one, else the preset's soil mix
   // loose sand beds on top (dunes, washes, fans), however many, then the first bed below them
   let a0 = deposit[4u * i]; let a1 = deposit[4u * i + 1u];
@@ -325,14 +328,14 @@ class WindModule {
   init(device, world) {
     this.device = device; this.world = world;
     const B = world.buffers, prm = world.params.buffer;
-    this.kp = makeKernel(device, 'wind.prep', PREP_WGSL, ['r', 'r', 'r', 'r', 'r', 'r', 'r', 'r', 'rw', 'rw', 'u']);
+    this.kp = makeKernel(device, 'wind.prep', PREP_WGSL, ['r', 'r', 'r', 'r', 'r', 'r', 'r', 'r', 'rw', 'rw', 'u', 'r']);
     this.kt = makeKernel(device, 'wind.transfer', TRANSFER_WGSL, ['r', 'r', 'rw', 'rw', 'rw', 'rw', 'rw', 'u']);
     this.ubufs = []; this.pBG = []; this.tBG = [];
     for (let k = 0; k < KMAX; k++) {
       const u = device.createBuffer({ size: 32, usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST, label: `wind.iter${k}` });
       this.ubufs.push(u);
       // thermalDelta is free scratch here: erosion's thermal step has used it, avalanches come after
-      this.pBG.push(this.kp.bind(prm, [B.bedrock, B.soil, B.water, B.snowSWE, B.frostDepth, B.veg, B.plant, B.deposit, B.thermalDelta, B.wind, u]));
+      this.pBG.push(this.kp.bind(prm, [B.bedrock, B.soil, B.water, B.snowSWE, B.frostDepth, B.veg, B.plant, B.deposit, B.thermalDelta, B.wind, u, B.glacier]));
       this.tBG.push(this.kt.bind(prm, [B.thermalDelta, B.wind, B.bedrock, B.soil, B.snowSWE, B.deposit, B.acc, u]));
     }
   }

@@ -1,0 +1,21 @@
+{
+  "mode": "retreat",
+  "day": 511240,
+  "doy": 240,
+  "bal": -0.0000010628013121823085,
+  "solidsErr": -2010.4305046461523,
+  "nan": false,
+  "glacier": {
+    "iceVolume_m3": 14218.230159410268,
+    "iceCoverFrac": 0,
+    "maxThickness_m": 0.6312978863716125,
+    "maxSpeed_m_per_yr": 241.4511260986328,
+    "debris_m3": 1.0982461152583993,
+    "lowestIce_m": null,
+    "highestIce_m": null
+  },
+  "gpuErrors": 0,
+  "gpuFeatureStatusWebGPU": "enabled",
+  "electron": "45.2.1",
+  "chrome": "156.0.8078.75"
+}

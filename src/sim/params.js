@@ -30,6 +30,9 @@ export const PARAM_FIELDS = [
   // sediment beds (sim/deposits.js): current epoch (mod 8192), on/off; wind (sim/wind.js): sand share
   // of plain soil, on/off
   ['depEpoch', 'f32'], ['depOn', 'f32'], ['windSandy', 'f32'], ['windOn', 'f32'],
+  // glaciers (sim/glacier.js): snow -> ice, ice melt, on/off, flow iterations this batch
+  ['firnSWE', 'f32'], ['firnTau', 'f32'], ['ddfIce', 'f32'], ['glacOn', 'f32'],
+  ['glacK', 'f32'], ['iceYield', 'f32'], ['iceA', 'f32'], ['kGlac', 'f32'],
   // painted weather events (see sim/events.js): 4 local storms (centre x, y in cells, radius in
   // cells, extra precipitation at the centre in m/day averaged over the batch) and 2 flood sources
   // (centre, radius, water depth added per cell per hydraulic sub-step)

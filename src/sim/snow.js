@@ -56,8 +56,10 @@ ${COMMON_WGSL}
 @group(0) @binding(2) var<storage, read> soil : array<f32>;
 @group(0) @binding(3) var<storage, read> snowSWE : array<f32>;
 @group(0) @binding(4) var<storage, read_write> delta : array<vec2<f32>>;
+@group(0) @binding(5) var<storage, read> glacier : array<vec4<f32>>;
 
-fn surf(i : u32) -> f32 { return bedrock[i] + soil[i] + snowSWE[i] / ${SNOW_DEN}; }
+// snow slides off steep glacier ice too (the ice is part of the surface)
+fn surf(i : u32) -> f32 { return bedrock[i] + soil[i] + snowSWE[i] / ${SNOW_DEN} + glacier[i].x; }
 // SWE moved from a to b (negative: b to a). Half the excess height above the release angle moves,
 // at most 1/8.5 of the donor's snow per neighbour (so a cell can never give more than it has).
 // Both cells of a pair evaluate the same expression, so the transfer is exactly antisymmetric.
@@ -122,10 +124,10 @@ export const avalanche = {
   init(device, world) {
     this.world = world;
     const B = world.buffers, prm = world.params.buffer;
-    this.kg = makeKernel(device, 'snow.avalGather', AVAL_GATHER_WGSL, ['r', 'r', 'r', 'rw']);
+    this.kg = makeKernel(device, 'snow.avalGather', AVAL_GATHER_WGSL, ['r', 'r', 'r', 'rw', 'r']);
     this.ka = makeKernel(device, 'snow.avalApply', AVAL_APPLY_WGSL, ['rw', 'r', 'rw']);
     // thermalDelta is free scratch here: erosion's thermal step has already used it this batch
-    this.gBG = this.kg.bind(prm, [B.bedrock, B.soil, B.snowSWE, B.thermalDelta]);
+    this.gBG = this.kg.bind(prm, [B.bedrock, B.soil, B.snowSWE, B.thermalDelta, B.glacier]);
     this.aBG = this.ka.bind(prm, [B.snowSWE, B.thermalDelta, B.plant]);
   },
   record(pass) {

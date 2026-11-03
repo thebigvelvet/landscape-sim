@@ -26,6 +26,8 @@
 //   soilPrev           soil depth before the water sub-steps of the batch (sim/deposits.js).
 //   deposit            16 floats per cell: the stack of sediment beds on top of the soil (sim/deposits.js).
 //   wind               vec4 per cell: drifting-snow scratch, local wind speed and shelter (sim/wind.js).
+//   glacier            vec4 per cell: (ice thickness m, rock debris carried by the ice m, ice surface
+//                      speed m/yr, debris released by melting and waiting to be dropped m), sim/glacier.js.
 //   statPartials, accPartials, fluxLog   reduction scratch / log ring.
 
 export const LAYERS = ['bedrock', 'soil', 'water', 'sediment', 'snowSWE', 'frostDepth', 'temp', 'velX', 'velY'];
@@ -54,6 +56,7 @@ export class World {
     mk('plant', 4);   // (woody, moisture memory, previous ground height, fire)
     mk('deposit', 16); // 8 sediment beds: thicknesses then tags (sim/deposits.js)
     mk('wind', 4);    // (snow given to the wind, its settling share, local wind speed, shelter 0 = lee), sim/wind.js
+    mk('glacier', 4); // (ice thickness, debris carried, surface speed m/yr, debris to drop), sim/glacier.js
     mk('light', 4);   // renderer: (sun visibility, ambient occlusion, groundwater fill, springs), from render/lighting.js
     this.buffers.statPartials = device.createBuffer({ size: STAT_GROUPS * STAT_STRIDE * 4, usage, label: 'statPartials' });
     this.buffers.accPartials = device.createBuffer({ size: STAT_GROUPS * 16, usage, label: 'accPartials' });
@@ -69,7 +72,7 @@ export class World {
   upload(layers) {
     const q = this.device.queue;
     const zero = new Float32Array(this.cells * 4);
-    for (const name of [...LAYERS, ...EXTRA1, 'flux', 'acc', 'thermalDelta', 'gwFlux', 'plant', 'deposit', 'wind']) {
+    for (const name of [...LAYERS, ...EXTRA1, 'flux', 'acc', 'thermalDelta', 'gwFlux', 'plant', 'deposit', 'wind', 'glacier']) {
       const buf = this.buffers[name];
       const src = layers[name];
       if (src) q.writeBuffer(buf, 0, src);

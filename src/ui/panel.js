@@ -182,6 +182,7 @@ export class Panel {
     $('spin').addEventListener('change', () => { app.renderer.camera.autoRotate = $('spin').checked; });
     $('trees').addEventListener('change', () => { app.renderer.showTrees = $('trees').checked; });
     $('strata').addEventListener('change', () => { app.sim.strata = $('strata').checked; });
+    $('glaciers').addEventListener('change', () => { app.sim.glaciers = $('glaciers').checked; });
     // wind: on/off, a compass dial for where it blows from, strength and steadiness
     $('wind-on').addEventListener('change', () => { app.sim.windOn = $('wind-on').checked; this.syncWind(); });
     $('wind-speed').addEventListener('input', () => { c.windSpeed = +$('wind-speed').value; this.syncWind(); });
@@ -338,6 +339,7 @@ export class Panel {
     const rows = [
       ['Water in streams & lakes', fmtVol(t.totalWater_m3)],
       ['Water stored as snow', fmtVol(t.totalSnowSWE_m3)],
+      ['Water stored as glacier ice', fmtVol(t.iceWater_m3 || 0)],
       ['Water soaked into the ground', fmtVol(t.totalGroundwater_m3)],
       ['Rain & snow that fell', fmtVol(t.cumPrecip_m3)],
       ['Flowed off the map', fmtVol(t.cumOutflow_m3)],

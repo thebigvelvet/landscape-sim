@@ -33,6 +33,7 @@ import { gwCapacity } from './common.js';
 import { makeStrata, packStrata, STRATA_PARAM_FIELDS } from './strata.js';
 import { deposits, DEP_EPOCHS } from './deposits.js';
 import { wind, towardVector, WIND_PARAMS } from './wind.js';
+import { glacier, GLACIER_PARAMS } from './glacier.js';
 import { Stats } from './stats.js';
 
 export const A_CAP = 150;              // max routing intensity (x real-time runoff rate)
@@ -91,6 +92,7 @@ export class Simulation {
       avalanche.init(this.device, this.world);
       deposits.init(this.device, this.world);
       wind.init(this.device, this.world);
+      glacier.init(this.device, this.world);
       this.events.init(this.device, this.world);
       sculptor.init(this.device, this.world);
       this.statsK = new Stats(this.device, this.world);
@@ -111,19 +113,23 @@ export class Simulation {
     // a fresh rock stack for this landscape (same seed, same rocks); beds thicken with the relief slider
     this.strataInfo = makeStrata(seed, height, N, cellSize, Math.max(0.5, this.relief));
     this.strataPack = packStrata(this.strataInfo, true);
+    // a readback started before this load (the frame loop asks for stats every few frames) must not
+    // fold the old map's flux log into the new books: each load starts a new generation
+    this.gen = (this.gen || 0) + 1;
     this.day = 0; this.frame = 0; this.carry = 0; this.hmax = 0.3; this.consumed = 0;
     this.depEpoch = 0; this.depEpochStart = 0;
     this.cum = { precip: 0, outflow: 0, evap: 0, sedOut: 0 };
     this.climate.stormDaysLeft = 0;
     this.climate.resetWeather(seed);
     wind.reset(seed);
+    glacier.hasIce = true;
     this.events.reset();
     sculptor.reset();
     this.world.params.set({ N, cellSize, cellArea: cellSize * cellSize, frame: 0, logSize: LOG_SIZE });
     this.world.params.upload();
     if (opts.spinUp !== false) await this._spinUp();
     const s0 = await this._readback();
-    this.stored0 = (s0.water + s0.snow + s0.groundwater) * this.world.cellSize ** 2;
+    this.stored0 = (s0.water + s0.snow + s0.groundwater + 0.9 * s0.ice) * this.world.cellSize ** 2;
     this.onLoaded?.();
     return { N, cellSize, scenario, seed };
   }
@@ -177,6 +183,7 @@ export class Simulation {
       depEpoch: this.depEpoch % DEP_EPOCHS, depOn: this.sedimentBeds ? 1 : 0,
       windOn: wind.enabled ? 1 : 0, windSandy: this.climate.windSettings().sandy,
       sandTan: wind.enabled ? WIND_PARAMS.sandTan : EROSION_PARAMS.talusTan,
+      ...GLACIER_PARAMS, glacOn: glacier.enabled ? 1 : 0, glacK: glacier.iterations(Dcol),
       ...stFields,
       ...ev.fields,
     };
@@ -240,6 +247,7 @@ export class Simulation {
     wind.record(pass);
     avalanche.record(pass);
     vegetation.record(pass);
+    glacier.record(pass);          // after the plants, so nothing stays growing on the ice
     this.statsK.recordAccumulate(pass);
     pass.end();
     this.device.queue.submit([enc.finish()]);
@@ -288,6 +296,10 @@ export class Simulation {
   get windOn() { return wind.enabled; }
   set windOn(v) { wind.enabled = !!v; }
   get windPlan() { return wind.last; }
+
+  // glaciers on/off (sim/glacier.js): snow turning to ice, ice flow and carving; on by default
+  get glaciers() { return glacier.enabled; }
+  set glaciers(v) { glacier.enabled = !!v; }
 
   // snow avalanches on/off (sim/snow.js); on by default
   get avalanches() { return avalanche.enabled; }
@@ -354,8 +366,9 @@ export class Simulation {
   // Async, serialized readback of state sums + new flux-log entries.
   _readback() {
     const job = this._rb.then(async () => {
-      const frameAt = this.frame;
+      const gen = this.gen, frameAt = this.frame;
       const { state, log } = await this.statsK.snapshot();
+      if (gen !== this.gen) return this.lastState ?? state;   // a new map was loaded meanwhile
       const A = this.world.cellSize ** 2;
       if (frameAt - this.consumed > LOG_SIZE) console.warn('flux log overrun: balance will be off');
       for (let f = this.consumed; f < frameAt; f++) {
@@ -365,6 +378,7 @@ export class Simulation {
       }
       this.consumed = frameAt;
       this.hmax = state.maxWater;
+      glacier.hasIce = state.ice > 0;
       this.lastState = state;
       return state;
     });
@@ -389,7 +403,7 @@ export class Simulation {
     await this.device.queue.onSubmittedWorkDone();
     const s = await this._readback();
     const A = this.world.cellSize ** 2;
-    const stored = (s.water + s.snow + s.groundwater) * A;
+    const stored = (s.water + s.snow + s.groundwater + 0.9 * s.ice) * A;
     const c = this.cum;
     const err = c.precip - (stored - this.stored0) - c.outflow - c.evap;
     const solidsErr = s.solidsChange * A + c.sedOut;   // should be ~0: solids only leave via the boundary
@@ -408,6 +422,7 @@ export class Simulation {
       dtH: this.lastPlan.dtH, morph: this.lastPlan.morph, routingIntensity: this.lastPlan.aW,
       meanVeg: s.vegSum / cells, vegCoveredFrac: s.vegCovered / cells, burnedFrac: s.burned / cells,
       meanWoodyCover: s.woodySum / cells,
+      totalIce_m3: s.ice * A, iceWater_m3: 0.9 * s.ice * A, glacierFrac: s.iceCells / cells,
     };
   }
 }

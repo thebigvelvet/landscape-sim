@@ -272,6 +272,21 @@ async function main() {
       }
       return { meanWind: u / cells, shelteredFrac: lee / cells, sandCoverFrac: sandCells / cells, topSandVolume_m3: sandVol * sim.world.cellSize ** 2, lastBatch: sim.windPlan };
     },
+    // glaciers (sim/glacier.js): on/off and a whole-map summary
+    get glaciers() { return sim.glaciers; },
+    set glaciers(v) { sim.glaciers = !!v; const el = document.getElementById('glaciers'); if (el) el.checked = sim.glaciers; },
+    glacierStats: async () => {
+      const g = await sim.readLayer('glacier'), b = await sim.readLayer('bedrock'), so = await sim.readLayer('soil'), cells = sim.world.cells;
+      let ice = 0, n = 0, maxH = 0, maxU = 0, deb = 0, zLow = Infinity, zHigh = -Infinity;
+      for (let i = 0; i < cells; i++) {
+        const H = g[4 * i];
+        ice += H; deb += g[4 * i + 1] + g[4 * i + 3];
+        if (H > 1) { n++; const z = b[i] + so[i] + sim.datum; zLow = Math.min(zLow, z); zHigh = Math.max(zHigh, z); }
+        maxH = Math.max(maxH, H); maxU = Math.max(maxU, g[4 * i + 2]);
+      }
+      const A = sim.world.cellSize ** 2;
+      return { iceVolume_m3: ice * A, iceCoverFrac: n / cells, maxThickness_m: maxH, maxSpeed_m_per_yr: maxU, debris_m3: deb * A, lowestIce_m: n ? zLow : null, highestIce_m: n ? zHigh : null };
+    },
     get engine() { return sim; },
     get renderer() { return renderer; },
     get gpuTimes() { return { timed: timer.ok, simMs: timer.simMs, renderMs: timer.renderMs, nSub: sim.nSub }; },

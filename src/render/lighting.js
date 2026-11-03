@@ -22,10 +22,11 @@ struct U { N: u32, dx: f32, sunX: f32, sunZ: f32, tanElev: f32, vex: f32, snowDe
 @group(0) @binding(7) var<storage, read> veg: array<f32>;
 @group(0) @binding(8) var<storage, read> burn: array<f32>;
 @group(0) @binding(9) var<storage, read> plant: array<vec4f>;
+@group(0) @binding(10) var<storage, read> glacier: array<vec4f>;
 ${WGSL_COMMON}
 fn Hc(x: i32, y: i32, n: i32) -> f32 {
   let i = ix(x, y, n);
-  return (bedrock[i] + soil[i] + snowSWE[i] / u.snowDen) * u.vex;
+  return (bedrock[i] + soil[i] + snowSWE[i] / u.snowDen + glacier[i].x) * u.vex;
 }
 fn Hb(p: vec2f, n: i32) -> f32 {
   let f = floor(p);
@@ -121,9 +122,9 @@ export class Lighting {
   constructor(device, world) {
     this.device = device;
     this.world = world;
-    this.k = makeKernels(device, 'lighting', CODE, ['uniform', 'read', 'read', 'read', 'storage', 'read', 'read', 'read', 'read', 'read'], ['main']);
+    this.k = makeKernels(device, 'lighting', CODE, ['uniform', 'read', 'read', 'read', 'storage', 'read', 'read', 'read', 'read', 'read', 'read'], ['main']);
     this.ub = device.createBuffer({ size: 32, usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST });
-    this.bg = this.k.bind([this.ub, world.bedrock, world.soil, world.snowSWE, world.light, world.groundwater, world.spring, world.veg, world.burn, world.plant]);
+    this.bg = this.k.bind([this.ub, world.bedrock, world.soil, world.snowSWE, world.light, world.groundwater, world.spring, world.veg, world.burn, world.plant, world.glacier]);
     this.data = new ArrayBuffer(32);
     this.kd = makeKernels(device, 'lightingDep', DEP_CODE, ['uniform', 'read', 'storage'], ['dep']);
     this.bgd = this.kd.bind([this.ub, world.deposit, world.light]);

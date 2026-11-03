@@ -5,6 +5,50 @@ second. All of the simulation runs on the graphics card (WebGPU compute shaders)
 
 **To run it, double-click `start.bat`** (or the "Landscape Time-Lapse" shortcut on the desktop).
 
+## Round 7: glaciers
+
+Built directly, on branch `r7-glaciers` (cut from `r6-wind`).
+
+**What you can do now**
+- Glaciers form on their own wherever snow outlasts the summer year after year. There is no special preset: turn the **Temperature** slider down to grow them, then warm it up to watch them melt back.
+  - On Colorado alpine at today's temperature there is no lasting ice (at most a few tiny patches).
+  - At −4 °C there are a few small cirque glaciers; at −6 °C cirque and short valley glaciers (4 % of the map); at −8 °C valley glaciers that reach the valley floors (17 %).
+- A **Glaciers** checkbox in the climate section turns them on or off.
+- A new **Glaciers** view shows the ice coloured by how fast it flows, pale where it is thin, with brown where it carries a lot of rock.
+- In the natural view, bare glacier ice is blue-white and glossy, and crevassed where it is fast and steep. It turns grey near the snout, where the rock it carries comes to the surface. Fresh snow lies on top.
+
+**How it works** (`src/sim/glacier.js`, plus the column kernel)
+- **Ice from snow:** snow beyond 1.5 m of water equivalent compacts into ice over about 3 years.
+- **Melt:** bare ice melts at 8 mm/°C/day (snow: 4.5), faster on sunny slopes. A debris cover near the snout slows it.
+- **Flow** (the same exactly conservative pair-transfer form as the avalanches):
+  - Ice moves by the smaller of two rates: the physical rate (Glen's flow law, deformation plus sliding), and the amount that brings its surface down to the slope a 60 kPa yield stress can hold. The physical rate gives real creep speeds at slow time scales. The yield-stress profile gives glaciers their shape at the fast speeds.
+  - No glacier surface stands steeper than 24°: steeper ice breaks off at once (icefalls), so cliffs stay bare and ice gathers in the cirques below.
+  - Ice can flow off the map edge; it is logged as outflow, and its rock as sediment out.
+- **Carving:**
+  - Moving ice bulldozes the soil under it, then grinds the bedrock at 1e-4 × the sliding speed (capped at 150 m/yr). Soft beds go faster, and soil shields the rock.
+  - Ice carries at most 8 % of its thickness in rock.
+- **Moraines:** as ice melts, it lets go of its rock in proportion. That rock is laid down as soil, plus a coarse till sediment bed.
+- Trees do not grow on the ice. Avalanches and drifting snow see the ice surface, and the wind cannot lift soil from under it.
+- **Water books:** ice counts as 0.9 m of water per m, so the balance stays exact.
+- **Limitation:** ice moves at most about one cell per flow step. There are about 24 steps per simulated year, capped at 48 per frame. So at the very fastest speed (1000 yr/s) glaciers run somewhat thicker and slower than real ones.
+
+**Also fixed:** a race in the stats readback. A readback that began just before a new map loaded could add the old map's totals to the new map's books. This is very likely the intermittent balance errors seen after rounds 2 and 3. Each load now starts a new generation, and stale readbacks are dropped.
+
+**Checks** (RTX 4060 Ti)
+- `tests/glacier.js` passes 11/11 (twice in a row):
+  - At −6 °C, ice covers 17 % of the top third of the map, 6 % of the middle third and 1 % of the bottom third, and 6.9× as much of north faces as south faces.
+  - The ice moves (57 % of ice cells faster than 5 m/yr), and 69 % of it lies bare at the end of summer. That ice survives only because ice keeps flowing down to it.
+  - At +4 °C there is no ice; at normal temperature there are no ice cells over 1 m.
+  - Warming back to normal for 300 years melts 99.98 % of the ice.
+  - After 3000 years at −8 °C, the bedrock under the ice is 5.5 m lower, against 3.3 m in a glaciers-off twin, and the ground around the ice has 12 % more soil.
+  - Water balance is within 1e-6 %, with solids balanced; 30-day batches give the same glaciers.
+- Regression: `round2` 10/10, `round3` 7/7, `strata` 7/7, `deposits` 5/5, `wind` 12/12. `--selftest`: balance 1e-6 %.
+- Frame cost (`tests/perf-glacier.js`, 512, after 1000 years at −8 °C): 60 fps at 1 day/s and at 1000 yr/s, with 48 flow steps per frame.
+  - With glaciers off at −8 °C the old behaviour returns: snow piles up hundreds of metres. Drawing those spikes drops the 1000 yr/s view to about 48 fps.
+- Pictures (Colorado alpine, 512, seed 7, late August):
+  - `tests/shot-glacier-ice.png` and `-overlay.png`: 1000 years at −8 °C;
+  - `tests/shot-glacier-retreat.png` and `-carved.png`: the same, then 400 years back at normal temperature (bare valleys, and the change-since-start view).
+
 ## Round 6: wind
 
 Built directly, on branch `r6-wind` (cut from `r5-sediment`).

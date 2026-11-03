@@ -190,11 +190,12 @@ const TERRAIN_DATA = /* wgsl */ `
 @group(0) @binding(7) var<storage, read> light: array<vec4u>;
 @group(0) @binding(8) var<storage, read> height0: array<f32>;
 @group(0) @binding(9) var<storage, read> windF: array<vec4f>;   // sim/wind.js: (.., .., local wind speed, shelter)
+@group(0) @binding(10) var<storage, read> glacier: array<vec4f>; // sim/glacier.js: (ice m, debris m, speed m/yr, ..)
 fn gi(x: i32, y: i32) -> u32 {
   let n = i32(R_.grid.x);
   return u32(clamp(y, 0, n - 1) * n + clamp(x, 0, n - 1));
 }
-fn dispH(i: u32) -> f32 { return bedrock[i] + soil[i] + snowSWE[i] / 0.33; }
+fn dispH(i: u32) -> f32 { return bedrock[i] + soil[i] + snowSWE[i] / 0.33 + glacier[i].x; }
 `;
 
 export const TERRAIN = UNIFORMS + COMMON + TERRAIN_DATA + /* wgsl */ `
@@ -209,6 +210,7 @@ struct VO {
   @location(6) m4: vec4f,   // plant cover, woody share, burn, fire
   @location(7) m5: vec4f,   // moisture memory, sediment bed thickness (sqrt(t/16 m)), top bed grain, top bed hash
   @location(8) m6: vec2f,   // local wind speed, shelter (0 = in the lee), sim/wind.js
+  @location(9) m7: vec4f,   // glacier ice thickness (m), debris (m), ice speed (m/yr), ice surface slope (tan)
 };
 @vertex fn vs(@builtin(vertex_index) vi: u32) -> VO {
   let n = u32(R_.grid.x);
@@ -241,6 +243,8 @@ struct VO {
   o.m4 = unpack4x8unorm(L.z);
   o.m5 = unpack4x8unorm(L.w);
   o.m6 = windF[i].zw;
+  let gk = glacier[i];
+  o.m7 = vec4f(gk.x, gk.y, gk.z, length(vec2f(hr - hl, hb - ht)) / (2.0 * dx));
   return o;
 }
 
@@ -251,7 +255,16 @@ fn ramp3(t: f32, a: vec3f, b: vec3f, c: vec3f) -> vec3f {
 }
 
 // Overlay colour maps. Must match the legends drawn in src/ui/legend.js.
-fn overlay(mode: i32, m0: vec4f, m1: vec4f, m3: vec2f, m4: vec4f, m5: vec4f, m6: vec2f) -> vec4f {
+fn overlay(mode: i32, m0: vec4f, m1: vec4f, m3: vec2f, m4: vec4f, m5: vec4f, m6: vec2f, m7: vec4f) -> vec4f {
+  if (mode == 10) { // glaciers: ice speed (log 1 .. 200 m/yr), pale where the ice is thin, rock debris brown
+    let ice = m7.x;
+    if (ice < 0.3) { return vec4f(0.0); }
+    let t = clamp(log(1.0 + m7.z) / log(201.0), 0.0, 1.0);
+    var c = ramp3(t, vec3f(0.80, 0.96, 1.0), vec3f(0.20, 0.55, 0.95), vec3f(0.55, 0.15, 0.70));
+    c = mix(vec3f(0.92, 0.97, 1.0), c, smoothstep(1.0, 20.0, ice));
+    c = mix(c, vec3f(0.50, 0.33, 0.20), smoothstep(0.3, 2.0, m7.y / (1.0 + ice / 5.0)) * 0.8);
+    return vec4f(c, 0.9);
+  }
   if (mode == 9) { // wind & sand: local wind speed, the sheltered lee hatched dark, wind-laid sand on top
     let u = m6.x;
     var c = ramp3(u / 2.0, vec3f(0.85, 0.92, 0.98), vec3f(0.35, 0.65, 0.95), vec3f(0.55, 0.15, 0.70));
@@ -417,6 +430,20 @@ fn overlay(mode: i32, m0: vec4f, m1: vec4f, m3: vec2f, m4: vec4f, m5: vec4f, m6:
   // Hoar frost on frozen bare ground.
   albedo = mix(albedo, srgb(vec3f(0.80, 0.84, 0.88)), smoothstep(0.05, 0.5, i.m1.x) * 0.18 * (1.0 - wet));
 
+  // --- Glacier ice (sim/glacier.js): blue-white, bluer where thick, crevassed where it is fast and
+  // steep, grey-brown where it carries a lot of rock (moraine stripes and debris-covered snouts).
+  let ice = i.m7.x;
+  let iceCov = smoothstep(0.3, 3.0, ice + (fbm(p2 * 0.04) - 0.5) * 3.0 + (nzf - 0.5) * 0.8);
+  var iceC = mix(srgb(vec3f(0.80, 0.87, 0.92)), srgb(vec3f(0.55, 0.72, 0.86)), smoothstep(5.0, 120.0, ice));
+  iceC = iceC * (0.93 + 0.1 * vnoise(p2 * vec2f(0.03, 0.09)));                       // foliation / dirt bands
+  let crevAmt = smoothstep(10.0, 80.0, i.m7.z) * smoothstep(0.1, 0.35, i.m7.w);
+  let crevN = abs(vnoise(p2 * vec2f(0.09, 0.025) + nz * 1.5) - 0.5);
+  iceC = mix(iceC, srgb(vec3f(0.18, 0.33, 0.48)), crevAmt * (1.0 - smoothstep(0.02, 0.06, crevN)) * 0.8);
+  // rock rides near the bed; it shows on the surface where the ice thins towards the snout
+  let debS = smoothstep(0.3, 2.0, i.m7.y / (1.0 + ice / 5.0) + (vnoise(p2 * 0.2) - 0.5) * 0.4);
+  iceC = mix(iceC, R_.talus.rgb * (0.7 + 0.3 * grit), debS * 0.85);
+  albedo = mix(albedo, iceC, iceCov);
+
   // --- Snow with soft, noisy edges; thin snow shows rocks through on steep ground.
   let snowEdge = swe / 0.03 + (fbm(p2 * 0.05) - 0.5) * 1.2 - steep * 0.5;
   let snowCov = smoothstep(0.15, 1.0, snowEdge) * smoothstep(0.0002, 0.002, swe);
@@ -448,11 +475,13 @@ fn overlay(mode: i32, m0: vec4f, m1: vec4f, m3: vec2f, m4: vec4f, m5: vec4f, m6:
   let V = normalize(R_.camPos.xyz - wp);
   let Hh = normalize(L + V);
   col += snowCov * R_.sunColor.rgb * pow(max(dot(n, Hh), 0.0), 60.0) * 0.25 * sunVis * sunI;
+  // bare ice is glossy
+  col += iceCov * (1.0 - snowCov) * (1.0 - debS) * R_.sunColor.rgb * pow(max(dot(n, Hh), 0.0), 30.0) * 0.18 * sunVis * sunI;
 
   col = applyHaze(col, wp);
   var outc = tonemap(col);
   // --- Overlay, blended in display space so colours match the legend.
-  let ov = overlay(i32(R_.skyZenith.w), i.m0, i.m1, i.m3, i.m4, i.m5, i.m6);
+  let ov = overlay(i32(R_.skyZenith.w), i.m0, i.m1, i.m3, i.m4, i.m5, i.m6, i.m7);
   if (i32(R_.skyZenith.w) > 0) {
     // Mute the natural colours so the overlay reads clearly.
     let g = dot(outc, vec3f(0.3, 0.55, 0.15));
@@ -631,6 +660,7 @@ export const WATER = UNIFORMS + COMMON + /* wgsl */ `
 @group(0) @binding(6) var<storage, read> sediment: array<f32>;
 @group(0) @binding(7) var<storage, read> light: array<vec4u>;
 @group(0) @binding(8) var<storage, read> snowSWE: array<f32>;
+@group(0) @binding(9) var<storage, read> glacier: array<vec4f>;
 fn gi(x: i32, y: i32) -> u32 {
   let n = i32(R_.grid.x);
   return u32(clamp(y, 0, n - 1) * n + clamp(x, 0, n - 1));
@@ -669,7 +699,7 @@ struct VO {
   let gs = length(vec2f(bedrock[gi(x + 1, y)] + soil[gi(x + 1, y)] - bedrock[gi(x - 1, y)] - soil[gi(x - 1, y)],
                         bedrock[gi(x, y + 1)] + soil[gi(x, y + 1)] - bedrock[gi(x, y - 1)] - soil[gi(x, y - 1)])) / (2.0 * dx);
   let la = unpack2x16unorm(L.x);
-  o.e = vec4f(la.x, la.y, snowSWE[i], gs);
+  o.e = vec4f(la.x, la.y, snowSWE[i] + glacier[i].x, gs);   // meltwater under a glacier is hidden like water under snow
   return o;
 }
 // Ripple height field, advected along the flow (two-phase flow map to avoid stretching).

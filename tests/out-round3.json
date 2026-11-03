@@ -43,37 +43,37 @@
       "off": {
         "cliffSWE_m": 0.3843060062912089,
         "cliffCells": 36059,
-        "footSWE_m": 0.3729695655474592,
+        "footSWE_m": 0.37296956558950195,
         "footCells": 4962,
-        "totalSnow_m3": 2448581.369781494,
-        "meanWoody": 0.1765529398428449,
-        "balPct": 0.0000014758515072684835,
+        "totalSnow_m3": 2448576.036834717,
+        "meanWoody": 0.1765530323130062,
+        "balPct": 0.0000017405222568724352,
         "nan": false
       },
       "on": {
-        "cliffSWE_m": 0.17955849595412746,
+        "cliffSWE_m": 0.17079644245513056,
         "cliffCells": 36059,
-        "footSWE_m": 0.45923252277540927,
+        "footSWE_m": 0.4461939183450701,
         "footCells": 4961,
-        "totalSnow_m3": 2743571.2966918945,
-        "meanWoody": 0.13162999550633803,
-        "balPct": -0.0000011614075032959362,
+        "totalSnow_m3": 2607005.6884765625,
+        "meanWoody": 0.13124412881360606,
+        "balPct": 0.0000013141126196098584,
         "nan": false
       }
     },
     "liveNoNaN": {
       "pass": true,
       "nan": false,
-      "years": 6654.662499999994,
-      "bal": 4.435564666206074e-7,
-      "fps": 59.949428417003574,
+      "years": 6638.6583333333265,
+      "bal": 2.3618274085573155e-7,
+      "fps": 59.963929843977304,
       "gpuErrors": 0
     }
   },
   "gpuErrorMsgs": [],
   "allPass": true,
   "failed": [],
-  "wallSeconds": 13.60559999999404,
+  "wallSeconds": 13.656,
   "gpuFeatureStatusWebGPU": "enabled",
   "electron": "45.2.1",
   "chrome": "156.0.8078.75"

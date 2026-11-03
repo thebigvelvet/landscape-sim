@@ -67,6 +67,13 @@ export const OVERLAYS = [
     labels: ['calm', 'the prevailing wind', '2x'],
     note: 'Wind speeds up over crests and windward slopes and drops in the lee (dark) behind ridges and dunes, where sand and snow pile up. Gold marks loose wind-blown sand: dunes and sand sheets.',
   },
+  {
+    id: 10, name: 'Glaciers', dot: 'linear-gradient(135deg,#cdf5ff,#338cf2,#8c26b3)',
+    desc: 'Where glacier ice lies and how fast it flows.',
+    gradient: 'linear-gradient(90deg, rgb(204,245,255), rgb(51,140,242), rgb(140,38,179))',
+    labels: ['1 m/yr', '15 m/yr', '200 m/yr'],
+    note: 'Ice moves fastest in the middle of a glacier and slows to a stop at its snout, where it melts. Thin ice at the edges is pale. Brown marks rock the ice is carrying, which it drops as moraines. Glaciers need snow that lasts all summer: turn the temperature down to grow them.',
+  },
 ];
 
 export function showLegend(id) {

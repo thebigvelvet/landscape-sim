@@ -14,6 +14,11 @@
 //     that P = dStorage + runoff + ET holds exactly,
 //   - weathering is multiplied by yrs.
 //
+// Glaciers (sim/glacier.js): snow piling up beyond firnSWE compacts into ice over a few years, and
+// ice that has lost its snow cover melts at the higher bare-ice degree-day factor (a debris cover
+// insulates it). Ice counts in the water books at 0.9 m of water per m. As ice melts, the rock it
+// carries is released (glacier.w) and the glacier kernel drops it as till later in the batch.
+//
 // Runoff is split: the fraction fR that the hydraulic solver can carry at its routing intensity
 // is added to the surface water layer; the rest is "fast runoff" (event flow that leaves the basin
 // within the frame) and is logged as outflow, so the water balance stays exact at every speed.
@@ -39,10 +44,12 @@ ${WATER_VERTICAL_WGSL}
 @group(0) @binding(8) var<storage, read_write> acc : array<vec4<f32>>;
 @group(0) @binding(9) var<storage, read> burn : array<f32>;
 @group(0) @binding(10) var<storage, read_write> plant : array<vec4<f32>>;
+@group(0) @binding(11) var<storage, read_write> glacier : array<vec4<f32>>;
 
 // m: moisture memory (groundwater fill smoothed over ~1 year) that plants respond to
-struct Col { swe : f32, g : f32, d : f32, fr : f32, mn : f32, m : f32 };
-struct Cell { z : f32, so : f32, asp : f32, extra : f32, cap : f32, vg : f32, bn : f32 };
+// ice: glacier ice thickness (m); deb: rock debris on/in it (m), which slows the melt
+struct Col { swe : f32, g : f32, d : f32, fr : f32, mn : f32, m : f32, ice : f32 };
+struct Cell { z : f32, so : f32, asp : f32, extra : f32, cap : f32, vg : f32, bn : f32, deb : f32 };
 
 // Painted local storms (sim/events.js): extra precipitation in m/day at this cell, already averaged
 // over the batch, so a 3-day storm adds 3 storm-days of water at any speed. Smooth cosine bell.
@@ -70,11 +77,18 @@ fn integrate(st : ptr<function, Col>, n : u32, dt : f32, start : f32, c : Cell) 
     let sn = snowStep((*st).swe, T, pr, dt, 1.0 + 0.5 * c.asp);
     (*st).swe = sn.x;
     (*st).mn = min((*st).mn, sn.x);
+    // bare glacier ice melts once the snow is gone (water equivalent, 0.9 m per m of ice)
+    var liquid = sn.y;
+    if ((*st).ice > 0.0 && sn.x < 0.001) {
+      let mi = min((*st).ice * 0.9, P.ddfIce * (1.0 + 0.5 * c.asp) * pdd(T) * dt / (1.0 + c.deb / 0.3));   // c.deb: surface cover
+      (*st).ice = max((*st).ice - mi / 0.9, 0.0);
+      liquid += mi;
+    }
     a.y += sn.z;
     (*st).d = frostStep((*st).d, T, (*st).swe, dt);
     (*st).fr = frozenFactor((*st).d, T);
     let cyc = ftCycles(T, dt) * select(0.0, 1.0, (*st).swe < 0.03);   // snow cover damps surface cycles
-    let s3 = soilStep((*st).g, sn.y, T, (*st).fr, dt, c.cap, c.vg, c.bn);
+    let s3 = soilStep((*st).g, liquid, T, (*st).fr, dt, c.cap, c.vg, c.bn);
     (*st).g = s3.x; a.z += s3.y; a.y += s3.z;
     let fill = clamp((*st).g / c.cap, 0.0, 1.0);
     (*st).m = (*st).m + (fill - (*st).m) * mk;
@@ -82,6 +96,29 @@ fn integrate(st : ptr<function, Col>, n : u32, dt : f32, start : f32, c : Cell) 
     a.x += pr;
   }
   return a;
+}
+
+// Snow above firnSWE (water equivalent) turns into glacier ice over firnTau years. Returns the new
+// ice thickness and lowers the snow by what it gave.
+fn firn(swe : ptr<function, f32>, ice : f32) -> f32 {
+  if (P.glacOn < 0.5) { return ice; }
+  let ex = max(*swe - P.firnSWE, 0.0);
+  let c = ex * (1.0 - exp(-P.D / (365.0 * P.firnTau)));
+  if (c <= 0.0) { return ice; }
+  *swe = *swe - c;
+  return ice + c / 0.9;
+}
+// Melting ice lets go of the rock it carries in proportion (all of it once the ice is gone);
+// the released debris waits in .w for the glacier kernel to lay it down as till.
+fn release(glIn : vec4<f32>, ice0 : f32, gone : f32) -> vec4<f32> {
+  var gl = glIn;
+  if (gl.y <= 0.0 || gone <= 0.0) { return gl; }
+  let left = ice0 - gone;
+  let f = select(clamp(gone / max(ice0, 1e-6), 0.0, 1.0), 1.0, left < 0.05);
+  let drop = gl.y * f;
+  gl.y = gl.y - drop;
+  gl.w = gl.w + drop;
+  return gl;
 }
 
 @compute @workgroup_size(16, 16)
@@ -97,15 +134,19 @@ fn main(@builtin(global_invocation_id) gid : vec3<u32>) {
   let gy = (bedrock[idxc(x, y + 1)] + soil[idxc(x, y + 1)] - bedrock[idxc(x, y - 1)] - soil[idxc(x, y - 1)]) / (2.0 * P.cellSize);
   let asp = clamp(-gy / 0.6, -1.0, 1.0);
   let pl = plant[i];
-  let c = Cell(z, so, asp, localStorms(vec2<f32>(f32(x), f32(y))), gwCap(so), clamp(veg[i], 0.0, 1.0), clamp(burn[i], 0.0, 1.0));
+  var gl = glacier[i];
+  // most of the rock rides near the bed; only near a thin snout does it make a cover on the surface
+  let cover = gl.y / (1.0 + gl.x / 5.0);
+  let c = Cell(z, so, asp, localStorms(vec2<f32>(f32(x), f32(y))), gwCap(so), clamp(veg[i], 0.0, 1.0), clamp(burn[i], 0.0, 1.0), cover);
   let swe0 = snowSWE[i];
   let g0 = groundwater[i];
-  var st = Col(swe0, g0, frostDepth[i], 0.0, 1e9, pl.y);
+  let ice0 = gl.x;
+  var st = Col(swe0, g0, frostDepth[i], 0.0, 1e9, pl.y, ice0);
   let n = max(1u, u32(P.nInner));
   let dt = P.spanDays / f32(n);
   var a = integrate(&st, n, dt, P.dayStart, c);
   var aP = a.x; var aET = a.y; var aR = a.z; var aW = a.w;
-  var swe = st.swe; var g = st.g;
+  var swe = st.swe; var g = st.g; var ice = st.ice;
   if (P.yrs > 1.0001) {
     // Multi-year frame. Year 1 (above) removes the transient from the initial state; year 2 is the
     // periodic cycle. Only a genuine secular trend is extrapolated over the remaining yrs-1 years:
@@ -113,30 +154,41 @@ fn main(@builtin(global_invocation_id) gid : vec3<u32>) {
     // the bounded groundwater store are periodic, so they take their year-2 end state. Fluxes are
     // then rescaled so that P_total = dStorage + runoff + ET holds exactly.
     let s1 = st.swe;
+    let i1 = st.ice;
     st.mn = 1e9;
     let a2 = integrate(&st, n, dt, P.dayStart, c);
     let perennial = st.mn > 0.005;
     swe = select(st.swe, max(0.0, s1 + (st.swe - s1) * (P.yrs - 1.0)), perennial);
     g = st.g;
+    // ice lost to melt in year 2 goes on for the other yrs - 1 years (the flow kernel feeds it again)
+    ice = max(0.0, i1 + (st.ice - i1) * (P.yrs - 1.0));
     let pT = a2.x * P.yrs;
-    let outT = max(0.0, pT - (swe - swe0) - (g - g0));
+    let iceGone = ice0 - ice;
+    ice = firn(&swe, ice);
+    let outT = max(0.0, pT - (swe - swe0) - (g - g0) - 0.9 * (ice - ice0));
     let out2 = a2.y + a2.z;
     let rET = select(0.0, a2.y / out2, out2 > 1e-12);
     aET = outT * rET;
     aR = outT - aET;
     aP = pT;
     aW = a2.w * P.yrs;
+    gl = release(gl, ice0, iceGone);
   } else {
     // Exact per-cell closure (same idea as the multi-year path): with very short batches the
     // stores change by far less than their own f32 rounding steps, so the summed fluxes and the
     // actual change in storage drift apart. Take the outputs as P - dStorage (exact by Sterbenz)
     // and split them between runoff and ET in the integrated ratio.
-    let outT = max(0.0, aP - (swe - swe0) - (g - g0));
+    let iceGone = ice0 - ice;
+    ice = firn(&swe, ice);
+    let outT = max(0.0, aP - (swe - swe0) - (g - g0) - 0.9 * (ice - ice0));
     let out1 = aET + aR;
     let rET = select(0.0, aET / out1, out1 > 1e-20);
     aET = outT * rET;
     aR = outT - aET;
+    gl = release(gl, ice0, iceGone);
   }
+  gl.x = ice;
+  glacier[i] = gl;
   let fr = st.fr;
   let d = st.d;
   // weathering: bedrock -> soil, exact f32 change so solids are conserved; shale crumbles faster
@@ -182,8 +234,8 @@ class ColumnKernel {
     if (this.world === world && this.k) return;
     this.device = device; this.world = world;
     const B = world.buffers;
-    this.k = makeKernel(device, 'column', COLUMN_WGSL(), ['rw', 'rw', 'rw', 'rw', 'rw', 'r', 'rw', 'rw', 'r', 'rw']);
-    this.bg = this.k.bind(world.params.buffer, [B.bedrock, B.soil, B.water, B.snowSWE, B.frostDepth, B.veg, B.groundwater, B.acc, B.burn, B.plant]);
+    this.k = makeKernel(device, 'column', COLUMN_WGSL(), ['rw', 'rw', 'rw', 'rw', 'rw', 'r', 'rw', 'rw', 'r', 'rw', 'rw']);
+    this.bg = this.k.bind(world.params.buffer, [B.bedrock, B.soil, B.water, B.snowSWE, B.frostDepth, B.veg, B.groundwater, B.acc, B.burn, B.plant, B.glacier]);
     this.lastFrame = -1;
   }
   record(pass) {
