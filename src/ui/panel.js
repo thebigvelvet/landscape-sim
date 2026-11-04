@@ -287,6 +287,8 @@ export class Panel {
       };
       h.addEventListener('click', (e) => { if (!e.target.closest('.tip')) toggle(); });
       h.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggle(); } });
+      // open on request (picking a brush tool opens Weather events, where its sliders are)
+      document.addEventListener('open-section', (e) => { if (e.detail === sec.id && !sec.classList.contains('open')) toggle(); });
     }
   }
 

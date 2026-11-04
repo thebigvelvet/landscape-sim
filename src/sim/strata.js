@@ -463,10 +463,10 @@ function notes(T, PV) {
   const S = T.struct;
   for (const f of S.faults) {
     const t = trend([0, 0, -f.ny, f.nx]);
-    if (f.kind === 'thrust') out.push(`A ${t} thrust fault stacks the beds ${Math.round(f.throw)} m: its crushed zone wears into a gully and leaks groundwater. Seismic: repeated reflectors.`);
-    else if (f.kind === 'growth') out.push(`A ${t} growth fault steps the beds down ${Math.round(f.throw)} m toward the sea; water seeps along it. Seismic: thickening beds on the down side.`);
-    else if (f.kind === 'normal') out.push(`A ${t} normal fault drops the beds ${Math.round(f.throw)} m; its crushed zone leaks groundwater. Gravity step across it.`);
-    else out.push(`A ${t} fault zone of crushed rock wears into a gully and carries groundwater to springs. Resistivity and gravity low.`);
+    if (f.kind === 'thrust') out.push(`An ${t} thrust fault stacks the beds ${Math.round(f.throw)} m: its crushed zone wears into a gully and leaks groundwater. Seismic: repeated reflectors.`);
+    else if (f.kind === 'growth') out.push(`An ${t} growth fault steps the beds down ${Math.round(f.throw)} m toward the sea; water seeps along it. Seismic: thickening beds on the down side.`);
+    else if (f.kind === 'normal') out.push(`An ${t} normal fault drops the beds ${Math.round(f.throw)} m; its crushed zone leaks groundwater. Gravity step across it.`);
+    else out.push(`An ${t} fault zone of crushed rock wears into a gully and carries groundwater to springs. Resistivity and gravity low.`);
   }
   for (const d of S.domes) {
     if (d.kind === 'laccolith') { const a = T.anoms.find((x) => x.type === 'laccolith'); out.push(`A laccolith ${km(2 * d.ra)} across: beds domed ${Math.round(d.U)} m over a hard porphyry core${a ? (a.below > 0 ? ` about ${Math.round(a.below)} m down` : ' already laid bare at the summit') : ''}. Magnetic high.`); }

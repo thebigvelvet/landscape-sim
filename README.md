@@ -36,7 +36,7 @@ Built directly, on branch `r9-provinces` (cut from `main`).
   - Valley and Ridge, 20,000 years, twin runs with sinkholes off: rock under the sinkholes dissolved 52.6 m vs 1.8 m, leaving closed hollows in the rock floor (4 vs 1). Under a painted 3-day storm on bare limestone, karst cut the storm runoff leaving the map by 38 % against an insoluble twin.
   - Gulf: relief 326 m against 1,085 m for the same seed as Plateau; the ground over the salt domes sank 2.1 m while the ground around them gained 0.2 m.
   - Plateau: the rock along a salt anticline's crest went down 82.5 m vs 29.6 m on its flanks (the collapsed valley fills with sediment); jointed sandstone wore 1.21× as fast as unjointed; an exposed laccolith core (19 cells, a small exposure) lowered 3.9 m vs 13.6 m on its flanks (40,000 years at 3× erosion).
-  - Water balance within 3e-7 % in every run. Solids balance within the same float rounding as with layers off (about 1e-7 of the rock volume).
+  - Water balance within 4e-7 % in every run. Solids balance within the same float rounding as with layers off (about 1e-7 of the rock volume).
 - Regression: `strata` 7/7, `round2` 10/10, `round3` 7/7, `deposits` 5/5, `glacier` 11/11. Two tests miss their thresholds because the plateau rock changed, not because of a fault in their code:
   - `wind` 11/12: `directionDial` along-wind share is 0.49 against 0.5. It passed only narrowly before (0.504).
   - `volcano` 16/17: `basaltIsHard`: basalt now wears 0.74× as fast as the plateau rock around it (needs < 0.7×), because the new plateau has thick, hard dune sandstones.

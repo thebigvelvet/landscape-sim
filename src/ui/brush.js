@@ -106,6 +106,8 @@ export class BrushTool {
     for (const b of document.querySelectorAll('.tool')) b.classList.toggle('active', b.dataset.tool === id);
     this.showHelp();
     document.body.classList.toggle('painting', id !== 'none');
+    // the brush size and strength sliders live in the Weather events menu: open it so they show
+    if (id !== 'none') document.dispatchEvent(new CustomEvent('open-section', { detail: 'events' }));
     if (id === 'none') this.renderer.setCursor(false);
     else this.refreshHeights(true);
   }
