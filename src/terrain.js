@@ -210,7 +210,7 @@ function oldVolcanoes(height, N, cellSize, seed, noise) {
   return { volcRock: vr, info };
 }
 
-export const SCENARIOS = ['random', 'cone', 'valley'];
+export const SCENARIOS = ['random', 'cone', 'valley', 'flat'];
 
 // Returns { height, soil, volcRock, volcanoInfo } (metres above datum); volcRock is null when the
 // map has no old volcanoes (volcanoes: false never adds any)
@@ -234,6 +234,12 @@ export function generateTerrain(scenario, { N = 512, cellSize = 10, seed = 1, ru
       // V valley draining to the y = 0 edge: ~250 m fall along the axis, ~450 m side walls, any N
       let z = relief * (250 * (py / L) + 450 * Math.abs(px) / (0.5 * L)) + 3 * fbm(noise, x / 20, y / 20, 4) + 30 * relief * fbm(noise, x / 150, y / 150, 4);
       height[y * N + x] = z + 20;
+    }
+  } else if (scenario === 'flat') {
+    // flat square: level ground with only a gentle half-metre roughness so rain has somewhere to
+    // gather, a blank slate for sculpting, brushes and wind
+    for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) {
+      height[y * N + x] = 100 + 0.3 * fbm(noise, x / 12, y / 12, 3) + 0.4 * fbm(noise, x / 90 + 7, y / 90, 3);
     }
   } else {
     // random: fBm hills + ridged mountains, ruggedness blends + sharpens
