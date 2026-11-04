@@ -60,6 +60,7 @@ export class Panel {
     this.buildOverlays();
     this.bindControls();
     this.bindTooltips();
+    this.bindDropdowns();
     this.initialSolid = null;
     this.syncPreset();
     this.sync();
@@ -269,6 +270,24 @@ export class Panel {
     $('icon-pause').style.display = sim.paused ? 'none' : '';
     $('icon-play').style.display = sim.paused ? '' : 'none';
     this.syncPreset();
+  }
+
+  // Sections marked class="dropdown" open and close from their heading; each remembers its state.
+  bindDropdowns() {
+    for (const sec of document.querySelectorAll('section.dropdown')) {
+      const h = sec.querySelector(':scope > h2'), key = `dropdown:${sec.id}`;
+      let open = false;
+      try { open = localStorage.getItem(key) === '1'; } catch { /* storage unavailable */ }
+      sec.classList.toggle('open', open);
+      h.tabIndex = 0; h.setAttribute('role', 'button'); h.setAttribute('aria-expanded', String(open));
+      const toggle = () => {
+        const now = sec.classList.toggle('open');
+        h.setAttribute('aria-expanded', String(now));
+        try { localStorage.setItem(key, now ? '1' : '0'); } catch { /* storage unavailable */ }
+      };
+      h.addEventListener('click', (e) => { if (!e.target.closest('.tip')) toggle(); });
+      h.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggle(); } });
+    }
   }
 
   bindTooltips() {
