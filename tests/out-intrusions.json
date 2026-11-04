@@ -1,0 +1,127 @@
+{
+  "checks": {
+    "rockiesStocks": {
+      "pass": true,
+      "rockiesMapsWithStock": 12,
+      "of": 16
+    },
+    "batholithBare": {
+      "pass": true,
+      "below": [
+        -23,
+        -11,
+        -6,
+        -23,
+        9,
+        9,
+        1,
+        -11
+      ]
+    },
+    "sillsByLaccoliths": {
+      "pass": true,
+      "sills": 12,
+      "elsewhere": 0
+    },
+    "swarmAcrossFolds": {
+      "pass": true,
+      "angles": [
+        89,
+        89,
+        89,
+        89,
+        85,
+        85,
+        85,
+        89,
+        89,
+        83,
+        83,
+        75,
+        75,
+        75,
+        75
+      ]
+    },
+    "gulfPlugsBuried": {
+      "pass": true,
+      "below": [
+        11,
+        19,
+        14
+      ]
+    },
+    "standsUp": {
+      "pass": true,
+      "seed": 6,
+      "cells": 1366,
+      "higherThanTwin_m": 10.041379009822103,
+      "mapMean_m": 0.19396110919945533,
+      "picked": 5
+    },
+    "stockHard": {
+      "pass": true,
+      "seed": 4,
+      "cells": 941,
+      "higherThanTwin_m": 13.462991355709518,
+      "mapMean_m": 0.012628650257300514,
+      "picked": 1
+    },
+    "books": {
+      "pass": true,
+      "books": [
+        {
+          "run": "valleyRidge 6 on",
+          "ok": true,
+          "bal": -1.1019225833082597e-7,
+          "solids": -61.446380615234375
+        },
+        {
+          "run": "valleyRidge 6 off",
+          "ok": true,
+          "bal": 1.5405200582513876e-7,
+          "solids": 13.28582763671875
+        },
+        {
+          "run": "rockies 4 on",
+          "ok": true,
+          "bal": 1.7355671787370795e-7,
+          "solids": -213.8282060623169
+        },
+        {
+          "run": "rockies 4 off",
+          "ok": true,
+          "bal": 5.96298273411709e-8,
+          "solids": -305.9873342514038
+        }
+      ]
+    },
+    "noGpuErrors": {
+      "pass": true,
+      "errors": 0
+    }
+  },
+  "runs": {
+    "vr": {
+      "seed": 6,
+      "cells": 1366,
+      "higherThanTwin_m": 10.041379009822103,
+      "mapMean_m": 0.19396110919945533,
+      "picked": 5
+    },
+    "rockies": {
+      "seed": 4,
+      "cells": 941,
+      "higherThanTwin_m": 13.462991355709518,
+      "mapMean_m": 0.012628650257300514,
+      "picked": 1
+    }
+  },
+  "minutes": 0.35789833333293597,
+  "gpuErrors": 0,
+  "gpuErrorMsgs": [],
+  "passed": "9/9",
+  "gpuFeatureStatusWebGPU": "enabled",
+  "electron": "45.2.1",
+  "chrome": "156.0.8078.75"
+}

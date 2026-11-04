@@ -1,0 +1,463 @@
+{
+  "checks": {
+    "hawaiian.books": {
+      "pass": true,
+      "balPct": -2.483544809047157e-7,
+      "solidsError_m3": 16.516294300556183,
+      "erupted_m3": 41199659.21868334,
+      "nan": false,
+      "ok": true
+    },
+    "strombolian.books": {
+      "pass": true,
+      "balPct": -5.580130208865117e-7,
+      "solidsError_m3": 38.67432690039277,
+      "erupted_m3": 20000258.292648453,
+      "nan": false,
+      "ok": true
+    },
+    "hawaiian.moreLava": {
+      "pass": true,
+      "h": 11354564.78843689,
+      "s": 7190916.968727112,
+      "hA": 887200,
+      "sA": 562700
+    },
+    "hawaiian.smallCone": {
+      "pass": true,
+      "h": 49.35267706156422,
+      "s": 94.14318338527558
+    },
+    "strombolian.cone": {
+      "pass": true,
+      "h": 94.14318338527558,
+      "planned": 94.14318338527558
+    },
+    "vulcanian.books": {
+      "pass": true,
+      "balPct": -9.120634812819419e-9,
+      "solidsError_m3": -11.444071844220161,
+      "erupted_m3": 13784601.96826092,
+      "nan": false,
+      "ok": true
+    },
+    "vulcanian.andesite": {
+      "pass": true,
+      "andesite": 5364491.143798828,
+      "basalt": 0
+    },
+    "vulcanian.thickFlow": {
+      "pass": true,
+      "andesite_m": 22.21321384595788,
+      "basalt_m": 12.779308634666984
+    },
+    "vulcanian.ash": {
+      "pass": true,
+      "ash": 7055680.515289307,
+      "area": 137500
+    },
+    "pelean.books": {
+      "pass": true,
+      "balPct": -2.46709012992827e-8,
+      "solidsError_m3": 469.44872154667974,
+      "erupted_m3": 31810276.36636497,
+      "nan": false,
+      "ok": true
+    },
+    "pelean.dome": {
+      "pass": true,
+      "andesite": 25248764.833831787,
+      "ventDz": 76.9
+    },
+    "pelean.pyroclasticFlows": {
+      "pass": true,
+      "tuffFarCells": 854,
+      "tuff": 5916804.749298096
+    },
+    "plinian.books": {
+      "pass": true,
+      "balPct": -0.0000014875338320838013,
+      "solidsError_m3": 12.060335073620081,
+      "erupted_m3": 16029970.182054393,
+      "nan": false,
+      "ok": true
+    },
+    "plinian.crater": {
+      "pass": true,
+      "ventDz": -76.8
+    },
+    "plinian.ashBlanket": {
+      "pass": true,
+      "ashArea": 4773100,
+      "mapArea": 6553600
+    },
+    "plinian.pyroclasticFlows": {
+      "pass": true,
+      "tuffFarCells": 4736
+    },
+    "plinian.plantsBuried": {
+      "pass": true,
+      "vegNear": -0.985
+    },
+    "phreatic.books": {
+      "pass": true,
+      "balPct": -0.000003827595396248657,
+      "solidsError_m3": 0.08678331278497353,
+      "erupted_m3": 178330.36772104964,
+      "nan": false,
+      "ok": true
+    },
+    "phreatic.crater": {
+      "pass": true,
+      "ventDz": -25,
+      "breccia": 471830.2520751953
+    },
+    "phreatic.noLava": {
+      "pass": true,
+      "basalt": 0,
+      "andesite": 0
+    },
+    "phreatomagmatic.books": {
+      "pass": true,
+      "balPct": 7.25995098029616e-7,
+      "solidsError_m3": 96.00948557956144,
+      "erupted_m3": 3073969.8918586555,
+      "nan": false,
+      "ok": true
+    },
+    "phreatomagmatic.maar": {
+      "pass": true,
+      "ventDz": -69.6,
+      "ringRise": 25.7,
+      "tuff": 10395116.450500488
+    },
+    "noGpuErrors": {
+      "pass": true,
+      "errors": 0
+    }
+  },
+  "runs": {
+    "hawaiian": {
+      "style": "hawaiian",
+      "days": 2260,
+      "wallSec": 3.9,
+      "books": {
+        "balPct": -2.483544809047157e-7,
+        "solidsError_m3": 16.516294300556183,
+        "erupted_m3": 41199659.21868334,
+        "nan": false,
+        "ok": true
+      },
+      "planned": {
+        "coneHeight": 49.35267706156422,
+        "lava": 40000000,
+        "pyro": 0,
+        "ashT": 0,
+        "craterD": 0,
+        "craterR": 0,
+        "ringH": 0
+      },
+      "coneHeight_m": 49.35267706156422,
+      "ventDz": 35.6,
+      "maxRise": 48.6,
+      "ringRise": null,
+      "vol": {
+        "basalt": 11354564.78843689,
+        "cinders": 1129214.7247314453,
+        "plug": 709981.7077636719,
+        "andesite": 0,
+        "ash": 0,
+        "tuff": 0,
+        "breccia": 0
+      },
+      "area": {
+        "basalt": 887200,
+        "cinders": 42100,
+        "andesite": 0,
+        "ash": 0,
+        "tuff": 0,
+        "breccia": 0
+      },
+      "tuffFarCells": 0,
+      "vegNear": -0.784,
+      "vegFar": -0.088
+    },
+    "strombolian": {
+      "style": "strombolian",
+      "days": 1590,
+      "wallSec": 2.7,
+      "books": {
+        "balPct": -5.580130208865117e-7,
+        "solidsError_m3": 38.67432690039277,
+        "erupted_m3": 20000258.292648453,
+        "nan": false,
+        "ok": true
+      },
+      "planned": {
+        "coneHeight": 94.14318338527558,
+        "lava": 15000000,
+        "pyro": 0,
+        "ashT": 0,
+        "craterD": 0,
+        "craterR": 0,
+        "ringH": 0
+      },
+      "coneHeight_m": 94.14318338527558,
+      "ventDz": 75.3,
+      "maxRise": 93.9,
+      "ringRise": null,
+      "vol": {
+        "basalt": 7190916.968727112,
+        "cinders": 4899428.033447266,
+        "plug": 829090.1840209961,
+        "andesite": 0,
+        "ash": 0,
+        "tuff": 0,
+        "breccia": 0
+      },
+      "area": {
+        "basalt": 562700,
+        "cinders": 119100,
+        "andesite": 0,
+        "ash": 0,
+        "tuff": 0,
+        "breccia": 0
+      },
+      "tuffFarCells": 0,
+      "vegNear": -0.897,
+      "vegFar": -0.063
+    },
+    "vulcanian": {
+      "style": "vulcanian",
+      "days": 2530,
+      "wallSec": 4.3,
+      "books": {
+        "balPct": -9.120634812819419e-9,
+        "solidsError_m3": -11.444071844220161,
+        "erupted_m3": 13784601.96826092,
+        "nan": false,
+        "ok": true
+      },
+      "planned": {
+        "coneHeight": 100.32376232886772,
+        "lava": 5000000,
+        "pyro": 0,
+        "ashT": 0.8,
+        "craterD": 0,
+        "craterR": 0,
+        "ringH": 0
+      },
+      "coneHeight_m": 100.32376232886772,
+      "ventDz": 73.1,
+      "maxRise": 101,
+      "ringRise": null,
+      "vol": {
+        "basalt": 0,
+        "cinders": 0,
+        "plug": 580191.4794921875,
+        "andesite": 5364491.143798828,
+        "ash": 7055680.515289307,
+        "tuff": 0,
+        "breccia": 0
+      },
+      "area": {
+        "basalt": 0,
+        "cinders": 0,
+        "andesite": 241500,
+        "ash": 137500,
+        "tuff": 0,
+        "breccia": 0
+      },
+      "tuffFarCells": 0,
+      "vegNear": -0.808,
+      "vegFar": -0.084
+    },
+    "pelean": {
+      "style": "pelean",
+      "days": 6440,
+      "wallSec": 10.9,
+      "books": {
+        "balPct": -2.46709012992827e-8,
+        "solidsError_m3": 469.44872154667974,
+        "erupted_m3": 31810276.36636497,
+        "nan": false,
+        "ok": true
+      },
+      "planned": {
+        "coneHeight": 131.58079821957898,
+        "lava": 25000000,
+        "pyro": 6000000,
+        "ashT": 0.4,
+        "craterD": 0,
+        "craterR": 0,
+        "ringH": 0
+      },
+      "coneHeight_m": 0,
+      "ventDz": 76.9,
+      "maxRise": 100.4,
+      "ringRise": null,
+      "vol": {
+        "basalt": 707781.2675476074,
+        "cinders": 0,
+        "plug": 0,
+        "andesite": 25248764.833831787,
+        "ash": 77.2979736328125,
+        "tuff": 5916804.749298096,
+        "breccia": 0
+      },
+      "area": {
+        "basalt": 106500,
+        "cinders": 0,
+        "andesite": 450100,
+        "ash": 0,
+        "tuff": 84600,
+        "breccia": 0
+      },
+      "tuffFarCells": 854,
+      "vegNear": -0.764,
+      "vegFar": -0.024
+    },
+    "plinian": {
+      "style": "plinian",
+      "days": 140,
+      "wallSec": 0.3,
+      "books": {
+        "balPct": -0.0000014875338320838013,
+        "solidsError_m3": 12.060335073620081,
+        "erupted_m3": 16029970.182054393,
+        "nan": false,
+        "ok": true
+      },
+      "planned": {
+        "coneHeight": 0,
+        "lava": 0,
+        "pyro": 25000000,
+        "ashT": 4,
+        "craterD": 120,
+        "craterR": 350,
+        "ringH": 0
+      },
+      "coneHeight_m": 0,
+      "ventDz": -76.8,
+      "maxRise": 64.9,
+      "ringRise": 72.7,
+      "vol": {
+        "basalt": 0,
+        "cinders": 0,
+        "plug": 0,
+        "andesite": 0,
+        "ash": 17884339.55516815,
+        "tuff": 24967173.7991333,
+        "breccia": 0
+      },
+      "area": {
+        "basalt": 0,
+        "cinders": 0,
+        "andesite": 0,
+        "ash": 4773100,
+        "tuff": 613100,
+        "breccia": 0
+      },
+      "tuffFarCells": 4736,
+      "vegNear": -0.985,
+      "vegFar": -0.96
+    },
+    "phreatic": {
+      "style": "phreatic",
+      "days": 10,
+      "wallSec": 0,
+      "books": {
+        "balPct": -0.000003827595396248657,
+        "solidsError_m3": 0.08678331278497353,
+        "erupted_m3": 178330.36772104964,
+        "nan": false,
+        "ok": true
+      },
+      "planned": {
+        "coneHeight": 9.401785714285714,
+        "lava": 0,
+        "pyro": 0,
+        "ashT": 0.05,
+        "craterD": 25,
+        "craterR": 90,
+        "ringH": 9.401785714285714
+      },
+      "coneHeight_m": 0,
+      "ventDz": -25,
+      "maxRise": 9.4,
+      "ringRise": 9.4,
+      "vol": {
+        "basalt": 0,
+        "cinders": 0,
+        "plug": 0,
+        "andesite": 0,
+        "ash": 0,
+        "tuff": 0,
+        "breccia": 471830.2520751953
+      },
+      "area": {
+        "basalt": 0,
+        "cinders": 0,
+        "andesite": 0,
+        "ash": 0,
+        "tuff": 0,
+        "breccia": 101700
+      },
+      "tuffFarCells": 0,
+      "vegNear": -0.999,
+      "vegFar": -0.025
+    },
+    "phreatomagmatic": {
+      "style": "phreatomagmatic",
+      "days": 60,
+      "wallSec": 0.2,
+      "books": {
+        "balPct": 7.25995098029616e-7,
+        "solidsError_m3": 96.00948557956144,
+        "erupted_m3": 3073969.8918586555,
+        "nan": false,
+        "ok": true
+      },
+      "planned": {
+        "coneHeight": 25.349999999999998,
+        "lava": 0,
+        "pyro": 0,
+        "ashT": 0.4,
+        "craterD": 70,
+        "craterR": 260,
+        "ringH": 25.349999999999998
+      },
+      "coneHeight_m": 0,
+      "ventDz": -69.6,
+      "maxRise": 25.7,
+      "ringRise": 25.7,
+      "vol": {
+        "basalt": 0,
+        "cinders": 0,
+        "plug": 0,
+        "andesite": 0,
+        "ash": 6180.419921875,
+        "tuff": 10395116.450500488,
+        "breccia": 0
+      },
+      "area": {
+        "basalt": 0,
+        "cinders": 0,
+        "andesite": 0,
+        "ash": 350100,
+        "tuff": 1104800,
+        "breccia": 0
+      },
+      "tuffFarCells": 10189,
+      "vegNear": -1,
+      "vegFar": -0.541
+    }
+  },
+  "minutes": 0.38177333333293595,
+  "gpuErrors": 0,
+  "gpuErrorMsgs": [],
+  "passed": "23/23",
+  "gpuFeatureStatusWebGPU": "enabled",
+  "electron": "45.2.1",
+  "chrome": "156.0.8078.75"
+}

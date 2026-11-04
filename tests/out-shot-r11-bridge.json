@@ -1,0 +1,113 @@
+{
+ "checks": {
+  "bridge": {
+   "pass": true,
+   "site": {
+    "x": 40,
+    "y": 214,
+    "relief": 144.5345951244235,
+    "g": 186.4023048710078
+   },
+   "wetIn": 4.211816787719727,
+   "wetOut": 6.9182257652282715,
+   "bridges": [
+    {
+     "kind": "bridge",
+     "x": 18,
+     "y": 213,
+     "floor": 166.71475219726562,
+     "openH": 5.815171813964843,
+     "top": 183.27610778808594,
+     "span_cells": 1,
+     "width_cells": 3,
+     "age_kyr": 0,
+     "rock": "Eolian sandstone",
+     "soft": false,
+     "lintel_m3": 3223.8551330566424
+    },
+    {
+     "kind": "bridge",
+     "x": 24,
+     "y": 213,
+     "floor": 166.12319946289062,
+     "openH": 6.114495086669922,
+     "top": 183.48118591308594,
+     "span_cells": 1,
+     "width_cells": 3,
+     "age_kyr": 0,
+     "rock": "Eolian sandstone",
+     "soft": false,
+     "lintel_m3": 3373.0474090576135
+    },
+    {
+     "kind": "bridge",
+     "x": 30,
+     "y": 213,
+     "floor": 165.6679229736328,
+     "openH": 6.318494415283203,
+     "top": 183.6349639892578,
+     "span_cells": 1,
+     "width_cells": 3,
+     "age_kyr": 0,
+     "rock": "Eolian sandstone",
+     "soft": false,
+     "lintel_m3": 3494.563980102541
+    },
+    {
+     "kind": "bridge",
+     "x": 36,
+     "y": 213,
+     "floor": 164.69805908203125,
+     "openH": 6.889631652832031,
+     "top": 184.23414611816406,
+     "span_cells": 1,
+     "width_cells": 3,
+     "age_kyr": 0,
+     "rock": "Eolian sandstone",
+     "soft": false,
+     "lintel_m3": 3793.9366149902326
+    },
+    {
+     "kind": "bridge",
+     "x": 42,
+     "y": 213,
+     "floor": 164.31907653808594,
+     "openH": 7.024454498291015,
+     "top": 184.38819885253906,
+     "span_cells": 1,
+     "width_cells": 3,
+     "age_kyr": 0,
+     "rock": "Eolian sandstone",
+     "soft": false,
+     "lintel_m3": 3913.400344848631
+    }
+   ],
+   "necks": 5,
+   "waterUnder": 5.4174652099609375
+  },
+  "books": {
+   "pass": true,
+   "books": [
+    {
+     "run": "bridge",
+     "ok": true,
+     "bal": 2.7190035394622633e-7,
+     "solids": 32.91321100998539,
+     "archRock": 17798.80348205566
+    }
+   ]
+  },
+  "noGpuErrors": {
+   "pass": true,
+   "errors": 0
+  }
+ },
+ "runs": {},
+ "minutes": 0.08812666666706404,
+ "gpuErrors": 0,
+ "gpuErrorMsgs": [],
+ "passed": "3/3",
+ "gpuFeatureStatusWebGPU": "enabled",
+ "electron": "45.2.1",
+ "chrome": "156.0.8078.75"
+}

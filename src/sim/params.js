@@ -63,6 +63,8 @@ export const PARAM_FIELDS = [
   ...VENT_EXTRA.flatMap((n) => [0, 1].map((k) => [`v${k}${n}`, 'f32'])),
   // karst and salt (sim/column.js): dissolution rate (m/yr of soluble rock), landscape years this batch
   ['kDiss', 'f32'], ['yrsE', 'f32'],
+  // karst valleys (sim/karst.js): rock dissolved per m of water sunk, and at the foot of wet walls (m/yr)
+  ['kRech', 'f32'], ['kFoot', 'f32'],
   // rock layers (sim/strata.js): on/off, top of the stack (m, bedrock frame), dip, monocline, fold
   ...STRATA_PARAM_FIELDS.map((n) => [n, 'f32']),
   // rock table (strata.js TB layout: beds, faults, domes, anomalies, joints, basement); must stay last

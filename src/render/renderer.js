@@ -5,7 +5,7 @@
 // a baked drought look, event markers, the brush cursor and click ripples.
 // Reads the simulation storage buffers directly (no copies, no CPU readback). The frame is encoded
 // into the caller's command encoder so simulation and rendering share one submission.
-import { SKY, TERRAIN, SKIRT, WATER, PRECIP, COMPACT, TREES, SMOKE, STORMFX, PLUME, PLUME_PUFFS } from './shaders.js';
+import { SKY, TERRAIN, SKIRT, WATER, PRECIP, COMPACT, TREES, SMOKE, STORMFX, PLUME, PLUME_PUFFS, ARCHES, ARCH_SEG } from './shaders.js';
 import { makeKernels } from './gpu.js';
 import { Lighting } from './lighting.js';
 import { OrbitCamera } from './camera.js';
@@ -16,7 +16,7 @@ import { MAX_BEDS, TABLE_LEN } from '../sim/strata.js';
 export const OVERLAYS = ['none', 'water', 'sediment', 'snow', 'frost', 'change', 'groundwater', 'plants', 'beds', 'wind', 'glaciers', 'volcanic', 'subsurface'];
 export const TOOL_IDS = { none: 0, storm: 1, drought: 2, flood: 3, wildfire: 4, raise: 5, lower: 5, smooth: 5, flatten: 5, channel: 5, volcano: 6 };
 const VENT_AT = 156 + 16 + 4 * TABLE_LEN + 4 * MAX_BEDS;   // R.vent (after the rock table and bed colours)
-const UB_FLOATS = VENT_AT + 8;
+const UB_FLOATS = VENT_AT + 12;   // + R.archN
 
 const SAMPLES = 4;
 const WEATHER_VISIBLE_SPEED = 36;   // days/s; above this rain particles and clouds are averaged out
@@ -108,6 +108,7 @@ export class Renderer {
     this.pSmoke = mk(SMOKE, 'smoke', { blend: true, depthWrite: false });
     this.pStorm = mk(STORMFX, 'stormfx', { blend: true, depthWrite: false });
     this.pPlume = mk(PLUME, 'plume', { blend: true, depthWrite: false });
+    this.pArches = mk(ARCHES, 'arches');
     this.kCompact = makeKernels(d, 'compact', COMPACT, ['uniform', 'read', 'read', 'read', 'storage', 'storage', 'storage'], ['main', 'clampArgs']);
   }
 
@@ -140,7 +141,7 @@ export class Renderer {
     const w = world;
     this.bgSky = bg(this.pSky, [this.ub]);
     this.bgPrecip = bg(this.pPrecip, [this.ub]);
-    this.bgTerrain = bg(this.pTerrain, [this.ub, w.bedrock, w.soil, w.snowSWE, w.water, w.sediment, w.frostDepth, w.light, w.height0, w.wind, w.glacier, w.volcRock, w.lava]);
+    this.bgTerrain = bg(this.pTerrain, [this.ub, w.bedrock, w.soil, w.snowSWE, w.water, w.sediment, w.frostDepth, w.light, w.height0, w.wind, w.glacier, w.volcRock, w.lava, w.arches, w.karst]);
     this.bgSkirt = bg(this.pSkirt, [this.ub, w.bedrock, w.soil, w.deposit, w.volcRock]);
     this.bgWater = bg(this.pWater, [this.ub, w.bedrock, w.soil, w.water, w.velX, w.velY, w.sediment, w.light, w.snowSWE, w.glacier]);
     this.lighting = new Lighting(d, world);
@@ -158,6 +159,7 @@ export class Renderer {
     this.bgSmoke = bg(this.pSmoke, [this.ub, w.bedrock, w.soil, w.light, this.fireList]);
     this.bgStorm = bg(this.pStorm, [this.ub]);
     this.bgPlume = bg(this.pPlume, [this.ub]);
+    this.bgArches = bg(this.pArches, [this.ub, w.bedrock, w.soil, w.snowSWE, w.light, w.arches]);
   }
 
   // ---- brush cursor / feedback (grid cell coordinates) ----
@@ -361,6 +363,7 @@ export class Renderer {
       u.set(st.table, 172); u.set(st.colors, 172 + 4 * TABLE_LEN);
     } else u[156] = 0;
     for (let k = 0; k < 2; k++) u.set(vis.vents[k] || [0, 0, 0, 0], VENT_AT + 4 * k);
+    u.set([sim.arches?.count || 0, 0, 0, 0], VENT_AT + 8);
     this.device.queue.writeBuffer(this.ub, 0, u);
     this.nStorms = vis.storms.length;
     this.nVents = vis.vents.length;
@@ -404,6 +407,13 @@ export class Renderer {
       pass.setPipeline(this.pTrees);
       pass.setBindGroup(0, this.bgTrees);
       pass.drawIndirect(this.drawArgs, 0);
+    }
+    // natural arches and bridges (sim/arches.js)
+    const nArches = Math.min(sim.arches?.count || 0, 64);
+    if (nArches > 0) {
+      pass.setPipeline(this.pArches);
+      pass.setBindGroup(0, this.bgArches);
+      pass.draw(ARCH_SEG * 24, nArches);
     }
     // The natural-looking water is hidden under the water/sediment overlays so their colours read cleanly.
     if (this.showWater && this.mode !== 1 && this.mode !== 2) {

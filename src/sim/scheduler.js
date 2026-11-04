@@ -39,6 +39,8 @@ import { deposits, DEP_EPOCHS } from './deposits.js';
 import { wind, towardVector, WIND_PARAMS } from './wind.js';
 import { glacier, GLACIER_PARAMS } from './glacier.js';
 import { volcano } from './volcano.js';
+import { karst, KARST_PARAMS as KARST_V } from './karst.js';
+import { arches } from './arches.js';
 import { Stats } from './stats.js';
 
 export const A_CAP = 150;              // max routing intensity (x real-time runoff rate)
@@ -103,6 +105,8 @@ export class Simulation {
       wind.init(this.device, this.world);
       glacier.init(this.device, this.world);
       volcano.init(this.device, this.world);
+      karst.init(this.device, this.world);
+      arches.init(this.device, this.world);
       this.events.init(this.device, this.world);
       sculptor.init(this.device, this.world);
       this.statsK = new Stats(this.device, this.world);
@@ -141,6 +145,7 @@ export class Simulation {
     wind.reset(seed);
     glacier.hasIce = true;
     volcano.reset();
+    arches.reset(seed);
     this.events.reset();
     sculptor.reset();
     this.world.params.set({ N, cellSize, cellArea: cellSize * cellSize, frame: 0, logSize: LOG_SIZE });
@@ -205,7 +210,7 @@ export class Simulation {
       sandTan: wind.enabled ? WIND_PARAMS.sandTan : EROSION_PARAMS.talusTan,
       ...GLACIER_PARAMS, glacOn: glacier.enabled ? 1 : 0, glacK: glacier.iterations(Dcol),
       ...stFields,
-      kDiss: KARST_PARAMS.kDiss, yrsE: yearsE,
+      kDiss: KARST_PARAMS.kDiss, yrsE: yearsE, kRech: this.karstValleys ? KARST_V.kRech : 0, kFoot: this.karstValleys ? KARST_V.kFoot : 0,
       ...ev.fields,
       ...vp.fields,
     };
@@ -264,6 +269,7 @@ export class Simulation {
     const pass = enc.beginComputePass({ label: 'sim', timestampWrites: timed ? this.timer?.simPassTimestamps() : undefined });
     column.record(pass);
     groundwater.record(pass);
+    karst.record(pass);
     deposits.snapshot(pass);
     water.record(pass, n);
     deposits.record(pass);
@@ -315,6 +321,9 @@ export class Simulation {
   get canUndo() { return sculptor.canUndo; }
   // rock layers on/off (sim/strata.js); on by default, takes effect at the next batch
   strata = true;
+  // karst valleys (sim/karst.js: sinking water dissolving its way down, walls retreating) on/off; the
+  // plain dissolution in column.js stays either way. For tests.
+  karstValleys = true;
   // sediment beds on/off (sim/deposits.js), and the sim time between new beds (set from the speed)
   sedimentBeds = true;
   bedDays = 7;
@@ -332,6 +341,7 @@ export class Simulation {
   // next load. The Volcano brush works either way.
   oldVolcanoes = true;
   get volcanoes() { return volcano; }
+  get arches() { return arches; }
 
   // snow avalanches on/off (sim/snow.js); on by default
   get avalanches() { return avalanche.enabled; }
@@ -362,6 +372,7 @@ export class Simulation {
     const nClock = Math.max(2, 2 * Math.floor((Dcol * 86400) / (0.2 * this.world.cellSize) / 2));
     const n = this._batch(Dcol, target, Math.min(this.nSub, nClock), true);
     if (this.frame % 30 === 0) this._readback();
+    if (arches.due(this)) arches.update(this).catch((e) => console.error(e));
     return n;
   }
 
@@ -385,6 +396,7 @@ export class Simulation {
         remaining -= D;
         k++;
         if (k % 6 === 0) await this.device.queue.onSubmittedWorkDone();
+        if (arches.due(this)) await arches.update(this);
         if (k % 300 === 0) await this._readback();
       }
       await this.device.queue.onSubmittedWorkDone();
@@ -440,7 +452,8 @@ export class Simulation {
     const c = this.cum;
     const err = c.precip - (stored - this.stored0) - c.outflow - c.evap;
     // should be ~0: solids only leave via the boundary and only arrive from volcanic vents
-    const solidsErr = s.solidsChange * A + c.sedOut - c.erupted;
+    // (rock held up in arch lintels is out of the height field: sim/arches.js)
+    const solidsErr = s.solidsChange * A + c.sedOut - c.erupted + arches.store;
     const cells = this.world.cells;
     return {
       day: this.day, year: this.day / 365,
@@ -458,6 +471,7 @@ export class Simulation {
       meanWoodyCover: s.woodySum / cells,
       totalIce_m3: s.ice * A, iceWater_m3: 0.9 * s.ice * A, glacierFrac: s.iceCells / cells,
       cumErupted_m3: c.erupted, hotLavaCells: s.hotLava, erupting: volcano.erupting,
+      archesStanding: arches.standing, archesFallen: arches.fallen, bridgesStanding: arches.bridges, archRock_m3: arches.store,
     };
   }
 }

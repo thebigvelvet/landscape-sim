@@ -1,0 +1,50 @@
+{
+  "mode": "intrude",
+  "seed": 4,
+  "notes": [
+    "Regional heat flow ~90 mW/m²; Bouguer gravity low under the range (thick, light crust).",
+    "An N-S fault zone of crushed rock wears into a gully and carries groundwater to springs. Resistivity and gravity low.",
+    "An E-W fault zone of crushed rock wears into a gully and carries groundwater to springs. Resistivity and gravity low.",
+    "A granite batholith 1.7 km across, its crown already bare: magma that cooled slowly kilometres down. Granite domes and tors once uncovered, ringed by baked hornfels. Gravity low (light granite), magnetic high.",
+    "A porphyry stock 350 m across, its top already bare: hard granite inside a ring of baked hornfels, standing up as a knob once uncovered. Magnetic high; the mineral belt's ore came from stocks like this.",
+    "4 dikes (N-S, N-S, NW-SE, N-S): hard dark sheets that stand up as walls and dam groundwater. Magnetic highs.",
+    "A hydrothermally altered zone 320 m across: soft ochre rock that weathers fast (mineral-belt style). Magnetic low.",
+    "A hot spring on the fault: +29°C at the vent, heat flow ~532 mW/m². It melts the snow and keeps the ground unfrozen.",
+    "3 soluble beds (limestone, gypsum, chalk): where exposed, streams lose water into the ground and the rock slowly dissolves."
+  ],
+  "anoms": [
+    "fault:fault",
+    "fault:fault",
+    "dike",
+    "dike",
+    "dike",
+    "dike",
+    "alteration",
+    "hotSpring",
+    "stock:batholith",
+    "stock:stock"
+  ],
+  "day": 7300240,
+  "bal": 2.74103269453336e-7,
+  "solidsErr": -217.499977175612,
+  "sedOut": 605767.4519004184,
+  "nan": false,
+  "karst": {
+    "dissolved_m3": 215827.3193359375,
+    "deepest_m": 20.51531982421875,
+    "area1m_m2": 25000,
+    "area5m_m2": 14600
+  },
+  "gpuErrors": 0,
+  "cam": {
+    "target": [
+      -484.83621111548047,
+      603.6010093688965,
+      -616.7836952132566
+    ],
+    "dist": 4032
+  },
+  "gpuFeatureStatusWebGPU": "enabled",
+  "electron": "45.2.1",
+  "chrome": "156.0.8078.75"
+}

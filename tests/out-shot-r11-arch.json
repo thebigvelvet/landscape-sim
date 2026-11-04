@@ -1,0 +1,56 @@
+{
+  "mode": "arch",
+  "seed": 4,
+  "notes": [
+    "Regional heat flow ~60 mW/m².",
+    "3 breccia pipes: collapse columns of broken rock that leak groundwater and wear into hollows. Radiometric (uranium) highs.",
+    "Two joint sets about 45 m apart: the massive sandstones split along them into fins and slots.",
+    "2 soluble beds (limestone, gypsum, chalk): where exposed, streams lose water into the ground and the rock slowly dissolves."
+  ],
+  "anoms": [
+    "pipe",
+    "pipe",
+    "pipe"
+  ],
+  "arches": [
+    {
+      "kind": "arch",
+      "x": 180,
+      "y": 204,
+      "floor": 469.0775146484375,
+      "openH": 5.695613136300777,
+      "top": 481.1624450683594,
+      "span_cells": 2,
+      "width_cells": 3,
+      "age_kyr": 3.2933333333335426,
+      "rock": "Eolian sandstone",
+      "soft": false,
+      "lintel_m3": 4029.032914598349
+    }
+  ],
+  "fallen": 1,
+  "archTargetY": 590.6186031627725,
+  "day": 3650240,
+  "bal": -1.1339600315460183e-7,
+  "solidsErr": -81.51005005755678,
+  "sedOut": 13753892.235088628,
+  "nan": false,
+  "karst": {
+    "dissolved_m3": 127441.34864807129,
+    "deepest_m": 26.392242431640625,
+    "area1m_m2": 11400,
+    "area5m_m2": 6300
+  },
+  "gpuErrors": 0,
+  "cam": {
+    "target": [
+      525,
+      590.6186031627725,
+      765
+    ],
+    "dist": 112
+  },
+  "gpuFeatureStatusWebGPU": "enabled",
+  "electron": "45.2.1",
+  "chrome": "156.0.8078.75"
+}

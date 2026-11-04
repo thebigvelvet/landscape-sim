@@ -1,0 +1,80 @@
+{
+  "checks": {
+    "raiseLower": {
+      "pass": true,
+      "centreRaise_m": 10,
+      "centreLower_m": -5,
+      "maxChangeOutside_m": 0
+    },
+    "books": {
+      "pass": true,
+      "overlayChange_m": 0.00006103515625,
+      "solidsError_m3": 15.19963574822114,
+      "sculptedVolume_m3": 353433.89892578125,
+      "balPct": -5.8060595158597774e-8
+    },
+    "undo": {
+      "pass": true,
+      "initHeightErr_m": 0,
+      "erosionChangeByUndo_m": 0.0000152587890625,
+      "centreVsOriginal_m": 0.000274658203125,
+      "canUndoAfter": false
+    },
+    "flattenSmooth": {
+      "pass": true,
+      "flattenMeanDev_m": [
+        37.87311968639304,
+        0.00012734026345611793
+      ],
+      "roughness": [
+        8.304859438153095,
+        1.6755692635424881
+      ]
+    },
+    "channel": {
+      "pass": true,
+      "meanCut_m": 7.632074991861979,
+      "waterInChannel_m": 0.0028880024918120292,
+      "waterBeside_m": 0.0000031143747304111847,
+      "balPct": 0.00001680422117809104
+    },
+    "avalanches": {
+      "pass": true,
+      "off": {
+        "cliffSWE_m": 0.3842872620282085,
+        "cliffCells": 36045,
+        "footSWE_m": 0.37285085588825756,
+        "footCells": 4962,
+        "totalSnow_m3": 2448574.920654297,
+        "meanWoody": 0.17709920497614892,
+        "balPct": -6.4097000370091e-7,
+        "nan": false
+      },
+      "on": {
+        "cliffSWE_m": 0.17038229491621257,
+        "cliffCells": 36045,
+        "footSWE_m": 0.4477891339664393,
+        "footCells": 4963,
+        "totalSnow_m3": 2606787.392807007,
+        "meanWoody": 0.13144315013769814,
+        "balPct": -0.0000014295723374241939,
+        "nan": false
+      }
+    },
+    "liveNoNaN": {
+      "pass": true,
+      "nan": false,
+      "years": 7320.741666666678,
+      "bal": -2.4397221359480386e-7,
+      "fps": 58.094862921158565,
+      "gpuErrors": 0
+    }
+  },
+  "gpuErrorMsgs": [],
+  "allPass": true,
+  "failed": [],
+  "wallSeconds": 14.85169999998808,
+  "gpuFeatureStatusWebGPU": "enabled",
+  "electron": "45.2.1",
+  "chrome": "156.0.8078.75"
+}

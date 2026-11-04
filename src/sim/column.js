@@ -46,6 +46,7 @@ ${WATER_VERTICAL_WGSL}
 @group(0) @binding(10) var<storage, read_write> plant : array<vec4<f32>>;
 @group(0) @binding(11) var<storage, read_write> glacier : array<vec4<f32>>;
 @group(0) @binding(12) var<storage, read> volcRock : array<vec4<f32>>;
+@group(0) @binding(13) var<storage, read_write> karst : array<vec4<f32>>;
 ${ROCK_WGSL}
 
 // m: moisture memory (groundwater fill smoothed over ~1 year) that plants respond to
@@ -239,11 +240,20 @@ fn main(@builtin(global_invocation_id) gid : vec3<u32>) {
   // losing streams: water sinks fast into bare limestone/gypsum/salt (swallow holes), and into
   // fault zones and other conduits
   let bare = 1.0 - smoothstep(0.0, 0.3, so);
-  let sink = 1.0 + bare * (5.0 * min(rx.x, 1.0) + 0.1 * min(max(rx.y - 1.0, 0.0), 20.0));
+  // where a lot of rock has already dissolved, open swallow holes (ponors) take the water even
+  // under a sediment floor (sim/karst.js)
+  var kv = karst[i];
+  let ponor = 6.0 * min(kv.x / 5.0, 1.0) * min(rx.x, 1.0);
+  let sink = 1.0 + bare * (5.0 * min(rx.x, 1.0) + 0.1 * min(max(rx.y - 1.0, 0.0), 20.0)) + ponor;
   let tl = min(h, min(P.kTrans * sink * tau * (1.0 - 0.9 * fr) * clamp(h / 0.02, 0.0, 1.0), max(c.cap - g, 0.0)));
   h = h - tl;
   let gPre = g;
   g = g + tl;
+  // record the water that sank, for the karst pass. The routed water is only the share fR of the
+  // runoff the solver can carry, so scale it back up to the whole runoff (capped).
+  kv.y = tl / max(P.fR, 0.02);
+  kv.x += dissolved;
+  karst[i] = kv;
   // f32 rounding of the surface-water and transmission updates, logged so the books stay exact
   let roundoff = ((h - h0) - (routed - e - tl)) + ((g - gPre) - tl);
   water[i] = h;
@@ -262,8 +272,8 @@ class ColumnKernel {
     if (this.world === world && this.k) return;
     this.device = device; this.world = world;
     const B = world.buffers;
-    this.k = makeKernel(device, 'column', COLUMN_WGSL(), ['rw', 'rw', 'rw', 'rw', 'rw', 'r', 'rw', 'rw', 'r', 'rw', 'rw', 'r']);
-    this.bg = this.k.bind(world.params.buffer, [B.bedrock, B.soil, B.water, B.snowSWE, B.frostDepth, B.veg, B.groundwater, B.acc, B.burn, B.plant, B.glacier, B.volcRock]);
+    this.k = makeKernel(device, 'column', COLUMN_WGSL(), ['rw', 'rw', 'rw', 'rw', 'rw', 'r', 'rw', 'rw', 'r', 'rw', 'rw', 'r', 'rw']);
+    this.bg = this.k.bind(world.params.buffer, [B.bedrock, B.soil, B.water, B.snowSWE, B.frostDepth, B.veg, B.groundwater, B.acc, B.burn, B.plant, B.glacier, B.volcRock, B.karst]);
     this.lastFrame = -1;
   }
   record(pass) {

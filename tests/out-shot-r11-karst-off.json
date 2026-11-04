@@ -1,0 +1,40 @@
+{
+  "mode": "karst",
+  "seed": 3,
+  "notes": [
+    "Regional heat flow ~50 mW/m².",
+    "An E-W thrust fault stacks the beds 524 m: its crushed zone wears into a gully and leaks groundwater. Seismic: repeated reflectors.",
+    "5 sinkhole seeds in the limestone: they dissolve into closed hollows, and streams on bare limestone sink into the ground and come out as cave springs. Microgravity lows over voids."
+  ],
+  "anoms": [
+    "fault:thrust",
+    "sinkhole",
+    "sinkhole",
+    "sinkhole",
+    "sinkhole",
+    "sinkhole"
+  ],
+  "day": 7300240,
+  "bal": -3.4842432704405516e-7,
+  "solidsErr": 625.3190516959876,
+  "sedOut": 1110306.375265075,
+  "nan": false,
+  "karst": {
+    "dissolved_m3": 313857.12552377954,
+    "deepest_m": 33.340087890625,
+    "area1m_m2": 9800,
+    "area5m_m2": 8000
+  },
+  "gpuErrors": 0,
+  "cam": {
+    "target": [
+      5,
+      580.523298740387,
+      5
+    ],
+    "dist": 2688
+  },
+  "gpuFeatureStatusWebGPU": "enabled",
+  "electron": "45.2.1",
+  "chrome": "156.0.8078.75"
+}

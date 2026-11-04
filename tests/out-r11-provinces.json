@@ -1,0 +1,524 @@
+{
+  "checks": {
+    "plateauBeds": {
+      "pass": true,
+      "medianCV": 0.8247323173252522,
+      "dipRange": [
+        0.30063237973253787,
+        3.9060070000359115
+      ],
+      "coveredFrac": 1,
+      "eolianOverSoft": 0.8539325842696629
+    },
+    "plateauAnomalyRates": {
+      "pass": true,
+      "kinds": {
+        "laccolith": 0.445,
+        "pipe": 0.425,
+        "sill": 0.445,
+        "joints": 0.57,
+        "uplift": 0.2,
+        "saltAnticline": 0.25,
+        "salt": 0.25,
+        "normal": 0.23,
+        "fault": 0.23,
+        "neck": 0.14,
+        "dike": 0.14
+      }
+    },
+    "rockiesCore": {
+      "pass": true,
+      "medianBasementFrac": 0.91796875,
+      "medianCoverFrac": 0.0830078125,
+      "kinds": {
+        "fault": 1,
+        "dike": 1,
+        "stock": 0.785,
+        "alteration": 0.495,
+        "hotSpring": 0.65
+      }
+    },
+    "valleyRidgeFolds": {
+      "pass": true,
+      "crests": {
+        "mean": 3.3212304623648277,
+        "min": 2.508131455922662
+      },
+      "medianExposedBeds": 18,
+      "kinds": {
+        "thrust": 1,
+        "fault": 1,
+        "hotSpring": 0.265,
+        "sinkhole": 0.95,
+        "dike": 0.375,
+        "neck": 0.18
+      }
+    },
+    "gulfStructure": {
+      "pass": true,
+      "dipRange": [
+        0.05019106121635164,
+        0.48959983433172316
+      ],
+      "kinds": {
+        "saltDome": 1,
+        "growth": 1,
+        "fault": 1,
+        "salt": 1,
+        "neck": 0.22
+      }
+    },
+    "dikesStandUp": {
+      "pass": true,
+      "dike": {
+        "inside": 1.2099025536936225,
+        "ring": 3.486789373703945,
+        "nIn": 282,
+        "nRing": 2106
+      }
+    },
+    "faultZonesWearDown": {
+      "pass": true,
+      "fault": {
+        "inside": 13.267059438443901,
+        "ring": 4.064551336351976,
+        "nIn": 1495,
+        "nRing": 2342
+      }
+    },
+    "faultSprings": {
+      "pass": true,
+      "springs": {
+        "inside": 1.838382006693848e-8,
+        "ring": 3.4719521374208353e-9,
+        "nIn": 1495,
+        "nRing": 2342
+      }
+    },
+    "hotSpringMelts": {
+      "pass": true,
+      "hotSpring": {
+        "strength": 21.179247298277915,
+        "vent": {
+          "swe": 0.002739427871454288,
+          "frost": 0,
+          "n": 17
+        },
+        "around": {
+          "swe": 0.2951235854909024,
+          "frost": 1.128930435326821,
+          "n": 522
+        }
+      }
+    },
+    "rockiesBooks": {
+      "pass": true,
+      "balPct": -1.839540357209596e-7,
+      "solids_m3": -295.3661794803338,
+      "bedrock_m3": 3252872535.15625,
+      "sedOut_m3": 1036804.475033746,
+      "nan": false
+    },
+    "sinkholesDissolve": {
+      "pass": true,
+      "withSinkholes": {
+        "inside": 52.68419042197607,
+        "ring": 6.788843085812036,
+        "nIn": 372,
+        "nRing": 1187
+      },
+      "without": {
+        "inside": 1.7968997955322266,
+        "ring": 6.175049702259504,
+        "nIn": 372,
+        "nRing": 1187
+      },
+      "surfaceWith": {
+        "inside": 6.883208957090173,
+        "ring": -12.223438586421443,
+        "nIn": 372,
+        "nRing": 1187
+      },
+      "surfaceWithout": {
+        "inside": -12.602275028504351,
+        "ring": -13.885409803428667,
+        "nIn": 372,
+        "nRing": 1187
+      }
+    },
+    "closedHollows": {
+      "pass": true,
+      "withSinkholes": 4,
+      "without": 1,
+      "cells": 452
+    },
+    "losingStreams": {
+      "pass": true,
+      "karst": {
+        "spot": [
+          92,
+          230
+        ],
+        "groundwaterGainUnderStorm_m": 4.474424955435097,
+        "surfaceWaterUnderStorm_m": 2.9669184457668423,
+        "stormOutflow_m3": 13551.503920555115
+      },
+      "insoluble": {
+        "spot": [
+          92,
+          230
+        ],
+        "groundwaterGainUnderStorm_m": -21.193596767960116,
+        "surfaceWaterUnderStorm_m": 2.9625483851177945,
+        "stormOutflow_m3": 21723.762226104736
+      }
+    },
+    "valleyRidgeBooks": {
+      "pass": true,
+      "balPct": 3.975896901883747e-7,
+      "solids_m3": 532.8500986099243,
+      "bedrock_m3": 1977386485.15625,
+      "sedOut_m3": 1262841.2271738052,
+      "nan": false
+    },
+    "gulfLowPlain": {
+      "pass": true,
+      "relief": 325.53652572631836,
+      "reliefPlateau": 1085.1217308044434
+    },
+    "saltDomesSink": {
+      "pass": true,
+      "salt": {
+        "inside": 3.5868607023912538,
+        "ring": 0.3610233326299557,
+        "nIn": 769,
+        "nRing": 964
+      }
+    },
+    "gulfBooks": {
+      "pass": true,
+      "balPct": 1.2637542791674773e-7,
+      "solids_m3": -131.45639896392822,
+      "bedrock_m3": 768468609.9609375,
+      "sedOut_m3": 3073959.8834991455,
+      "nan": false
+    },
+    "saltAnticlineCollapses": {
+      "pass": true,
+      "salt": {
+        "inside": 84.59546977981383,
+        "ring": 29.603952746766506,
+        "nIn": 2470,
+        "nRing": 3838
+      },
+      "surface": {
+        "inside": -17.553180832165456,
+        "ring": -4.291713256926633,
+        "nIn": 2470,
+        "nRing": 3838
+      }
+    },
+    "plateauBooks": {
+      "pass": true,
+      "balPct": 1.8802683387818867e-7,
+      "solids_m3": -139.43853378295898,
+      "bedrock_m3": 2806171454.6875,
+      "sedOut_m3": 28823136.695194244,
+      "nan": false
+    },
+    "jointsCutDeeper": {
+      "pass": true,
+      "onJoints": 62.89367435155867,
+      "between": 44.69385944283216,
+      "n": [
+        3414,
+        10403
+      ]
+    },
+    "laccolithCoreStandsUp": {
+      "pass": true,
+      "seed": 1,
+      "describe": "Colorado Plateau: 20 beds, dipping 1.6° to the SW.",
+      "coreBelow_m": -8.253463665023446,
+      "exposedCoreCells": 141,
+      "loweringExposedCore": 2.882340050120805,
+      "loweringFlank": 13.51019990918875
+    },
+    "noGpuErrors": {
+      "pass": true,
+      "gpuErrors": 0
+    }
+  },
+  "gen": {
+    "plateau": {
+      "medianCV": 0.8247323173252522,
+      "dipRange": [
+        0.30063237973253787,
+        3.9060070000359115
+      ],
+      "coveredFrac": 1,
+      "eolianOverSoft": 0.8539325842696629,
+      "kinds": {
+        "laccolith": 0.445,
+        "pipe": 0.425,
+        "sill": 0.445,
+        "joints": 0.57,
+        "uplift": 0.2,
+        "saltAnticline": 0.25,
+        "salt": 0.25,
+        "normal": 0.23,
+        "fault": 0.23,
+        "neck": 0.14,
+        "dike": 0.14
+      },
+      "medianBasementFrac": 0,
+      "medianCoverFrac": 1,
+      "crests": null,
+      "medianExposedBeds": 15
+    },
+    "rockies": {
+      "medianCV": 0.6521011000166439,
+      "dipRange": [
+        0.5002692585377737,
+        2.9835770134875736
+      ],
+      "coveredFrac": 0,
+      "eolianOverSoft": 0,
+      "kinds": {
+        "fault": 1,
+        "dike": 1,
+        "stock": 0.785,
+        "alteration": 0.495,
+        "hotSpring": 0.65
+      },
+      "medianBasementFrac": 0.91796875,
+      "medianCoverFrac": 0.0830078125,
+      "crests": null,
+      "medianExposedBeds": 15
+    },
+    "valleyRidge": {
+      "medianCV": 0.7620209691599918,
+      "dipRange": [
+        0.30119014614784917,
+        1.9633163392229718
+      ],
+      "coveredFrac": 1,
+      "eolianOverSoft": 0,
+      "kinds": {
+        "thrust": 1,
+        "fault": 1,
+        "hotSpring": 0.265,
+        "sinkhole": 0.95,
+        "dike": 0.375,
+        "neck": 0.18
+      },
+      "medianBasementFrac": 0,
+      "medianCoverFrac": 1,
+      "crests": {
+        "mean": 3.3212304623648277,
+        "min": 2.508131455922662
+      },
+      "medianExposedBeds": 18
+    },
+    "gulf": {
+      "medianCV": 0.6543054673245403,
+      "dipRange": [
+        0.05019106121635164,
+        0.48959983433172316
+      ],
+      "coveredFrac": 1,
+      "eolianOverSoft": 0,
+      "kinds": {
+        "saltDome": 1,
+        "growth": 1,
+        "fault": 1,
+        "salt": 1,
+        "neck": 0.22
+      },
+      "medianBasementFrac": 0,
+      "medianCoverFrac": 1,
+      "crests": null,
+      "medianExposedBeds": 17
+    }
+  },
+  "runs": {
+    "rockies": {
+      "seed": 2,
+      "describe": "Southern Rockies: a granite, gneiss and schist core under 19 beds of cover, turned up into hogbacks along the NE flank.",
+      "relief0": 1078.3016090393066,
+      "dike": {
+        "inside": 1.2099025536936225,
+        "ring": 3.486789373703945,
+        "nIn": 282,
+        "nRing": 2106
+      },
+      "fault": {
+        "inside": 13.267059438443901,
+        "ring": 4.064551336351976,
+        "nIn": 1495,
+        "nRing": 2342
+      },
+      "springs": {
+        "inside": 1.838382006693848e-8,
+        "ring": 3.4719521374208353e-9,
+        "nIn": 1495,
+        "nRing": 2342
+      },
+      "hotSpring": {
+        "strength": 21.179247298277915,
+        "vent": {
+          "swe": 0.002739427871454288,
+          "frost": 0,
+          "n": 17
+        },
+        "around": {
+          "swe": 0.2951235854909024,
+          "frost": 1.128930435326821,
+          "n": 522
+        }
+      },
+      "books": {
+        "balPct": -1.839540357209596e-7,
+        "solids_m3": -295.3661794803338,
+        "bedrock_m3": 3252872535.15625,
+        "sedOut_m3": 1036804.475033746,
+        "nan": false
+      }
+    },
+    "valleyRidge": {
+      "seed": 1,
+      "describe": "Valley and Ridge: 14 beds, dipping 0.34° to the SW; tight folds every 970 m, 1172 m high, plunging along their axes.",
+      "sinkholes": {
+        "withSinkholes": {
+          "inside": 52.68419042197607,
+          "ring": 6.788843085812036,
+          "nIn": 372,
+          "nRing": 1187
+        },
+        "without": {
+          "inside": 1.7968997955322266,
+          "ring": 6.175049702259504,
+          "nIn": 372,
+          "nRing": 1187
+        },
+        "surfaceWith": {
+          "inside": 6.883208957090173,
+          "ring": -12.223438586421443,
+          "nIn": 372,
+          "nRing": 1187
+        },
+        "surfaceWithout": {
+          "inside": -12.602275028504351,
+          "ring": -13.885409803428667,
+          "nIn": 372,
+          "nRing": 1187
+        }
+      },
+      "hollows": {
+        "withSinkholes": 4,
+        "without": 1,
+        "cells": 452
+      },
+      "losingStreams": {
+        "karst": {
+          "spot": [
+            92,
+            230
+          ],
+          "groundwaterGainUnderStorm_m": 4.474424955435097,
+          "surfaceWaterUnderStorm_m": 2.9669184457668423,
+          "stormOutflow_m3": 13551.503920555115
+        },
+        "insoluble": {
+          "spot": [
+            92,
+            230
+          ],
+          "groundwaterGainUnderStorm_m": -21.193596767960116,
+          "surfaceWaterUnderStorm_m": 2.9625483851177945,
+          "stormOutflow_m3": 21723.762226104736
+        }
+      },
+      "books": {
+        "balPct": 3.975896901883747e-7,
+        "solids_m3": 532.8500986099243,
+        "bedrock_m3": 1977386485.15625,
+        "sedOut_m3": 1262841.2271738052,
+        "nan": false
+      }
+    },
+    "gulf": {
+      "seed": 11,
+      "describe": "Gulf Coastal Plain: 28 beds, dipping 0.23° to the NW.",
+      "relief": 325.53652572631836,
+      "reliefPlateauSameSeed": 1085.1217308044434,
+      "salt": {
+        "inside": 3.5868607023912538,
+        "ring": 0.3610233326299557,
+        "nIn": 769,
+        "nRing": 964
+      },
+      "books": {
+        "balPct": 1.2637542791674773e-7,
+        "solids_m3": -131.45639896392822,
+        "bedrock_m3": 768468609.9609375,
+        "sedOut_m3": 3073959.8834991455,
+        "nan": false
+      }
+    },
+    "plateauSalt": {
+      "seed": 5,
+      "describe": "Colorado Plateau: 23 beds, dipping 0.62° to the E; a basement-cored uplift raises them 423 m.",
+      "notes": [
+        "Regional heat flow ~60 mW/m².",
+        "A salt anticline: salt about 29 m down. Once erosion reaches it, groundwater dissolves it and the crest collapses into a long valley. Gravity low.",
+        "4 soluble beds (limestone, gypsum, chalk): where exposed, streams lose water into the ground and the rock slowly dissolves."
+      ],
+      "salt": {
+        "inside": 84.59546977981383,
+        "ring": 29.603952746766506,
+        "nIn": 2470,
+        "nRing": 3838
+      },
+      "saltSurface": {
+        "inside": -17.553180832165456,
+        "ring": -4.291713256926633,
+        "nIn": 2470,
+        "nRing": 3838
+      },
+      "books": {
+        "balPct": 1.8802683387818867e-7,
+        "solids_m3": -139.43853378295898,
+        "bedrock_m3": 2806171454.6875,
+        "sedOut_m3": 28823136.695194244,
+        "nan": false
+      }
+    },
+    "plateauJoints": {
+      "seed": 1,
+      "joints": {
+        "onJoints": 62.89367435155867,
+        "between": 44.69385944283216,
+        "n": [
+          3414,
+          10403
+        ]
+      }
+    },
+    "plateauLaccolith": {
+      "seed": 1,
+      "describe": "Colorado Plateau: 20 beds, dipping 1.6° to the SW.",
+      "coreBelow_m": -8.253463665023446,
+      "exposedCoreCells": 141,
+      "loweringExposedCore": 2.882340050120805,
+      "loweringFlank": 13.51019990918875
+    }
+  },
+  "gpuErrors": 0,
+  "gpuErrorMsgs": [],
+  "passed": "22/22",
+  "minutes": 0.4570199999998013,
+  "gpuFeatureStatusWebGPU": "enabled",
+  "electron": "45.2.1",
+  "chrome": "156.0.8078.75"
+}

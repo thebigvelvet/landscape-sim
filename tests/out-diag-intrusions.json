@@ -1,0 +1,97 @@
+{
+  "plateau": {
+    "1": [
+      "laccolith hw124 below-8",
+      "sill hw63 below1603",
+      "sill hw74 below1614",
+      "sill hw96 below1566"
+    ],
+    "6": [
+      "laccolith hw80 below16",
+      "sill hw37 below980",
+      "sill hw57 below1012"
+    ],
+    "8": [
+      "neck hw44 below0"
+    ],
+    "9": [
+      "laccolith hw97 below7",
+      "sill hw72 below1785"
+    ],
+    "10": [
+      "laccolith hw133 below15",
+      "sill hw97 below1135",
+      "sill hw62 below1159"
+    ],
+    "11": [
+      "laccolith hw100 below11",
+      "sill hw57 below1280"
+    ],
+    "12": [
+      "laccolith hw131 below1",
+      "sill hw73 below1511"
+    ]
+  },
+  "rockies": {
+    "1": [
+      "stock:batholith hw732 below-23"
+    ],
+    "3": [
+      "stock:batholith hw775 below-11"
+    ],
+    "4": [
+      "stock:batholith hw860 below-6",
+      "stock:stock hw175 below-13"
+    ],
+    "5": [
+      "stock:batholith hw673 below-23"
+    ],
+    "6": [
+      "stock:stock hw333 below27"
+    ],
+    "8": [
+      "stock:stock hw232 below7"
+    ],
+    "10": [
+      "stock:stock hw323 below2"
+    ],
+    "11": [
+      "stock:batholith hw786 below9",
+      "stock:stock hw275 below21"
+    ]
+  },
+  "valleyRidge": {
+    "6": [
+      "dike:swarm hw9 below0",
+      "dike:swarm hw8 below0",
+      "dike:swarm hw9 below0",
+      "dike:swarm hw8 below0",
+      "neck:plug hw88 below0"
+    ],
+    "7": [
+      "neck:plug hw53 below0"
+    ],
+    "9": [
+      "dike:swarm hw8 below0",
+      "dike:swarm hw11 below0",
+      "dike:swarm hw8 below0"
+    ],
+    "10": [
+      "neck:plug hw65 below0"
+    ]
+  },
+  "gulf": {
+    "3": [
+      "neck:buriedPlug hw155 below11"
+    ],
+    "8": [
+      "neck:buriedPlug hw149 below19"
+    ],
+    "10": [
+      "neck:buriedPlug hw125 below14"
+    ]
+  },
+  "gpuFeatureStatusWebGPU": "enabled",
+  "electron": "45.2.1",
+  "chrome": "156.0.8078.75"
+}

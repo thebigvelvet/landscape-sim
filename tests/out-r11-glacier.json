@@ -1,0 +1,278 @@
+{
+  "checks": {
+    "formsWhenCold": {
+      "pass": true,
+      "cover": 0.0410308837890625,
+      "byThird": [
+        0.00949981174153561,
+        0.05652555210077334,
+        0.17825820925963695
+      ]
+    },
+    "shadedFacesFavoured": {
+      "pass": true,
+      "northFaces": 0.05741046297194992,
+      "southFaces": 0.008096510404015869
+    },
+    "iceFlows": {
+      "pass": true,
+      "iceCells": 2689,
+      "movingCells": 1537,
+      "bareIceShareEndOfSummer": 0.6871278057718736,
+      "maxSpeed": 1000
+    },
+    "noIceWhenWarm": {
+      "pass": true,
+      "iceVolume_m3": 0,
+      "iceCoverFrac": 0,
+      "maxThickness_m": 0,
+      "maxSpeed_m_per_yr": 0,
+      "debris_m3": -0.001042270101014181,
+      "lowestIce_m": null,
+      "highestIce_m": null,
+      "balPct": -1.164702285619275e-8,
+      "solidsError_m3": -92.38547561690211,
+      "sedOut_m3": 93802.62189628556,
+      "nan": false
+    },
+    "fewPatchesToday": {
+      "pass": true,
+      "iceVolume_m3": 2175.1705701928586,
+      "iceCoverFrac": 0,
+      "maxThickness_m": 0.4980473816394806,
+      "maxSpeed_m_per_yr": 0,
+      "debris_m3": 0,
+      "lowestIce_m": null,
+      "highestIce_m": null,
+      "balPct": 4.439934918665154e-8,
+      "solidsError_m3": -114.46849582716823,
+      "sedOut_m3": 103960.49931766465,
+      "nan": false
+    },
+    "retreatsWhenWarmed": {
+      "pass": true,
+      "before_m3": 31541198.274457,
+      "after_m3": 8761.231543705799,
+      "balPct": -3.557965205873107e-7,
+      "solidsError_m3": -516.5346901863813,
+      "sedOut_m3": 2667432.6707798988,
+      "nan": false
+    },
+    "carvesItsBed": {
+      "pass": true,
+      "iceCells": 7352,
+      "bedrockChangeUnderIce_on_m": -7.737117931295401,
+      "bedrockChangeUnderIce_off_m": -4.284743990809925,
+      "soilAroundIce_on_m": 6.388888712497314,
+      "soilAroundIce_off_m": 5.758857857395353,
+      "iceVolume_m3": 25712657.04993091,
+      "iceCoverFrac": 0.15643310546875,
+      "maxThickness_m": 124.57734680175781,
+      "maxSpeed_m_per_yr": 141.17648315429688,
+      "debris_m3": 410825.43200403923,
+      "lowestIce_m": 3067.548454284668,
+      "highestIce_m": 3894.2499286415987,
+      "on": {
+        "balPct": -2.955667542895908e-7,
+        "solidsError_m3": -869.3454735302112,
+        "sedOut_m3": 14874021.425247192,
+        "nan": false
+      },
+      "off": {
+        "balPct": -0.0000013173640333696638,
+        "solidsError_m3": -790.7842885837454,
+        "sedOut_m3": 486841.5190458298,
+        "nan": false
+      }
+    },
+    "leavesMoraines": {
+      "pass": true,
+      "iceCells": 7352,
+      "bedrockChangeUnderIce_on_m": -7.737117931295401,
+      "bedrockChangeUnderIce_off_m": -4.284743990809925,
+      "soilAroundIce_on_m": 6.388888712497314,
+      "soilAroundIce_off_m": 5.758857857395353,
+      "iceVolume_m3": 25712657.04993091,
+      "iceCoverFrac": 0.15643310546875,
+      "maxThickness_m": 124.57734680175781,
+      "maxSpeed_m_per_yr": 141.17648315429688,
+      "debris_m3": 410825.43200403923,
+      "lowestIce_m": 3067.548454284668,
+      "highestIce_m": 3894.2499286415987,
+      "on": {
+        "balPct": -2.955667542895908e-7,
+        "solidsError_m3": -869.3454735302112,
+        "sedOut_m3": 14874021.425247192,
+        "nan": false
+      },
+      "off": {
+        "balPct": -0.0000013173640333696638,
+        "solidsError_m3": -790.7842885837454,
+        "sedOut_m3": 486841.5190458298,
+        "nan": false
+      }
+    },
+    "booksLongRun": {
+      "pass": true,
+      "balPct": -2.955667542895908e-7,
+      "solidsError_m3": -869.3454735302112,
+      "sedOut_m3": 14874021.425247192,
+      "nan": false
+    },
+    "booksBalance": {
+      "pass": true,
+      "default": {
+        "balPct": -9.847526243529126e-7,
+        "solidsError_m3": -128.50784361362457,
+        "sedOut_m3": 1508220.510300994,
+        "nan": false,
+        "ice_m3": 31708087.842664912,
+        "cover": 0.1637725830078125
+      },
+      "batch30": {
+        "balPct": -0.000001242796880866848,
+        "solidsError_m3": -313.6922627687454,
+        "sedOut_m3": 1497441.9642180204,
+        "nan": false,
+        "ice_m3": 33216965.377576493,
+        "cover": 0.1591949462890625
+      },
+      "iceRatio": 1.047586519325877
+    },
+    "timeStepConsistent": {
+      "pass": true,
+      "default": {
+        "balPct": -9.847526243529126e-7,
+        "solidsError_m3": -128.50784361362457,
+        "sedOut_m3": 1508220.510300994,
+        "nan": false,
+        "ice_m3": 31708087.842664912,
+        "cover": 0.1637725830078125
+      },
+      "batch30": {
+        "balPct": -0.000001242796880866848,
+        "solidsError_m3": -313.6922627687454,
+        "sedOut_m3": 1497441.9642180204,
+        "nan": false,
+        "ice_m3": 33216965.377576493,
+        "cover": 0.1591949462890625
+      },
+      "iceRatio": 1.047586519325877
+    }
+  },
+  "runs": {
+    "cold": {
+      "cover": 0.0410308837890625,
+      "byThird": [
+        0.00949981174153561,
+        0.05652555210077334,
+        0.17825820925963695
+      ],
+      "northFaces": 0.05741046297194992,
+      "southFaces": 0.008096510404015869,
+      "iceVolume_m3": 6510422.002651558,
+      "iceCoverFrac": 0.0410308837890625,
+      "maxThickness_m": 85.47624969482422,
+      "maxSpeed_m_per_yr": 1000,
+      "debris_m3": 131429.4958322814,
+      "lowestIce_m": 3085.7342982292175,
+      "highestIce_m": 3892.4128970205784,
+      "balPct": -4.203818228294631e-8,
+      "solidsError_m3": -186.6547703742981,
+      "sedOut_m3": 1484316.7979121208,
+      "nan": false
+    },
+    "flow": {
+      "iceCells": 2689,
+      "movingCells": 1537,
+      "bareIceShareEndOfSummer": 0.6871278057718736,
+      "maxSpeed": 1000
+    },
+    "warm": {
+      "iceVolume_m3": 0,
+      "iceCoverFrac": 0,
+      "maxThickness_m": 0,
+      "maxSpeed_m_per_yr": 0,
+      "debris_m3": -0.001042270101014181,
+      "lowestIce_m": null,
+      "highestIce_m": null,
+      "balPct": -1.164702285619275e-8,
+      "solidsError_m3": -92.38547561690211,
+      "sedOut_m3": 93802.62189628556,
+      "nan": false
+    },
+    "normal": {
+      "iceVolume_m3": 2175.1705701928586,
+      "iceCoverFrac": 0,
+      "maxThickness_m": 0.4980473816394806,
+      "maxSpeed_m_per_yr": 0,
+      "debris_m3": 0,
+      "lowestIce_m": null,
+      "highestIce_m": null,
+      "balPct": 4.439934918665154e-8,
+      "solidsError_m3": -114.46849582716823,
+      "sedOut_m3": 103960.49931766465,
+      "nan": false
+    },
+    "retreat": {
+      "before_m3": 31541198.274457,
+      "after_m3": 8761.231543705799,
+      "balPct": -3.557965205873107e-7,
+      "solidsError_m3": -516.5346901863813,
+      "sedOut_m3": 2667432.6707798988,
+      "nan": false
+    },
+    "carving": {
+      "iceCells": 7352,
+      "bedrockChangeUnderIce_on_m": -7.737117931295401,
+      "bedrockChangeUnderIce_off_m": -4.284743990809925,
+      "soilAroundIce_on_m": 6.388888712497314,
+      "soilAroundIce_off_m": 5.758857857395353,
+      "iceVolume_m3": 25712657.04993091,
+      "iceCoverFrac": 0.15643310546875,
+      "maxThickness_m": 124.57734680175781,
+      "maxSpeed_m_per_yr": 141.17648315429688,
+      "debris_m3": 410825.43200403923,
+      "lowestIce_m": 3067.548454284668,
+      "highestIce_m": 3894.2499286415987,
+      "on": {
+        "balPct": -2.955667542895908e-7,
+        "solidsError_m3": -869.3454735302112,
+        "sedOut_m3": 14874021.425247192,
+        "nan": false
+      },
+      "off": {
+        "balPct": -0.0000013173640333696638,
+        "solidsError_m3": -790.7842885837454,
+        "sedOut_m3": 486841.5190458298,
+        "nan": false
+      }
+    },
+    "books": {
+      "default": {
+        "balPct": -9.847526243529126e-7,
+        "solidsError_m3": -128.50784361362457,
+        "sedOut_m3": 1508220.510300994,
+        "nan": false,
+        "ice_m3": 31708087.842664912,
+        "cover": 0.1637725830078125
+      },
+      "batch30": {
+        "balPct": -0.000001242796880866848,
+        "solidsError_m3": -313.6922627687454,
+        "sedOut_m3": 1497441.9642180204,
+        "nan": false,
+        "ice_m3": 33216965.377576493,
+        "cover": 0.1591949462890625
+      },
+      "iceRatio": 1.047586519325877
+    }
+  },
+  "passed": 11,
+  "total": 11,
+  "minutes": 0.459938333333532,
+  "gpuErrors": 0,
+  "gpuFeatureStatusWebGPU": "enabled",
+  "electron": "45.2.1",
+  "chrome": "156.0.8078.75"
+}

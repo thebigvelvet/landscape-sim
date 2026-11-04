@@ -1,0 +1,184 @@
+{
+  "checks": {
+    "dissolvesMore": {
+      "pass": true,
+      "on": 6028452.530097961,
+      "off": 313707.048777584
+    },
+    "karstValleys": {
+      "pass": true,
+      "cells": 2433,
+      "deeperThanTwin_m": 18.57807902607759,
+      "hollowCellsOn": 6103,
+      "hollowCellsOff": 6291
+    },
+    "hollowsGrow": {
+      "pass": true,
+      "at5kyr": 3249,
+      "at20kyr": 3288
+    },
+    "alongStrike": {
+      "pass": true,
+      "along": 0.7072604474461798,
+      "across": 0.18362178134233853
+    },
+    "plateauAndGulf": {
+      "pass": true,
+      "gulf": 146900,
+      "gulfDeepest": 24.114471435546875,
+      "plateau": 242000,
+      "plateauSeed": 5,
+      "plateauDeepest": 52.975372314453125
+    },
+    "rightPlaces": {
+      "pass": true,
+      "vr": {
+        "cells": 2571,
+        "onSoluble": 2571,
+        "frac": 1
+      },
+      "gulf": {
+        "cells": 1462,
+        "onSoluble": 1462,
+        "frac": 1
+      },
+      "plateau": {
+        "cells": 2419,
+        "onSoluble": 2419,
+        "frac": 1
+      }
+    },
+    "books": {
+      "pass": true,
+      "books": [
+        {
+          "run": "valleyRidge 3 on",
+          "ok": true,
+          "bal": -3.4803960599962597e-7,
+          "solids": 1635.7624411582947,
+          "sedOut": 8037847.961461544
+        },
+        {
+          "run": "valleyRidge 3 off",
+          "ok": true,
+          "bal": -2.5437894609750564e-7,
+          "solids": 634.1647148132324,
+          "sedOut": 1078304.0141105652
+        },
+        {
+          "run": "gulf 3 on",
+          "ok": true,
+          "bal": 1.9555148361328562e-9,
+          "solids": -167.2655463218689,
+          "sedOut": 812943.3655381203
+        },
+        {
+          "run": "plateau 5 on",
+          "ok": true,
+          "bal": 5.563159471559854e-9,
+          "solids": -106.65092468261719,
+          "sedOut": 23710198.28529358
+        }
+      ]
+    },
+    "noGpuErrors": {
+      "pass": true,
+      "errors": 0
+    }
+  },
+  "runs": {
+    "valleyRidge3on": {
+      "prov": "valleyRidge",
+      "seed": 3,
+      "on": true,
+      "snapLargest": 3249,
+      "snapCells": 7386,
+      "dissolved_m3": 6028452.530097961,
+      "deepest_m": 99.93328857421875,
+      "area1m_m2": 259400,
+      "largest": 3288,
+      "hollows10": 4,
+      "hollowCells": 6103,
+      "places": {
+        "cells": 2571,
+        "onSoluble": 2571,
+        "frac": 1
+      },
+      "along": 0.7072604474461798,
+      "across": 0.18362178134233853,
+      "axis": -0.9039133269765565,
+      "elong": 1.675740074684382,
+      "strike": -0.229415610481029
+    },
+    "valleyRidge3off": {
+      "prov": "valleyRidge",
+      "seed": 3,
+      "on": false,
+      "dissolved_m3": 313707.048777584,
+      "deepest_m": 33.340087890625,
+      "area1m_m2": 9800,
+      "largest": 3280,
+      "hollows10": 4,
+      "hollowCells": 6291,
+      "places": {
+        "cells": 98,
+        "onSoluble": 98,
+        "frac": 1
+      },
+      "along": 0.41304347826086957,
+      "across": 0.10869565217391304,
+      "axis": -1.506783744823944,
+      "elong": 4.629118838910088,
+      "strike": -0.229415610481029
+    },
+    "gulf3on": {
+      "prov": "gulf",
+      "seed": 3,
+      "on": true,
+      "dissolved_m3": 785015.7668113708,
+      "deepest_m": 24.114471435546875,
+      "area1m_m2": 146900,
+      "largest": 3843,
+      "hollows10": 9,
+      "hollowCells": 8760,
+      "places": {
+        "cells": 1462,
+        "onSoluble": 1462,
+        "frac": 1
+      },
+      "along": 0.22183794466403162,
+      "across": 0.20059288537549408,
+      "axis": -0.6329645312347814,
+      "elong": 1.0962821134123821,
+      "strike": 1.5707963267948966
+    },
+    "plateau5on": {
+      "prov": "plateau",
+      "seed": 5,
+      "on": true,
+      "dissolved_m3": 716813.5894775391,
+      "deepest_m": 52.975372314453125,
+      "area1m_m2": 242000,
+      "largest": 4532,
+      "hollows10": 13,
+      "hollowCells": 10103,
+      "places": {
+        "cells": 2419,
+        "onSoluble": 2419,
+        "frac": 1
+      },
+      "along": 0.8887417218543047,
+      "across": 0.7964679911699779,
+      "axis": 1.0804461203505071,
+      "elong": 11.470356437451864,
+      "strike": 1.5707963267948966
+    }
+  },
+  "minutes": 0.23147000000079473,
+  "gpuErrors": 0,
+  "gpuErrorMsgs": [],
+  "passed": "8/8",
+  "gpuFeatureStatusWebGPU": "enabled",
+  "electron": "45.2.1",
+  "chrome": "156.0.8078.75"
+}

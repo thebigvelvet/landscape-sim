@@ -32,6 +32,8 @@
 //                      codes), see ROCK_WGSL in sim/common.js and sim/volcano.js.
 //   lava               vec4 per cell: (molten lava depth m, its temperature 0..1, afterglow of freshly
 //                      set rock 0..1, unused), sim/volcano.js.
+//   karst              vec4 per cell: (rock dissolved so far m, surface water sunk this batch m, 0, 0),
+//                      sim/karst.js.
 //   statPartials, accPartials, fluxLog   reduction scratch / log ring.
 
 export const LAYERS = ['bedrock', 'soil', 'water', 'sediment', 'snowSWE', 'frostDepth', 'temp', 'velX', 'velY'];
@@ -62,12 +64,15 @@ export class World {
     mk('wind', 4);    // (snow given to the wind, its settling share, local wind speed, shelter 0 = lee), sim/wind.js
     mk('glacier', 4); // (ice thickness, debris carried, surface speed m/yr, debris to drop), sim/glacier.js
     mk('volcRock', 8); // volcanic units: 4 bases, 4 type codes (sim/common.js ROCK_WGSL)
-    mk('lava', 4);    // (molten depth m, temperature 0..1, afterglow, unused), sim/volcano.js
+    mk('lava', 4);    // (molten depth m, temperature 0..1, afterglow, stiffness), sim/volcano.js
+    mk('karst', 4);   // (rock dissolved so far m, surface water sunk this batch m, 0, 0), sim/karst.js
     mk('light', 4);   // renderer: (sun visibility, ambient occlusion, groundwater fill, springs), from render/lighting.js
     this.buffers.statPartials = device.createBuffer({ size: STAT_GROUPS * STAT_STRIDE * 4, usage, label: 'statPartials' });
     this.buffers.accPartials = device.createBuffer({ size: STAT_GROUPS * 16, usage, label: 'accPartials' });
     this.buffers.fluxLog = device.createBuffer({ size: LOG_SIZE * 16, usage, label: 'fluxLog' });
     this.buffers.plantPartials = device.createBuffer({ size: STAT_GROUPS * 16, usage, label: 'plantPartials' });
+    // natural arches and bridges for the renderer: 64 x 3 vec4 written from the CPU (sim/arches.js)
+    this.buffers.arches = device.createBuffer({ size: 64 * 48, usage, label: 'arches' });
     // expose layers directly too: world.bedrock etc.
     for (const k in this.buffers) this[k] = this.buffers[k];
     this.height0 = this.buffers.initHeight;   // name used by the renderer shaders
@@ -78,7 +83,7 @@ export class World {
   upload(layers) {
     const q = this.device.queue;
     const zero = new Float32Array(this.cells * 4);
-    for (const name of [...LAYERS, ...EXTRA1, 'flux', 'acc', 'thermalDelta', 'gwFlux', 'plant', 'deposit', 'wind', 'glacier', 'volcRock', 'lava']) {
+    for (const name of [...LAYERS, ...EXTRA1, 'flux', 'acc', 'thermalDelta', 'gwFlux', 'plant', 'deposit', 'wind', 'glacier', 'volcRock', 'lava', 'karst']) {
       const buf = this.buffers[name];
       const src = layers[name];
       if (src) q.writeBuffer(buf, 0, src);

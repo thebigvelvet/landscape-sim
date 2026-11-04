@@ -37,6 +37,7 @@ struct R {
   stBeds: array<vec4f, ${TABLE_LEN}>,
   stCol: array<vec4f, ${MAX_BEDS}>,
   vent: array<vec4f, 2>,   // erupting vents (sim/volcano.js): world x, world z, cone top (world y), strength 0..1
+  archN: vec4f,            // x = natural arches standing (sim/arches.js)
 };
 @group(0) @binding(0) var<uniform> R_: R;
 `;
@@ -79,6 +80,9 @@ fn anomColor(id: f32) -> vec3f {
     case 8u: { return ${ac(8)}; }
     case 9u: { return ${ac(9)}; }
     case 10u: { return ${ac(10)}; }
+    case 12u: { return ${ac(12)}; }
+    case 13u: { return ${ac(13)}; }
+    case 14u: { return ${ac(14)}; }
     default: { return ${ac(11)}; }
   }
 }
@@ -92,7 +96,7 @@ fn subsurface(z: f32, g: vec2f) -> vec4f {
   if (r.sol > 10.0) { c = vec3f(1.0, 1.0, 1.0); a = 0.95; }
   if (r.perm > 2.5 && r.sol < 0.05) { let t = clamp(log(r.perm / 2.5) / log(10.0), 0.0, 1.0); c = mix(c, vec3f(0.15, 0.30, 0.95), max(t, 0.5)); a = max(a, 0.85); }
   let i = u32(r.col + 0.5);
-  if ((i == 1u || i == 9u || i == 10u) && r.cw > 0.3) { c = vec3f(0.05, 0.05, 0.06); a = 0.95; }
+  if ((i == 1u || i == 9u || i == 10u || i == 12u || i == 13u) && r.cw > 0.3) { c = vec3f(0.05, 0.05, 0.06); a = 0.95; }
   if (r.heat > 0.5) { c = mix(c, vec3f(1.0, 0.25, 0.10), clamp(r.heat / 15.0, 0.4, 1.0)); a = 0.95; }
   return vec4f(c, a);
 }
@@ -291,6 +295,23 @@ const TERRAIN_DATA = /* wgsl */ `
 @group(0) @binding(10) var<storage, read> glacier: array<vec4f>; // sim/glacier.js: (ice m, debris m, speed m/yr, ..)
 @group(0) @binding(11) var<storage, read> volcRock: array<vec4f>; // sim/volcano.js: unit bases, unit types
 @group(0) @binding(12) var<storage, read> lava: array<vec4f>;     // sim/volcano.js: (molten m, temperature, afterglow, ..)
+@group(0) @binding(13) var<storage, read> arch: array<vec4f>;     // sim/arches.js: 3 vec4 per arch
+@group(0) @binding(14) var<storage, read> karst: array<vec4f>;    // sim/karst.js: (rock dissolved so far m, ..)
+// Inside the opening of a natural arch? The height field cannot hold the hole, so the ground's
+// triangles that slope from the abutments down to the opening's floor are cut away here, inside
+// the half-ellipse under the lintel (drawn by ARCHES).
+fn inArchOpening(g: vec2f, z: f32) -> bool {
+  for (var k = 0u; k < u32(R_.archN.x); k++) {
+    let A = arch[3u * k]; let B = arch[3u * k + 1u];
+    let d = g - A.xy;
+    let u = dot(d, A.zw); let v = dot(d, vec2f(-A.w, A.z));
+    if (abs(v) < B.w * 0.96 && abs(u) < B.z) {
+      let q = u / B.z;
+      if (z > B.x + 0.3 && z < B.x + B.y * sqrt(max(0.0, 1.0 - q * q))) { return true; }
+    }
+  }
+  return false;
+}
 ${VOLC_DATA}
 fn gi(x: i32, y: i32) -> u32 {
   let n = i32(R_.grid.x);
@@ -441,6 +462,7 @@ fn overlay(mode: i32, m0: vec4f, m1: vec4f, m3: vec2f, m4: vec4f, m5: vec4f, m6:
 }
 
 @fragment fn fs(i: VO) -> @location(0) vec4f {
+  if (R_.archN.x > 0.5 && inArchOpening(i.m2.yz, i.wpos.y / R_.sunColor.w)) { discard; }
   let n = normalize(i.nrm);
   let wp = i.wpos;
   let p2 = wp.xz;
@@ -605,7 +627,13 @@ fn overlay(mode: i32, m0: vec4f, m1: vec4f, m3: vec2f, m4: vec4f, m5: vec4f, m6:
     if (i.m8.z > 0.05) { ov = vec4f(mix(ov.rgb, vec3f(1.0, 0.25, 0.1), i.m8.z), max(ov.a, i.m8.z)); }
     if (lavaCov > 0.0 && i.m8.y > 0.15) { ov = vec4f(1.0, 0.65, 0.1, lavaCov); }
   }
-  if (i32(R_.skyZenith.w) == 12) { ov = subsurface(ground - soilD, i.m2.yz); }
+  if (i32(R_.skyZenith.w) == 12) {
+    ov = subsurface(ground - soilD, i.m2.yz);
+    // karst: where groundwater has dissolved rock away (sinkholes, karst valleys), from pale violet
+    // (a metre) to deep purple (50 m and more)
+    let kd = karst[gi(i32(round(i.m2.y)), i32(round(i.m2.z)))].x;
+    if (kd > 0.5) { ov = vec4f(mix(vec3f(0.80, 0.62, 0.95), vec3f(0.36, 0.08, 0.55), clamp(log(kd) / log(50.0), 0.0, 1.0)), 0.92); }
+  }
   if (i32(R_.skyZenith.w) > 0) {
     // Mute the natural colours so the overlay reads clearly.
     let g = dot(outc, vec3f(0.3, 0.55, 0.15));
@@ -1341,4 +1369,94 @@ fn hh(n: u32) -> f32 { return fract(sin(f32(n) * 12.9898 + 78.233) * 43758.5453)
   c = mix(c, srgb(vec3f(1.0, 0.42, 0.10)) * 2.2, (1.0 - smoothstep(0.0, 0.12, i.a.y)) * 0.6 * (1.0 + i.a.w));
   c = applyHaze(c, i.wpos);
   return vec4f(tonemap(c), a);
+}`;
+
+// Natural arches and bridges (sim/arches.js): each lintel is a slab spanning from one abutment to
+// the other, its underside a half-ellipse over the opening and its top following the live height of
+// the abutment cells. Built from vertex_index: SEG segments x 4 faces (underside, top, two sides).
+// Coloured by the simulated beds at each point's height, so the bands run on through the span.
+export const ARCH_SEG = 20;
+export const ARCHES = UNIFORMS + COMMON + /* wgsl */ `
+@group(0) @binding(1) var<storage, read> bedrock: array<f32>;
+@group(0) @binding(2) var<storage, read> soil: array<f32>;
+@group(0) @binding(3) var<storage, read> snowSWE: array<f32>;
+@group(0) @binding(4) var<storage, read> light: array<vec4u>;
+@group(0) @binding(5) var<storage, read> arch: array<vec4f>;
+struct VO {
+  @builtin(position) pos: vec4f,
+  @location(0) wpos: vec3f,
+  @location(1) nrm: vec3f,
+  @location(2) g: vec2f,       // grid position
+  @location(3) z: f32,         // height (sim frame, m)
+  @location(4) lit: vec2f,     // sun visibility, ao
+};
+fn topAt(i: u32) -> f32 { return bedrock[i] + soil[i] + snowSWE[i] / 0.33; }
+// point on the lintel: s along the span (-1..1 between the abutment centres, a little beyond into
+// them), face side: 0 underside, 1 top; v across (-1..1)
+fn archPt(k: u32, s: f32, top: bool, v: f32) -> vec3f {
+  let A = arch[3u * k]; let B = arch[3u * k + 1u]; let C = arch[3u * k + 2u];
+  let half = B.z; let hw = B.w * 0.96;
+  let u = s * (half + 0.45);
+  let q = clamp(u / half, -1.0, 1.0);
+  let yin = B.x + B.y * sqrt(max(0.0, 1.0 - q * q));
+  // the top runs from one abutment's height to the other's and sags a little over the opening,
+  // so the span is thinnest in the middle like a real arch
+  var tp = mix(topAt(u32(C.x)), topAt(u32(C.y)), clamp(0.5 + 0.5 * u / (half + 0.45), 0.0, 1.0)) - 0.15;
+  tp -= 0.3 * max(tp - (B.x + B.y) - 1.5, 0.0) * max(1.0 - q * q, 0.0);
+  let y = select(yin, max(tp, yin + 0.5), top);
+  let tx = A.zw; let nx = vec2f(-A.w, A.z);
+  let gp = A.xy + tx * u + nx * v * hw;
+  return vec3f(gp, y);
+}
+@vertex fn vs(@builtin(vertex_index) vi: u32, @builtin(instance_index) k: u32) -> VO {
+  let seg = vi / 24u; let face = (vi / 6u) % 4u; let c = vi % 6u;
+  // the two-triangle quad: corners (a, b) along the span x (lo, hi) across/up
+  let ca = array<u32, 6>(0u, 1u, 2u, 2u, 1u, 3u)[c];
+  let sa = -1.0 + 2.0 * f32(seg + (ca & 1u)) / f32(${ARCH_SEG}u);
+  let hi = (ca >> 1u) == 1u;
+  var p: vec3f;
+  if (face == 0u) { p = archPt(k, sa, false, select(-1.0, 1.0, hi)); }        // underside
+  else if (face == 1u) { p = archPt(k, sa, true, select(-1.0, 1.0, hi)); }    // top
+  else { p = archPt(k, sa, hi, select(-1.0, 1.0, face == 3u)); }             // sides
+  // face normal from the quad's own corners
+  let s0 = -1.0 + 2.0 * f32(seg) / f32(${ARCH_SEG}u); let s1 = -1.0 + 2.0 * f32(seg + 1u) / f32(${ARCH_SEG}u);
+  var q0: vec3f; var q1: vec3f; var q2: vec3f;
+  if (face == 0u) { q0 = archPt(k, s0, false, -1.0); q1 = archPt(k, s1, false, -1.0); q2 = archPt(k, s0, false, 1.0); }
+  else if (face == 1u) { q0 = archPt(k, s0, true, -1.0); q1 = archPt(k, s1, true, -1.0); q2 = archPt(k, s0, true, 1.0); }
+  else { let v = select(-1.0, 1.0, face == 3u); q0 = archPt(k, s0, false, v); q1 = archPt(k, s1, false, v); q2 = archPt(k, s0, true, v); }
+  let n = u32(R_.grid.x); let dx = R_.grid.y; let vex = R_.sunColor.w;
+  let ctr = (f32(n) - 1.0) * 0.5;
+  let w = vec3f((p.x - ctr) * dx, p.z * vex, (p.y - ctr) * dx);
+  let w0 = vec3f(q0.x * dx, q0.z * vex, q0.y * dx); let w1 = vec3f(q1.x * dx, q1.z * vex, q1.y * dx); let w2 = vec3f(q2.x * dx, q2.z * vex, q2.y * dx);
+  var nn = normalize(cross(w1 - w0, w2 - w0) + vec3f(0.0, 1e-6, 0.0));
+  // point the normal out of the slab: down under the opening, up on top, outward on the sides
+  let A = arch[3u * k];
+  let out = select(select(vec3f(0.0, 1.0, 0.0), vec3f(0.0, -1.0, 0.0), face == 0u),
+                   vec3f(-A.w, 0.0, A.z) * select(-1.0, 1.0, face == 3u), face >= 2u);
+  if (dot(nn, out) < 0.0) { nn = -nn; }
+  let L = light[u32(arch[3u * k + 2u].x)];
+  let la = unpack2x16unorm(L.x);
+  var o: VO;
+  o.pos = R_.viewProj * vec4f(w, 1.0);
+  o.wpos = w; o.nrm = nn; o.g = p.xy; o.z = p.z;
+  o.lit = vec2f(la.x, la.y);
+  return o;
+}
+@fragment fn fs(i: VO) -> @location(0) vec4f {
+  let n = normalize(i.nrm);
+  let L = normalize(R_.sunDir.xyz);
+  let cloud = R_.veg.w;
+  let sunI = R_.sunDir.w * (1.0 - 0.75 * cloud);
+  // the underside sees the sun only low and from the side
+  let ndl = max(dot(n, L), 0.0);
+  let direct = R_.sunColor.rgb * ndl * i.lit.x * sunI * 2.8;
+  let amb = mix(R_.skyHorizon.rgb, R_.skyZenith.rgb, 0.5 + 0.5 * n.y) * (0.5 + 0.4 * cloud) * mix(0.45, 1.0, i.lit.y) * select(1.0, 0.6, n.y < -0.3);
+  let p2 = (i.g - (R_.grid.x - 1.0) * 0.5) * R_.grid.y;
+  var c = R_.rock.rgb;
+  let st = strataRock(i.z, i.g);
+  c = mix(c, st.rgb, st.a);
+  c = c * (0.85 + 0.3 * vnoise(p2 * 0.3 + vec2f(i.z * 0.2, 0.0)));
+  var col = c * (direct + amb * 0.85);
+  col = applyHaze(col, i.wpos);
+  return vec4f(tonemap(col), 1.0);
 }`;

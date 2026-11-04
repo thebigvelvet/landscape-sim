@@ -396,6 +396,7 @@ export class Panel {
       ['Rock & soil carried away', fmtVol(Math.max(0, lost))],
       ['Highest point', `${Math.round(t.maxHeight).toLocaleString()} m`],
       ['Lowest point', `${Math.round(t.minHeight).toLocaleString()} m`],
+      ...((t.archesStanding || t.archesFallen) ? [['Natural arches', `${t.archesStanding} standing${t.bridgesStanding ? ` (${t.bridgesStanding} bridge${t.bridgesStanding === 1 ? '' : 's'})` : ''}, ${t.archesFallen} fallen`]] : []),
       'sep',
       ['Frames per second', `${Math.round(info.fps)}`],
       ['Graphics card', info.adapter || '?'],

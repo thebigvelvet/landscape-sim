@@ -53,7 +53,7 @@ sim.pause(); await sim.load('random', { size: 256, seed: 3, preset: 'Utah desert
     if (prov === 'plateau') {
       check('plateauBeds', g.medianCV > 0.5 && g.dipRange[0] >= 0.3 && g.dipRange[1] <= 4 && g.coveredFrac > 0.95 && g.eolianOverSoft > 0.8,
         { medianCV: g.medianCV, dipRange: g.dipRange, coveredFrac: g.coveredFrac, eolianOverSoft: g.eolianOverSoft });
-      check('plateauAnomalyRates', near('laccolith', 0.25) && near('saltAnticline', 0.2) && near('pipe', 0.4) && near('joints', 0.6) && near('uplift', 0.2) && near('neck', 0.15),
+      check('plateauAnomalyRates', near('laccolith', 0.45) && near('saltAnticline', 0.2) && near('pipe', 0.4) && near('joints', 0.6) && near('uplift', 0.2) && near('neck', 0.15),
         { kinds: g.kinds });
     }
     if (prov === 'rockies') check('rockiesCore', g.medianBasementFrac > 0.5 && g.medianCoverFrac > 0.05 && r('dike') === 1 && r('fault') === 1 && r('hotSpring') > 0.4,
@@ -146,6 +146,9 @@ async function lowering() {
   const N = e.N;
   const runTwin = async (sinkOn) => {
     sim.pause(); await sim.load('random', { size: 256, seed, preset: 'Temperate', province: 'valleyRidge', volcanoes: false }); sim.pause();
+    // the seeded sinkholes alone: the round-11 karst-valley processes (tests/karst-valleys.js) would
+    // grow hollows in both twins
+    e.karstValleys = false;
     const T = e.strataInfo;
     if (!sinkOn) T.anoms.forEach((a, k) => { if (a.type === 'sinkhole') e.strataPack.table[(75 + 2 * k + 1) * 4 + 2] = 0; });
     await e.run(YEARS * 365);
@@ -162,6 +165,7 @@ async function lowering() {
     return { T, rock: insideVsRing(T, 'sinkhole', L.rock, N), surf: insideVsRing(T, 'sinkhole', L.surf, N), hollows: minIn, cellsIn, s: await sim.stats() };
   };
   const on = await runTwin(true), off = await runTwin(false);
+  e.karstValleys = true;
   // losing streams, twin again: a painted 3-day storm over the barest limestone on the fresh map,
   // once as it is and once with every rock insoluble. With karst, more of the storm water should
   // sink into the ground under the storm and less run on over the surface.

@@ -1,0 +1,72 @@
+{
+  "province": "valleyRidge",
+  "anoms": [
+    "fault:thrust",
+    "sinkhole",
+    "sinkhole",
+    "sinkhole",
+    "sinkhole",
+    "sinkhole"
+  ],
+  "notes": [
+    "Regional heat flow ~50 mW/m².",
+    "An E-W thrust fault stacks the beds 524 m: its crushed zone wears into a gully and leaks groundwater. Seismic: repeated reflectors.",
+    "5 sinkhole seeds in the limestone: they dissolve into closed hollows, and streams on bare limestone sink into the ground and come out as cave springs. Microgravity lows over voids."
+  ],
+  "last": 20000,
+  "y100": {
+    "maxDiss": 2.94,
+    "meanDiss": 0.012,
+    "cellsOver2m": 8,
+    "maxLower": 17.2,
+    "bal": -2.1770623441718872e-7,
+    "solidsErr": 51.54515504837036,
+    "sedOut": 79253.68419885635,
+    "nan": false
+  },
+  "y1000": {
+    "maxDiss": 14.89,
+    "meanDiss": 0.092,
+    "cellsOver2m": 1220,
+    "maxLower": 140.9,
+    "bal": -1.74932147584085e-7,
+    "solidsErr": 225.4021167755127,
+    "sedOut": 611513.0020618439,
+    "nan": false
+  },
+  "y5000": {
+    "maxDiss": 119.49,
+    "meanDiss": 0.372,
+    "cellsOver2m": 2110,
+    "maxLower": 285.9,
+    "bal": 3.6328479279384954e-8,
+    "solidsErr": 754.2776791378856,
+    "sedOut": 2480373.231002502,
+    "nan": false
+  },
+  "y10000": {
+    "maxDiss": 119.49,
+    "meanDiss": 0.722,
+    "cellsOver2m": 2536,
+    "maxLower": 324.7,
+    "bal": -1.2592600762179262e-8,
+    "solidsErr": 1827.0155159756541,
+    "sedOut": 5670602.265378647,
+    "nan": false
+  },
+  "y20000": {
+    "maxDiss": 119.85,
+    "meanDiss": 1.178,
+    "cellsOver2m": 2778,
+    "maxLower": 372.9,
+    "bal": -4.6053502097071e-8,
+    "solidsErr": 3104.6160904690623,
+    "sedOut": 9047882.476350479,
+    "nan": false
+  },
+  "gpuErrors": 0,
+  "gpuErrorMsgs": [],
+  "gpuFeatureStatusWebGPU": "enabled",
+  "electron": "45.2.1",
+  "chrome": "156.0.8078.75"
+}

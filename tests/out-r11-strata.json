@@ -1,0 +1,120 @@
+{
+  "checks": {
+    "irregularThickness": {
+      "pass": true,
+      "medianCV": 0.8247323173252522,
+      "samePairFrac": 0.02931937172774869
+    },
+    "gentleDips": {
+      "pass": true,
+      "range": [
+        0.30063237973253787,
+        3.9060070000359115
+      ]
+    },
+    "monoclines": {
+      "pass": true,
+      "frac": 0.34,
+      "steepLimb": [
+        10.251064589247108,
+        48.41995476745069
+      ]
+    },
+    "stackDeepEnough": {
+      "pass": true,
+      "frac": 1
+    },
+    "sandstoneCliffs": {
+      "pass": true,
+      "layers": 3.259161509525543,
+      "uniform": 0.9993693542396468
+    },
+    "shaleWearsFaster": {
+      "pass": true,
+      "extraRockLowering_m": {
+        "hard": 16.029348005393434,
+        "soft": 37.73329908619384
+      },
+      "totalShaleMinusSandstone_m": {
+        "layers": 5.530057317686137,
+        "uniform": 2.6486731159886485
+      }
+    },
+    "books": {
+      "pass": true,
+      "solidsError_m3": [
+        -459.91278886795044,
+        -180.07092475891113
+      ],
+      "balPct": [
+        2.972926010626253e-7,
+        2.9700639421003996e-7
+      ]
+    }
+  },
+  "runs": {
+    "layers": {
+      "slopeP90": {
+        "hard": 3.278656005859375,
+        "soft": 1.0059814453125
+      },
+      "meanLowering_m": {
+        "hard": -0.5584721537240077,
+        "soft": 4.971585163962129
+      },
+      "maxErosion_m": 337.66119384765625,
+      "solidsError_m3": -459.91278886795044,
+      "balPct": 2.972926010626253e-7,
+      "hasNaN": false,
+      "cells": {
+        "hardFaces": 7085,
+        "softFaces": 1767
+      }
+    },
+    "uniform": {
+      "slopeP90": {
+        "hard": 2.188311767578125,
+        "soft": 2.1896926879882814
+      },
+      "meanLowering_m": {
+        "hard": 0.2267813681914539,
+        "soft": 2.8754544841801026
+      },
+      "maxErosion_m": 243.944580078125,
+      "solidsError_m3": -180.07092475891113,
+      "balPct": 2.9700639421003996e-7,
+      "hasNaN": false,
+      "cells": {
+        "hardFaces": 11879,
+        "softFaces": 15272
+      }
+    }
+  },
+  "generator": {
+    "medianCV": 0.8247323173252522,
+    "minCV": 0.5161682337534872,
+    "samePairFrac": 0.02931937172774869,
+    "dipRange": [
+      0.30063237973253787,
+      3.9060070000359115
+    ],
+    "monoclineFrac": 0.34,
+    "foldFrac": 0.335,
+    "coveredFrac": 1,
+    "bedsRange": [
+      9,
+      31
+    ],
+    "thisLandscape": "Colorado Plateau: 23 beds, dipping 0.37° to the S; a monocline drops them 444 m at up to 16°; a broad syncline arches them 11 m."
+  },
+  "extraRockLowering_m": {
+    "hard": 16.029348005393434,
+    "soft": 37.73329908619384
+  },
+  "allPass": true,
+  "failed": [],
+  "wallSeconds": 7.7745,
+  "gpuFeatureStatusWebGPU": "enabled",
+  "electron": "45.2.1",
+  "chrome": "156.0.8078.75"
+}

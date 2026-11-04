@@ -12,6 +12,8 @@
 //   snow        in the Colorado alpine, snow drifts into sheltered lee cells and out of exposed ones
 //   books       solids and water stay balanced with the wind on (blown off the edge is logged)
 const e = sim.engine;
+// wind alone: karst valleys (round 11) would add their own relief on the soluble plateau beds
+e.karstValleys = false;
 const R = { checks: {}, runs: {} };
 const check = (name, pass, data) => { R.checks[name] = { pass: !!pass, ...data }; };
 const layer = (n) => e.readLayer(n);

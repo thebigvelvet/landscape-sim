@@ -142,6 +142,20 @@ async function main() {
   panel = new Panel(app);
   brushTool = new BrushTool(app);
   app.brushTool = brushTool;   // the panel shows its notices through it
+  // a notice when an arch opens or falls (at most one every 20 s, so a fast time-lapse is not noisy)
+  let archToastAt = -1e9;
+  sim.arches.onEvent = ({ type, arch }) => {
+    if (performance.now() - archToastAt < 20000) return;
+    archToastAt = performance.now();
+    const bridge = arch.kind === 'bridge';
+    if (type === 'formed') {
+      brushTool.toast('arch', bridge ? 'A natural bridge!' : 'An arch opened!', bridge
+        ? `The stream broke through a thin wall of ${arch.rock.toLowerCase()} at the neck of a tight meander and now runs under a natural bridge. The old loop of the stream is left dry.`
+        : `A window wore through a narrow fin of ${arch.rock.toLowerCase()}${arch.soft ? ', where the soft bed under it let water seep out and slabs spall away' : ''}. It will grow wider over the next few thousand years until the span gets too thin and falls.`);
+    } else {
+      brushTool.toast('arch', bridge ? 'A natural bridge fell' : 'An arch collapsed', `After about ${Math.max(1, Math.round(arch.age))} thousand years the span grew too thin for its width and fell into the opening, leaving two buttresses standing.`);
+    }
+  };
   await app.load(scenario, { size, seed, preset });
 
   // ------------- sub-step governor -------------
@@ -304,6 +318,20 @@ async function main() {
     set oldVolcanoes(v) { sim.oldVolcanoes = !!v; const el = document.getElementById('old-volcanoes'); if (el) el.checked = sim.oldVolcanoes; },
     get volcanoInfo() { return sim.volcanoInfo; },
     volcLayer: (vr, x, y, z) => volcLayer(vr, y * sim.N + x, z),
+    // natural arches and bridges (sim/arches.js) and karst (sim/karst.js), for tests
+    archStats: () => {
+      const a = sim.arches;
+      return { standing: a.standing, bridges: a.bridges, fallen: a.fallen, formed: a.formed, bridgesFormed: a.bridgesFormed, rock_m3: a.store,
+        candidates: a.lastCandidates, necks: a.lastNecks, log: a.log.slice(),
+        list: a.list.map((q) => ({ kind: q.kind, x: q.x, y: q.y, floor: q.floor, openH: q.openH, top: q.top, span_cells: q.jL + q.jR + 1, width_cells: q.wL + q.wR + 1, age_kyr: q.age, rock: q.rock, soft: q.soft, lintel_m3: q.L })) };
+    },
+    karstStats: async () => {
+      const k = await sim.readLayer('karst');
+      const cells = sim.world.cells, A = sim.world.cellSize ** 2;
+      let vol = 0, mx = 0, n1 = 0, n5 = 0;
+      for (let i = 0; i < cells; i++) { const v = k[4 * i]; vol += v; mx = Math.max(mx, v); if (v > 1) n1++; if (v > 5) n5++; }
+      return { dissolved_m3: vol * A, deepest_m: mx, area1m_m2: n1 * A, area5m_m2: n5 * A, layer: k };
+    },
     volcanoStats: async () => {
       const [vr, lv, b] = await Promise.all(['volcRock', 'lava', 'bedrock'].map((n) => sim.readLayer(n)));
       const cells = sim.world.cells, A = sim.world.cellSize ** 2;

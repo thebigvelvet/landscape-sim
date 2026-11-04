@@ -31,7 +31,7 @@
 export const MAX_BEDS = 32;
 export const MAX_FAULTS = 4;
 export const MAX_DOMES = 3;
-export const MAX_ANOMS = 12;
+export const MAX_ANOMS = 20;
 // Layout of the rock table (vec4 entries) shared by the sim params and the render uniform.
 export const TB = {
   beds: 0,            // (base depth m, erode, weather, cliffTan) per bed
@@ -40,25 +40,34 @@ export const TB = {
   faultW: 68,         // fault widths (m), one per component
   domes: 69,          // 2 per dome: (cx, cy, radius along axis, uplift), (axis x, axis y, radius across, 0)
   anoms: 75,          // 2 per anomaly: (x0, y0, x1, y1) metres, (half-width m, type, strength, top depth)
-  plunge: 99,         // fold plunge: (amplitude fraction, kx, ky, phase)
-  joints: 100,        // 2 joint sets: (nx, ny, spacing m, strength)
-  base: 102,          // 3 crystalline basement rocks: (erode, weather, cliffTan, perm)
-  baseCol: 105,       // their colours (renderer)
-  misc: 108,          // (faults, domes, anomalies, crystalline mosaic on)
+  plunge: 115,        // fold plunge: (amplitude fraction, kx, ky, phase)
+  joints: 116,        // 2 joint sets: (nx, ny, spacing m, strength)
+  base: 118,          // 3 crystalline basement rocks: (erode, weather, cliffTan, perm)
+  baseCol: 121,       // their colours (renderer)
+  misc: 124,          // (faults, domes, anomalies, crystalline mosaic on)
 };
-export const TABLE_LEN = 109;
+export const TABLE_LEN = 125;
 
 // Anomaly type codes (table and WGSL)
-export const ANOM = { dike: 1, fault: 2, alteration: 3, hotSpring: 4, sinkhole: 5, salt: 6, pipe: 7, laccolith: 8, neck: 9 };
+export const ANOM = { dike: 1, fault: 2, alteration: 3, hotSpring: 4, sinkhole: 5, salt: 6, pipe: 7, laccolith: 8, neck: 9, stock: 10, sill: 11 };
 // Rock of the anomaly bodies: (erode, weather, cliffTan)
 const DIKE = [0.12, 0.3, 6.0], PORPHYRY = [0.15, 0.3, 5.5], CAPROCK = [0.3, 0.45, 3.5], SALT = [4.0, 4.0, 0.8], NECK = [0.1, 0.25, 6.0];
+// Intrusive igneous rock (magma that set underground; erosion uncovers it later):
+//   granite of stocks and batholiths: coarse, massive, sheds water; holds domes and tors
+//   diabase (dolerite) of sills and dike swarms: fine, dark and the hardest rock on the map
+//   hornfels: the host rock baked hard in a contact aureole around a stock (multiplies the host)
+const GRANITE = [0.15, 0.28, 5.0], DIABASE = [0.1, 0.25, 6.0], HORNFELS = [0.45, 0.6, 1.5];
 // Anomaly colours by colour id (renderer, sRGB): 1 dike, 2 fault gouge, 3 altered rock, 4 travertine,
-// 6 caprock, 7 salt, 8 breccia, 9 porphyry, 10 neck, 11 joint shadow
+// 6 caprock, 7 salt, 8 breccia, 9 porphyry, 10 neck, 11 joint shadow, 12 granite, 13 diabase sill,
+// 14 hornfels
 export const ANOM_COLORS = {
   1: [0.16, 0.18, 0.16], 2: [0.50, 0.40, 0.40], 3: [0.86, 0.62, 0.20], 4: [0.93, 0.90, 0.80],
   6: [0.78, 0.76, 0.70], 7: [0.95, 0.92, 0.92], 8: [0.45, 0.42, 0.36], 9: [0.62, 0.56, 0.56],
-  10: [0.22, 0.21, 0.22], 11: [0.25, 0.20, 0.17],
+  10: [0.22, 0.21, 0.22], 11: [0.25, 0.20, 0.17], 12: [0.84, 0.70, 0.66], 13: [0.19, 0.20, 0.19],
+  14: [0.33, 0.31, 0.33],
 };
+// Which anomaly types are intrusive igneous bodies (tests, notes, legend)
+export const INTRUSIVE = ['dike', 'laccolith', 'neck', 'stock', 'sill'];
 
 // Rock types. thick: median bed thickness (m) at scale 1, sd: log-normal spread. sol: dissolution
 // rate multiplier (0 insoluble, 1 limestone, 5 gypsum, 30 salt). perm: groundwater conductivity
@@ -312,6 +321,17 @@ export function makeStrata(seed, height, N, cellSize, scale = 1, province = 'pla
     void dx; void dy;
   }
 
+  // Intrusive igneous rock draws on its own random stream, so adding it left every older map's
+  // beds, structure and anomalies as they were.
+  const irnd = mulberry32((seed | 0) * 69069 + 40503 + 104729 * PROVINCE_KEYS.indexOf(prov));
+  const ib = (a, b) => a + (b - a) * irnd();
+  // Colorado Plateau: the laccolith mountains (Henry, La Sal, Abajo, Navajo Mountain) come in
+  // clusters, so a map without one sometimes gets one
+  if (prov === 'plateau' && !S.domes.some((d) => d.kind === 'laccolith') && irnd() < 0.3) {
+    const r = ib(0.06, 0.11) * ext;
+    dome(ib(-0.3, 0.3) * ext, ib(-0.3, 0.3) * ext, r, r * ib(0.8, 1.2), irnd() * Math.PI, ib(0.3, 0.7) * range, 'laccolith');
+  }
+
   // ---- top of the stack: the first bed starts at or above the ground everywhere. Depth into the
   // stack at (x, y) is top + structure(x, y) - z; record how deep the deepest ground goes.
   let top = -Infinity;
@@ -443,9 +463,69 @@ export function makeStrata(seed, height, N, cellSize, scale = 1, province = 'pla
       want--;
     }
   }
+  intrusions(T, prov, { irnd, ib, ext, minW, depthAt, inMap, add, S });
   T.describe = describe(T, PV, range);
   T.notes = notes(T, PV);
   return T;
+}
+
+// Intrusive igneous bodies, placed where each kind really occurs in the province:
+//   Colorado Plateau    sills fanning out from the laccoliths at a few levels (Henry Mountains)
+//   Southern Rockies    a granite batholith in the crystalline core (Pikes Peak) and/or a porphyry
+//                       stock in the altered, faulted mineral belt (Colorado Mineral Belt)
+//   Valley and Ridge    a swarm of diabase dikes cutting straight across the folds (Mesozoic rift
+//                       dikes), now and then a small young plug (Mole Hill, Virginia)
+//   Gulf Coastal Plain  now and then a buried volcanic plug (Balcones / Uvalde field)
+function intrusions(T, prov, o) {
+  const { irnd, ib, ext, minW, depthAt, inMap, add, S } = o;
+  const point = () => [ib(-0.4, 0.4) * ext, ib(-0.4, 0.4) * ext];
+  const A = T.anoms;
+  if (prov === 'plateau') {
+    for (const L of A.filter((a) => a.type === 'laccolith')) {
+      const d = S.domes.find((q) => q.kind === 'laccolith' && Math.abs(q.cx - L.seg[0]) < 1 && Math.abs(q.cy - L.seg[1]) < 1);
+      const R = d ? Math.min(d.ra, d.rb) : 2 * L.hw;
+      for (let n = 1 + Math.floor(irnd() * 3), k = 0; k < n; k++) {
+        const a = irnd() * 2 * Math.PI, len = ib(0.9, 1.8) * R, cx = L.seg[0], cy = L.seg[1];
+        const ex = cx + len * Math.cos(a), ey = cy + len * Math.sin(a);
+        if (!inMap(ex, ey)) continue;
+        // a sheet pushed out between two beds on the dome's flank; at its middle it lies a little
+        // under the ground (or already crops out), so erosion of the flank bares it
+        const mx = cx + 0.7 * len * Math.cos(a), my = cy + 0.7 * len * Math.sin(a), below = ib(-8, 25);
+        const top = Math.max(2, depthAt(mx, my) + below);
+        add({ type: 'sill', seg: [cx + 0.4 * R * Math.cos(a), cy + 0.4 * R * Math.sin(a), ex, ey], hw: ib(0.25, 0.45) * R, strength: ib(6, 18), dTop: top, below });
+      }
+    }
+  } else if (prov === 'rockies') {
+    if (irnd() < 0.5) {   // batholith: the crown is already bare, the flanks still roofed over
+      const [px, py] = [ib(-0.25, 0.25) * ext, ib(-0.25, 0.25) * ext], hw = ib(0.22, 0.35) * ext, a = irnd() * Math.PI, len = ib(0, 0.3) * ext;
+      const below = ib(-30, 10);
+      add({ type: 'stock', kind: 'batholith', seg: [px - 0.5 * len * Math.cos(a), py - 0.5 * len * Math.sin(a), px + 0.5 * len * Math.cos(a), py + 0.5 * len * Math.sin(a)],
+        hw, strength: ib(150, 300), dTop: depthAt(px, py) + below, below });
+    }
+    if (irnd() < 0.6) {   // porphyry stock, in the altered zone if there is one
+      const alt = A.find((a) => a.type === 'alteration');
+      const [px, py] = alt ? [alt.seg[0] + ib(-0.5, 0.5) * alt.hw, alt.seg[1] + ib(-0.5, 0.5) * alt.hw] : point();
+      const below = ib(-15, 40);
+      add({ type: 'stock', kind: 'stock', seg: [px, py, px, py], hw: Math.max(3 * minW, ib(120, 350)), strength: ib(40, 120), dTop: depthAt(px, py) + below, below });
+    }
+  } else if (prov === 'valleyRidge') {
+    if (irnd() < 0.4) {
+      // the folds' crests run across S.foldKx/Ky; the dikes run along it, cutting across them
+      const a = Math.atan2(S.foldKy, S.foldKx) + ib(-0.35, 0.35);
+      const nx = -Math.sin(a), ny = Math.cos(a), off0 = ib(-0.3, 0.3) * ext, gap = ib(0.06, 0.15) * ext;
+      for (let n = 2 + Math.floor(irnd() * 3), k = 0; k < n; k++) {
+        const off = off0 + (k - 0.5 * (n - 1)) * gap * ib(0.7, 1.3), len = ib(0.6, 1.4) * ext;
+        add({ type: 'dike', kind: 'swarm', seg: [off * nx - 0.5 * len * Math.cos(a), off * ny - 0.5 * len * Math.sin(a), off * nx + 0.5 * len * Math.cos(a), off * ny + 0.5 * len * Math.sin(a)],
+          hw: Math.max(minW, ib(5, 12)), strength: 1, dTop: 0 });
+      }
+    }
+    if (irnd() < 0.15) { const [px, py] = point(); add({ type: 'neck', kind: 'plug', seg: [px, py, px, py], hw: Math.max(1.5 * minW, ib(40, 90)), strength: 1, dTop: 0, below: 0 }); }
+  } else if (prov === 'gulf') {
+    if (irnd() < 0.25) {
+      const [px, py] = point(), below = ib(5, 40);
+      add({ type: 'neck', kind: 'buriedPlug', seg: [px, py, px, py], hw: Math.max(2 * minW, ib(60, 160)), strength: 1, dTop: Math.max(0, depthAt(px, py)) + below, below });
+    }
+  }
 }
 
 const DIRS = ['E', 'NE', 'N', 'NW', 'W', 'SW', 'S', 'SE'];
@@ -484,8 +564,19 @@ function notes(T, PV) {
     if (d.kind === 'saltDome') { const a = T.anoms.find((x) => x.kind === 'dome' && Math.abs(x.seg[0] - d.cx) < 1); out.push(`A salt dome ${km(2 * d.ra)} across, beds ringing it: caprock${a ? ` about ${Math.round(a.below)} m down` : ''}, then salt that dissolves so the ground sinks into a hollow or lake. Strong gravity low; sulfur in the caprock.`); }
   }
   const count = (t) => T.anoms.filter((a) => a.type === t);
-  const dikes = count('dike'), pipes = count('pipe'), sinks = count('sinkhole');
-  if (count('neck').length) out.push(`A volcanic neck with ${dikes.length} radiating dike${dikes.length === 1 ? '' : 's'}: hard dark rock that stands up as walls. Magnetic high.`);
+  const dikes = count('dike').filter((d) => d.kind !== 'swarm'), pipes = count('pipe'), sinks = count('sinkhole');
+  const sills = count('sill'), stocks = count('stock');
+  for (const a of stocks) {
+    out.push(a.kind === 'batholith'
+      ? `A granite batholith ${km(2 * a.hw)} across${a.below > 0 ? `, its crown about ${Math.round(a.below)} m down` : ', its crown already bare'}: magma that cooled slowly kilometres down. Granite domes and tors once uncovered, ringed by baked hornfels. Gravity low (light granite), magnetic high.`
+      : `A porphyry stock ${km(2 * a.hw)} across${a.below > 0 ? ` about ${Math.round(a.below)} m down` : ', its top already bare'}: hard granite inside a ring of baked hornfels, standing up as a knob once uncovered. Magnetic high; the mineral belt's ore came from stocks like this.`);
+  }
+  if (sills.length) out.push(`${sills.length === 1 ? 'A diabase sill' : `${sills.length} diabase sills`} fed sideways from the laccolith between the beds: once uncovered, a hard dark ledge that caps benches and makes waterfalls. Magnetic high.`);
+  const swarm = count('dike').filter((d) => d.kind === 'swarm');
+  if (swarm.length) out.push(`A swarm of ${swarm.length} diabase dikes (${trend(swarm[0].seg)}) from when the continent began to rift: they cut straight across the folds and stand up as low walls in the shale valleys. Magnetic highs.`);
+  for (const a of count('neck').filter((q) => q.kind === 'plug')) out.push(`A small young volcanic plug ${km(2 * a.hw)} across, standing up as a lone knob. Magnetic high.`);
+  for (const a of count('neck').filter((q) => q.kind === 'buriedPlug')) out.push(`A buried volcanic plug ${km(2 * a.hw)} across, about ${Math.round(a.below)} m down (Balcones-style): erosion will bare it as a hard knob. Magnetic high.`);
+  if (count('neck').some((q) => !q.kind)) out.push(`A volcanic neck with ${dikes.length} radiating dike${dikes.length === 1 ? '' : 's'}: hard dark rock that stands up as walls. Magnetic high.`);
   else if (dikes.length) out.push(`${dikes.length === 1 ? 'A dike' : `${dikes.length} dikes`} (${dikes.map((d) => trend(d.seg)).join(', ')}): hard dark sheets that stand up as walls and dam groundwater. Magnetic highs.`);
   for (const a of count('alteration')) out.push(`A hydrothermally altered zone ${km(2 * a.hw)} across: soft ochre rock that weathers fast (mineral-belt style). Magnetic low.`);
   for (const a of count('hotSpring')) out.push(`A hot spring on the fault: +${Math.round(a.strength)}°C at the vent, heat flow ~${Math.round(PV.heatFlow + 15 * a.strength)} mW/m². It melts the snow and keeps the ground unfrozen.`);
@@ -586,6 +677,8 @@ fn stLayerD(d : f32) -> vec3<f32> {
   return vec3<f32>(f32(k), d - top, ${bed('k')}.x - d);
 }
 fn stLayer(z : f32, g : vec2<f32>) -> vec3<f32> { return stLayerD(max(stDepth(z, g), 0.0)); }
+// width (m) of the baked aureole round a stock of half-width hw
+fn stAur(hw : f32) -> f32 { return clamp(0.25 * hw, 20.0, 80.0); }
 fn stSeg(p : vec2<f32>, s : vec4<f32>) -> f32 {
   let ab = s.zw - s.xy;
   let t = clamp(dot(p - s.xy, ab) / max(dot(ab, ab), 1e-6), 0.0, 1.0);
@@ -647,7 +740,9 @@ fn stRock(z : f32, g : vec2<f32>) -> StRock {
     let t = u32(B.y + 0.5);
     let hw = B.x; let bl = 0.5 * cs;
     let dist = stSeg(p, S);
-    let reach = select(hw + bl, 3.0 * hw + bl, t == 4u);
+    // hot springs warm a halo three times their width; stocks bake an aureole around them
+    var reach = select(hw + bl, 3.0 * hw + bl, t == 4u);
+    if (t == 10u) { reach = hw + stAur(hw) + bl; }
     if (dist > reach) { continue; }
     let w = 1.0 - smoothstep(hw - bl, hw + bl, dist);
     switch t {
@@ -680,8 +775,34 @@ fn stRock(z : f32, g : vec2<f32>) -> StRock {
       case 8u: {   // laccolith core: hard porphyry below its top
         if (d >= B.w) { r.p = mix(r.p, ${f3(PORPHYRY)}, w); r.perm = mix(r.perm, 0.3, w); r.sol *= 1.0 - w; stMark(&r, 9.0, w); }
       }
-      case 9u: {   // volcanic neck
-        r.p = mix(r.p, ${f3(NECK)}, w); r.perm = mix(r.perm, 0.3, w); r.sol *= 1.0 - w; stMark(&r, 10.0, w);
+      case 9u: {   // volcanic neck (or a plug still buried below its top depth)
+        if (d >= B.w) { r.p = mix(r.p, ${f3(NECK)}, w); r.perm = mix(r.perm, 0.3, w); r.sol *= 1.0 - w; stMark(&r, 10.0, w); }
+      }
+      case 10u: {  // granite stock or batholith: a domed roof, B.z metres deeper at its edge than at its
+                   // top, so erosion uncovers the crown first; a baked hornfels aureole around it
+        let f = dist / max(hw, 1.0);
+        let roof = B.w + B.z * f * f;
+        let aur = stAur(hw);
+        if (d >= roof && dist <= hw + bl) {
+          r.p = mix(r.p, ${f3(GRANITE)}, w); r.perm = mix(r.perm, 0.4, w); r.sol *= 1.0 - w; stMark(&r, 12.0, w);
+        } else {
+          // distance to the body: above the roof and/or out from its wall
+          let gap = max(max(roof - d, 0.0), max(dist - hw, 0.0));
+          let wa = (1.0 - smoothstep(0.3 * aur, aur, gap)) * select(1.0, 1.0 - w, d >= roof);
+          if (wa > 0.0) {
+            r.p = r.p * mix(vec3<f32>(1.0), vec3<f32>(${HORNFELS.join(', ')}), wa);
+            r.p.z = max(r.p.z, mix(r.p.z, 3.5, wa));
+            r.perm *= 1.0 - 0.6 * wa; r.sol *= 1.0 - wa;
+            stMark(&r, 14.0, 0.7 * wa);
+          }
+        }
+      }
+      case 11u: {  // sill: a sheet of diabase B.z m thick at its middle, thinning to its edge, between
+                   // two beds at depth B.w (in the stack's frame, so it bends with the beds)
+        let f = dist / max(hw, 1.0);
+        let th = B.z * max(1.0 - f * f, 0.0);
+        let sw = smoothstep(0.0, 0.6, th) * min(smoothstep(B.w - 0.5, B.w + 0.5, d), 1.0 - smoothstep(B.w + th - 0.5, B.w + th + 0.5, d));
+        if (sw > 0.0) { r.p = mix(r.p, ${f3(DIABASE)}, sw); r.perm = mix(r.perm, 0.3, sw); r.sol *= 1.0 - sw; stMark(&r, 13.0, sw); }
       }
       default: {}
     }
@@ -735,7 +856,7 @@ export function anomalyAt(x, y, T) {
     const dist = Math.hypot(px - x0 - abx * t, py - y0 - aby * t);
     const e = Math.max(0, Math.min(1, (dist - (a.hw - bl)) / (2 * bl)));
     const w = 1 - e * e * (3 - 2 * e);
-    if (w > 0) out.push({ type: a.type, w, dist });
+    if (w > 0) out.push({ type: a.type, kind: a.kind, w, dist });
   }
   return out;
 }

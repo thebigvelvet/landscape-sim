@@ -1,0 +1,92 @@
+{
+  "checks": {
+    "gulfBringsItsClimate": {
+      "pass": true,
+      "preset": "Gulf Coast humid",
+      "province": "gulf",
+      "toast": "Climate: Gulf Coast humidThe Gulf Coastal Plain comes with its home climate. You"
+    },
+    "ownClimateStands": {
+      "pass": true,
+      "preset": "Temperate"
+    },
+    "rockiesBringsAlpine": {
+      "pass": true,
+      "preset": "Colorado alpine"
+    },
+    "plateauBringsDesert": {
+      "pass": true,
+      "preset": "Utah desert"
+    },
+    "randomFollowsSeed": {
+      "pass": true,
+      "province": "gulf",
+      "preset": "Gulf Coast humid"
+    },
+    "gulfClimateSane": {
+      "pass": true,
+      "gulf": {
+        "jan": {
+          "snow_mm": 0,
+          "frost_m": 0
+        },
+        "meanVeg": 0.8189244449604303,
+        "groundwater_m3": 876681.463432312,
+        "precip_m3": 294810731.4361572,
+        "evap_m3": 173377792.40264893,
+        "bal": 3.6411188431183016e-8,
+        "nan": false
+      },
+      "temperate": {
+        "jan": {
+          "snow_mm": 9.036908161094088,
+          "frost_m": 0.13232925558509034
+        },
+        "meanVeg": 0.8888512884732336,
+        "groundwater_m3": 922355.7133674622,
+        "precip_m3": 179804071.67358398,
+        "evap_m3": 75554705.55295944,
+        "bal": 3.478178789976658e-8,
+        "nan": false
+      }
+    },
+    "noGpuErrors": {
+      "pass": true,
+      "gpuErrors": 0
+    }
+  },
+  "afterGulf": {
+    "preset": "Gulf Coast humid",
+    "province": "gulf",
+    "toast": "Climate: Gulf Coast humidThe Gulf Coastal Plain comes with its home climate. You"
+  },
+  "gulfHumid": {
+    "jan": {
+      "snow_mm": 0,
+      "frost_m": 0
+    },
+    "meanVeg": 0.8189244449604303,
+    "groundwater_m3": 876681.463432312,
+    "precip_m3": 294810731.4361572,
+    "evap_m3": 173377792.40264893,
+    "bal": 3.6411188431183016e-8,
+    "nan": false
+  },
+  "temperate": {
+    "jan": {
+      "snow_mm": 9.036908161094088,
+      "frost_m": 0.13232925558509034
+    },
+    "meanVeg": 0.8888512884732336,
+    "groundwater_m3": 922355.7133674622,
+    "precip_m3": 179804071.67358398,
+    "evap_m3": 75554705.55295944,
+    "bal": 3.478178789976658e-8,
+    "nan": false
+  },
+  "gpuErrors": 0,
+  "passed": "7/7",
+  "gpuFeatureStatusWebGPU": "enabled",
+  "electron": "45.2.1",
+  "chrome": "156.0.8078.75"
+}

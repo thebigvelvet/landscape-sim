@@ -1,0 +1,1091 @@
+{
+  "seeds": {
+    "1": {
+      "joints": 2,
+      "sandBeds": 5,
+      "anoms": [
+        "laccolith",
+        "pipe",
+        "pipe",
+        "pipe",
+        "pipe",
+        "sill",
+        "sill",
+        "sill"
+      ],
+      "steps": [
+        {
+          "yr": 2500,
+          "standing": 1,
+          "fallen": 1,
+          "bridges": 0,
+          "cand": 6,
+          "necks": 0,
+          "rock": 3792,
+          "solidsErr": -162,
+          "sedOut": 17655954,
+          "bal": -6.96903190201523e-8
+        },
+        {
+          "yr": 5000,
+          "standing": 1,
+          "fallen": 3,
+          "bridges": 0,
+          "cand": 5,
+          "necks": 0,
+          "rock": 2897,
+          "solidsErr": -503,
+          "sedOut": 36182841,
+          "bal": 5.7260116658301336e-8
+        },
+        {
+          "yr": 7500,
+          "standing": 2,
+          "fallen": 4,
+          "bridges": 0,
+          "cand": 4,
+          "necks": 0,
+          "rock": 6201,
+          "solidsErr": -902,
+          "sedOut": 52981651,
+          "bal": 4.916057051973598e-8
+        },
+        {
+          "yr": 10000,
+          "standing": 5,
+          "fallen": 4,
+          "bridges": 0,
+          "cand": 2,
+          "necks": 0,
+          "rock": 37007,
+          "solidsErr": -1407,
+          "sedOut": 68662308,
+          "bal": -3.652519194161625e-8
+        },
+        {
+          "yr": 12500,
+          "standing": 2,
+          "fallen": 8,
+          "bridges": 0,
+          "cand": 8,
+          "necks": 0,
+          "rock": 36004,
+          "solidsErr": -1942,
+          "sedOut": 81135548,
+          "bal": -1.2247882025212937e-8
+        },
+        {
+          "yr": 15000,
+          "standing": 3,
+          "fallen": 8,
+          "bridges": 0,
+          "cand": 4,
+          "necks": 0,
+          "rock": 46381,
+          "solidsErr": -2514,
+          "sedOut": 94524614,
+          "bal": -3.404798117080695e-9
+        },
+        {
+          "yr": 17500,
+          "standing": 3,
+          "fallen": 10,
+          "bridges": 0,
+          "cand": 3,
+          "necks": 0,
+          "rock": 48862,
+          "solidsErr": -3105,
+          "sedOut": 107238499,
+          "bal": -5.01444053296307e-10
+        },
+        {
+          "yr": 20000,
+          "standing": 2,
+          "fallen": 11,
+          "bridges": 0,
+          "cand": 3,
+          "necks": 0,
+          "rock": 30344,
+          "solidsErr": -3714,
+          "sedOut": 121372675,
+          "bal": -4.184493275730255e-9
+        }
+      ],
+      "arches": [
+        {
+          "kind": "arch",
+          "x": 39,
+          "y": 184,
+          "floor": 798.6017456054688,
+          "openH": 17.67058889605297,
+          "top": 835.7017822265625,
+          "span_cells": 3,
+          "width_cells": 3,
+          "age_kyr": 10.054999999995989,
+          "rock": "Eolian sandstone",
+          "soft": false,
+          "lintel_m3": 18906.94895988063
+        },
+        {
+          "kind": "arch",
+          "x": 41,
+          "y": 196,
+          "floor": 752.0338134765625,
+          "openH": 11.45152239052737,
+          "top": 791.422119140625,
+          "span_cells": 2,
+          "width_cells": 2,
+          "age_kyr": 3.271666666664948,
+          "rock": "Eolian sandstone",
+          "soft": false,
+          "lintel_m3": 11436.682725757555
+        }
+      ],
+      "log": [
+        {
+          "day": 274358.3333333346,
+          "what": "formed",
+          "kind": "arch",
+          "x": 246,
+          "y": 84
+        },
+        {
+          "day": 458074.9999999954,
+          "what": "fell",
+          "kind": "arch",
+          "x": 246,
+          "y": 84,
+          "age": 0.5033333333333173
+        },
+        {
+          "day": 549933.3333333282,
+          "what": "formed",
+          "kind": "arch",
+          "x": 180,
+          "y": 223
+        },
+        {
+          "day": 1190508.333333324,
+          "what": "formed",
+          "kind": "arch",
+          "x": 242,
+          "y": 202
+        },
+        {
+          "day": 1374224.9999999672,
+          "what": "fell",
+          "kind": "arch",
+          "x": 242,
+          "y": 202,
+          "age": 0.5033333333332691
+        },
+        {
+          "day": 1466083.3333332888,
+          "what": "fell",
+          "kind": "arch",
+          "x": 180,
+          "y": 223,
+          "age": 2.509999999999892
+        },
+        {
+          "day": 1466083.3333332888,
+          "what": "formed",
+          "kind": "arch",
+          "x": 248,
+          "y": 194
+        },
+        {
+          "day": 1925374.999999879,
+          "what": "formed",
+          "kind": "arch",
+          "x": 246,
+          "y": 83
+        },
+        {
+          "day": 2200341.66666655,
+          "what": "fell",
+          "kind": "arch",
+          "x": 248,
+          "y": 194,
+          "age": 2.0116666666664695
+        },
+        {
+          "day": 2291591.6666665734,
+          "what": "formed",
+          "kind": "arch",
+          "x": 187,
+          "y": 243
+        },
+        {
+          "day": 2930341.666666718,
+          "what": "formed",
+          "kind": "arch",
+          "x": 244,
+          "y": 205
+        },
+        {
+          "day": 3204091.666666788,
+          "what": "formed",
+          "kind": "arch",
+          "x": 43,
+          "y": 195
+        },
+        {
+          "day": 3569091.666666881,
+          "what": "formed",
+          "kind": "arch",
+          "x": 39,
+          "y": 184
+        },
+        {
+          "day": 3660341.6666668863,
+          "what": "fell",
+          "kind": "arch",
+          "x": 246,
+          "y": 83,
+          "age": 4.753333333334268
+        },
+        {
+          "day": 4025341.6666669794,
+          "what": "fell",
+          "kind": "arch",
+          "x": 244,
+          "y": 205,
+          "age": 3.0000000000007163
+        },
+        {
+          "day": 4299700.000000302,
+          "what": "fell",
+          "kind": "arch",
+          "x": 43,
+          "y": 195,
+          "age": 3.001666666667161
+        },
+        {
+          "day": 4391558.333333588,
+          "what": "fell",
+          "kind": "arch",
+          "x": 187,
+          "y": 243,
+          "age": 5.753333333334289
+        },
+        {
+          "day": 4391558.333333588,
+          "what": "formed",
+          "kind": "arch",
+          "x": 144,
+          "y": 228
+        },
+        {
+          "day": 5126424.999999862,
+          "what": "formed",
+          "kind": "arch",
+          "x": 42,
+          "y": 195
+        },
+        {
+          "day": 5861291.666666136,
+          "what": "fell",
+          "kind": "arch",
+          "x": 42,
+          "y": 195,
+          "age": 2.013333333332257
+        },
+        {
+          "day": 6045008.333332709,
+          "what": "formed",
+          "kind": "arch",
+          "x": 41,
+          "y": 196
+        },
+        {
+          "day": 6136866.6666659955,
+          "what": "fell",
+          "kind": "arch",
+          "x": 144,
+          "y": 228,
+          "age": 4.781666666664129
+        },
+        {
+          "day": 6136866.6666659955,
+          "what": "formed",
+          "kind": "arch",
+          "x": 247,
+          "y": 205
+        },
+        {
+          "day": 6963591.666665556,
+          "what": "fell",
+          "kind": "arch",
+          "x": 247,
+          "y": 205,
+          "age": 2.2649999999987953
+        }
+      ]
+    },
+    "2": {
+      "joints": 0,
+      "sandBeds": 7,
+      "anoms": [
+        "pipe",
+        "pipe",
+        "pipe",
+        "pipe"
+      ]
+    },
+    "3": {
+      "joints": 0,
+      "sandBeds": 8,
+      "anoms": []
+    },
+    "4": {
+      "joints": 2,
+      "sandBeds": 5,
+      "anoms": [
+        "pipe",
+        "pipe",
+        "pipe"
+      ],
+      "steps": [
+        {
+          "yr": 2500,
+          "standing": 2,
+          "fallen": 0,
+          "bridges": 0,
+          "cand": 20,
+          "necks": 0,
+          "rock": 4911,
+          "solidsErr": -58,
+          "sedOut": 4920263,
+          "bal": 1.283660683017602e-7
+        },
+        {
+          "yr": 5000,
+          "standing": 2,
+          "fallen": 1,
+          "bridges": 0,
+          "cand": 13,
+          "necks": 0,
+          "rock": 6376,
+          "solidsErr": -246,
+          "sedOut": 13162626,
+          "bal": 3.666664850740865e-8
+        },
+        {
+          "yr": 7500,
+          "standing": 3,
+          "fallen": 2,
+          "bridges": 0,
+          "cand": 10,
+          "necks": 0,
+          "rock": 13781,
+          "solidsErr": -2376,
+          "sedOut": 21424157,
+          "bal": 2.1918656596633288e-8
+        },
+        {
+          "yr": 10000,
+          "standing": 3,
+          "fallen": 2,
+          "bridges": 0,
+          "cand": 8,
+          "necks": 0,
+          "rock": 10634,
+          "solidsErr": -2680,
+          "sedOut": 28696809,
+          "bal": 8.033628107531529e-9
+        },
+        {
+          "yr": 12500,
+          "standing": 3,
+          "fallen": 2,
+          "bridges": 0,
+          "cand": 7,
+          "necks": 0,
+          "rock": 10136,
+          "solidsErr": -2982,
+          "sedOut": 36061723,
+          "bal": 5.992385432846248e-8
+        },
+        {
+          "yr": 15000,
+          "standing": 2,
+          "fallen": 3,
+          "bridges": 0,
+          "cand": 8,
+          "necks": 0,
+          "rock": 8603,
+          "solidsErr": -3256,
+          "sedOut": 44140535,
+          "bal": 5.676232619864727e-8
+        },
+        {
+          "yr": 17500,
+          "standing": 1,
+          "fallen": 4,
+          "bridges": 0,
+          "cand": 7,
+          "necks": 0,
+          "rock": 4673,
+          "solidsErr": -3531,
+          "sedOut": 52500539,
+          "bal": 7.113560319731215e-8
+        },
+        {
+          "yr": 20000,
+          "standing": 0,
+          "fallen": 5,
+          "bridges": 0,
+          "cand": 6,
+          "necks": 0,
+          "rock": 0,
+          "solidsErr": -3783,
+          "sedOut": 60039539,
+          "bal": 7.236338001367111e-8
+        }
+      ],
+      "arches": [],
+      "log": [
+        {
+          "day": 274358.3333333346,
+          "what": "formed",
+          "kind": "arch",
+          "x": 165,
+          "y": 120
+        },
+        {
+          "day": 366216.666666665,
+          "what": "formed",
+          "kind": "arch",
+          "x": 153,
+          "y": 42
+        },
+        {
+          "day": 915541.6666666669,
+          "what": "formed",
+          "kind": "arch",
+          "x": 161,
+          "y": 143
+        },
+        {
+          "day": 1374224.9999999672,
+          "what": "fell",
+          "kind": "arch",
+          "x": 153,
+          "y": 42,
+          "age": 2.7616666666665814
+        },
+        {
+          "day": 1833516.6666665573,
+          "what": "fell",
+          "kind": "arch",
+          "x": 165,
+          "y": 120,
+          "age": 4.271666666666364
+        },
+        {
+          "day": 2291591.6666665734,
+          "what": "formed",
+          "kind": "arch",
+          "x": 44,
+          "y": 118
+        },
+        {
+          "day": 2382841.6666665967,
+          "what": "formed",
+          "kind": "arch",
+          "x": 164,
+          "y": 126
+        },
+        {
+          "day": 4758991.666666716,
+          "what": "fell",
+          "kind": "arch",
+          "x": 44,
+          "y": 118,
+          "age": 6.760000000000392
+        },
+        {
+          "day": 5585716.666666277,
+          "what": "fell",
+          "kind": "arch",
+          "x": 164,
+          "y": 126,
+          "age": 8.774999999999125
+        },
+        {
+          "day": 6688016.666665697,
+          "what": "fell",
+          "kind": "arch",
+          "x": 161,
+          "y": 143,
+          "age": 15.814999999997362
+        }
+      ]
+    },
+    "5": {
+      "joints": 0,
+      "sandBeds": 5,
+      "anoms": [
+        "salt:wall"
+      ]
+    },
+    "6": {
+      "joints": 2,
+      "sandBeds": 7,
+      "anoms": [
+        "laccolith",
+        "sill",
+        "sill"
+      ],
+      "steps": [
+        {
+          "yr": 2500,
+          "standing": 2,
+          "fallen": 0,
+          "bridges": 0,
+          "cand": 7,
+          "necks": 0,
+          "rock": 6047,
+          "solidsErr": -101,
+          "sedOut": 14228444,
+          "bal": 5.451189730984876e-8
+        },
+        {
+          "yr": 5000,
+          "standing": 1,
+          "fallen": 1,
+          "bridges": 0,
+          "cand": 6,
+          "necks": 0,
+          "rock": 6396,
+          "solidsErr": -355,
+          "sedOut": 26451607,
+          "bal": -5.286785939945923e-8
+        },
+        {
+          "yr": 7500,
+          "standing": 1,
+          "fallen": 1,
+          "bridges": 0,
+          "cand": 5,
+          "necks": 0,
+          "rock": 4889,
+          "solidsErr": -645,
+          "sedOut": 40150350,
+          "bal": 2.4325772824575982e-8
+        },
+        {
+          "yr": 10000,
+          "standing": 1,
+          "fallen": 2,
+          "bridges": 0,
+          "cand": 17,
+          "necks": 0,
+          "rock": 3400,
+          "solidsErr": -1004,
+          "sedOut": 51897885,
+          "bal": 8.533726247967766e-9
+        },
+        {
+          "yr": 12500,
+          "standing": 0,
+          "fallen": 3,
+          "bridges": 0,
+          "cand": 24,
+          "necks": 0,
+          "rock": 0,
+          "solidsErr": -1405,
+          "sedOut": 62606091,
+          "bal": -6.117647645102527e-9
+        },
+        {
+          "yr": 15000,
+          "standing": 0,
+          "fallen": 3,
+          "bridges": 0,
+          "cand": 21,
+          "necks": 0,
+          "rock": 0,
+          "solidsErr": -1835,
+          "sedOut": 72986124,
+          "bal": -4.6217536722776657e-8
+        },
+        {
+          "yr": 17500,
+          "standing": 1,
+          "fallen": 3,
+          "bridges": 0,
+          "cand": 20,
+          "necks": 0,
+          "rock": 3079,
+          "solidsErr": -2293,
+          "sedOut": 82615619,
+          "bal": -1.743267560567059e-8
+        },
+        {
+          "yr": 20000,
+          "standing": 0,
+          "fallen": 4,
+          "bridges": 0,
+          "cand": 14,
+          "necks": 0,
+          "rock": 0,
+          "solidsErr": -2759,
+          "sedOut": 91758738,
+          "bal": 1.6106696017654607e-8
+        }
+      ],
+      "arches": [],
+      "log": [
+        {
+          "day": 274358.3333333346,
+          "what": "formed",
+          "kind": "arch",
+          "x": 238,
+          "y": 204
+        },
+        {
+          "day": 732433.3333333399,
+          "what": "formed",
+          "kind": "arch",
+          "x": 180,
+          "y": 205
+        },
+        {
+          "day": 1006791.6666666727,
+          "what": "fell",
+          "kind": "arch",
+          "x": 180,
+          "y": 205,
+          "age": 0.7516666666666652
+        },
+        {
+          "day": 2930341.666666718,
+          "what": "formed",
+          "kind": "arch",
+          "x": 69,
+          "y": 183
+        },
+        {
+          "day": 3477841.666666858,
+          "what": "fell",
+          "kind": "arch",
+          "x": 69,
+          "y": 183,
+          "age": 1.5000000000003826
+        },
+        {
+          "day": 4116591.6666670027,
+          "what": "fell",
+          "kind": "arch",
+          "x": 238,
+          "y": 204,
+          "age": 10.526666666667587
+        },
+        {
+          "day": 5769433.33333285,
+          "what": "formed",
+          "kind": "arch",
+          "x": 135,
+          "y": 92
+        },
+        {
+          "day": 6596158.33333241,
+          "what": "fell",
+          "kind": "arch",
+          "x": 135,
+          "y": 92,
+          "age": 2.2649999999987953
+        }
+      ]
+    },
+    "7": {
+      "joints": 2,
+      "sandBeds": 5,
+      "anoms": [
+        "fault:normal"
+      ],
+      "steps": [
+        {
+          "yr": 2500,
+          "standing": 0,
+          "fallen": 0,
+          "bridges": 0,
+          "cand": 21,
+          "necks": 0,
+          "rock": 0,
+          "solidsErr": -110,
+          "sedOut": 2488689,
+          "bal": 1.3740592480189482e-7
+        },
+        {
+          "yr": 5000,
+          "standing": 3,
+          "fallen": 0,
+          "bridges": 0,
+          "cand": 11,
+          "necks": 0,
+          "rock": 10840,
+          "solidsErr": -396,
+          "sedOut": 6328523,
+          "bal": 8.61289818443498e-8
+        },
+        {
+          "yr": 7500,
+          "standing": 4,
+          "fallen": 0,
+          "bridges": 0,
+          "cand": 8,
+          "necks": 0,
+          "rock": 19997,
+          "solidsErr": -783,
+          "sedOut": 9427508,
+          "bal": 1.1906469250527848e-7
+        },
+        {
+          "yr": 10000,
+          "standing": 3,
+          "fallen": 2,
+          "bridges": 0,
+          "cand": 4,
+          "necks": 0,
+          "rock": 15776,
+          "solidsErr": -1258,
+          "sedOut": 12497541,
+          "bal": 9.433505078339495e-8
+        },
+        {
+          "yr": 12500,
+          "standing": 3,
+          "fallen": 2,
+          "bridges": 0,
+          "cand": 2,
+          "necks": 0,
+          "rock": 12477,
+          "solidsErr": -1792,
+          "sedOut": 16235977,
+          "bal": 1.1681317605769105e-7
+        },
+        {
+          "yr": 15000,
+          "standing": 2,
+          "fallen": 3,
+          "bridges": 0,
+          "cand": 3,
+          "necks": 0,
+          "rock": 5790,
+          "solidsErr": -2422,
+          "sedOut": 20098251,
+          "bal": 1.258566170715356e-7
+        },
+        {
+          "yr": 17500,
+          "standing": 1,
+          "fallen": 4,
+          "bridges": 0,
+          "cand": 4,
+          "necks": 0,
+          "rock": 2313,
+          "solidsErr": -3121,
+          "sedOut": 26410967,
+          "bal": 1.0488448769827731e-7
+        },
+        {
+          "yr": 20000,
+          "standing": 1,
+          "fallen": 4,
+          "bridges": 0,
+          "cand": 6,
+          "necks": 0,
+          "rock": 1430,
+          "solidsErr": -3852,
+          "sedOut": 33443892,
+          "bal": 1.1049851621816537e-7
+        }
+      ],
+      "arches": [
+        {
+          "kind": "arch",
+          "x": 47,
+          "y": 99,
+          "floor": 621.1812133789062,
+          "openH": 13.314973541614249,
+          "top": 637.3108520507812,
+          "span_cells": 2,
+          "width_cells": 2,
+          "age_kyr": 11.804999999996442,
+          "rock": "Fluvial sandstone",
+          "soft": false,
+          "lintel_m3": 1430.4644913660468
+        }
+      ],
+      "log": [
+        {
+          "day": 915541.6666666669,
+          "what": "formed",
+          "kind": "arch",
+          "x": 101,
+          "y": 201
+        },
+        {
+          "day": 1190508.333333324,
+          "what": "formed",
+          "kind": "arch",
+          "x": 23,
+          "y": 98
+        },
+        {
+          "day": 1374224.9999999672,
+          "what": "formed",
+          "kind": "arch",
+          "x": 213,
+          "y": 130
+        },
+        {
+          "day": 2656591.6666666665,
+          "what": "formed",
+          "kind": "arch",
+          "x": 89,
+          "y": 202
+        },
+        {
+          "day": 2930341.666666718,
+          "what": "fell",
+          "kind": "arch",
+          "x": 23,
+          "y": 98,
+          "age": 4.7666666666668345
+        },
+        {
+          "day": 2930341.666666718,
+          "what": "formed",
+          "kind": "arch",
+          "x": 47,
+          "y": 99
+        },
+        {
+          "day": 3204091.666666788,
+          "what": "fell",
+          "kind": "arch",
+          "x": 101,
+          "y": 201,
+          "age": 6.2700000000003335
+        },
+        {
+          "day": 4850850.000000003,
+          "what": "fell",
+          "kind": "arch",
+          "x": 213,
+          "y": 130,
+          "age": 9.525000000000105
+        },
+        {
+          "day": 6136866.6666659955,
+          "what": "fell",
+          "kind": "arch",
+          "x": 89,
+          "y": 202,
+          "age": 9.534999999998167
+        }
+      ]
+    },
+    "8": {
+      "joints": 2,
+      "sandBeds": 5,
+      "anoms": [
+        "neck",
+        "dike",
+        "dike"
+      ],
+      "steps": [
+        {
+          "yr": 2500,
+          "standing": 0,
+          "fallen": 0,
+          "bridges": 0,
+          "cand": 10,
+          "necks": 0,
+          "rock": 0,
+          "solidsErr": -135,
+          "sedOut": 9598777,
+          "bal": -4.697639735085864e-8
+        },
+        {
+          "yr": 5000,
+          "standing": 1,
+          "fallen": 1,
+          "bridges": 0,
+          "cand": 4,
+          "necks": 0,
+          "rock": 1022,
+          "solidsErr": -394,
+          "sedOut": 21562256,
+          "bal": 2.4424734015550837e-8
+        },
+        {
+          "yr": 7500,
+          "standing": 0,
+          "fallen": 3,
+          "bridges": 0,
+          "cand": 5,
+          "necks": 0,
+          "rock": 0,
+          "solidsErr": -654,
+          "sedOut": 31771120,
+          "bal": -2.0016154264127647e-9
+        },
+        {
+          "yr": 10000,
+          "standing": 0,
+          "fallen": 3,
+          "bridges": 0,
+          "cand": 3,
+          "necks": 0,
+          "rock": 0,
+          "solidsErr": -988,
+          "sedOut": 42019723,
+          "bal": -1.7910335300509754e-8
+        },
+        {
+          "yr": 12500,
+          "standing": 0,
+          "fallen": 3,
+          "bridges": 0,
+          "cand": 6,
+          "necks": 0,
+          "rock": 0,
+          "solidsErr": -1369,
+          "sedOut": 51522813,
+          "bal": -2.1350646003102708e-8
+        },
+        {
+          "yr": 15000,
+          "standing": 0,
+          "fallen": 4,
+          "bridges": 0,
+          "cand": 4,
+          "necks": 0,
+          "rock": 0,
+          "solidsErr": -1828,
+          "sedOut": 62778721,
+          "bal": -8.64502709381388e-9
+        },
+        {
+          "yr": 17500,
+          "standing": 1,
+          "fallen": 4,
+          "bridges": 0,
+          "cand": 7,
+          "necks": 0,
+          "rock": 2117,
+          "solidsErr": -2339,
+          "sedOut": 76738763,
+          "bal": -3.5872385654081456e-9
+        },
+        {
+          "yr": 20000,
+          "standing": 1,
+          "fallen": 4,
+          "bridges": 0,
+          "cand": 3,
+          "necks": 0,
+          "rock": 2938,
+          "solidsErr": -2893,
+          "sedOut": 91389853,
+          "bal": -4.0717537796589224e-9
+        }
+      ],
+      "arches": [
+        {
+          "kind": "arch",
+          "x": 94,
+          "y": 43,
+          "floor": 712.0098266601562,
+          "openH": 7.346235026153472,
+          "top": 726.2808837890625,
+          "span_cells": 2,
+          "width_cells": 2,
+          "age_kyr": 3.523333333331486,
+          "rock": "Eolian sandstone",
+          "soft": false,
+          "lintel_m3": 2937.9841298647534
+        }
+      ],
+      "log": [
+        {
+          "day": 1557941.6666666104,
+          "what": "formed",
+          "kind": "arch",
+          "x": 180,
+          "y": 180
+        },
+        {
+          "day": 1649799.999999932,
+          "what": "formed",
+          "kind": "arch",
+          "x": 192,
+          "y": 184
+        },
+        {
+          "day": 1741658.3333332536,
+          "what": "fell",
+          "kind": "arch",
+          "x": 180,
+          "y": 180,
+          "age": 0.5033333333332691
+        },
+        {
+          "day": 1833516.6666665573,
+          "what": "fell",
+          "kind": "arch",
+          "x": 192,
+          "y": 184,
+          "age": 0.50333333333322
+        },
+        {
+          "day": 1925374.999999879,
+          "what": "formed",
+          "kind": "arch",
+          "x": 213,
+          "y": 181
+        },
+        {
+          "day": 2109091.666666527,
+          "what": "fell",
+          "kind": "arch",
+          "x": 213,
+          "y": 181,
+          "age": 0.5033333333332819
+        },
+        {
+          "day": 5034566.666666576,
+          "what": "formed",
+          "kind": "arch",
+          "x": 8,
+          "y": 13
+        },
+        {
+          "day": 5218283.333333149,
+          "what": "fell",
+          "kind": "arch",
+          "x": 8,
+          "y": 13,
+          "age": 0.5033333333330765
+        },
+        {
+          "day": 5953149.999999423,
+          "what": "formed",
+          "kind": "arch",
+          "x": 94,
+          "y": 43
+        }
+      ]
+    }
+  },
+  "gpuErrors": 0,
+  "gpuErrorMsgs": [],
+  "gpuFeatureStatusWebGPU": "enabled",
+  "electron": "45.2.1",
+  "chrome": "156.0.8078.75"
+}
