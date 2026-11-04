@@ -5,6 +5,7 @@
 //   old       a random map that starts with an old volcano (window.__seed, default: first such seed)
 //   worn      that old-volcano map after window.__years (default 20000) of erosion
 //   side      block side cut through the cooled flow (camera low, looking at the south edge)
+// window.__style picks the eruption style (sim/volcano.js ERUPTION_STYLES; default Strombolian).
 // The result includes the picture as a data URL (canvas.toDataURL), as capturePage can hang.
 const e = sim.engine, c = sim.renderer.camera, mode = window.__mode || 'erupt';
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
@@ -26,7 +27,7 @@ if (mode === 'old' || mode === 'worn') {
   await sim.load('valley', { size: N, seed: 3, relief: 0.6, preset: window.__preset || 'Colorado alpine', volcanoes: false }); sim.pause();
   const k = N / 256;
   await e.run(window.__startDay ?? 150, { batchDays: 5 });   // erupt in early summer
-  const ev = sim.brush('volcano', { x: (128 + 25) * k, y: 184 * k }); await ev.ready;
+  const ev = sim.brush('volcano', { x: (128 + 25) * k, y: 184 * k, style: window.__style }); await ev.ready;
   if (mode === 'erupt') await e.run(window.__days ?? 120, { batchDays: 1 });
   else {
     while (true) { await e.run(30, { batchDays: 2 }); const s = await sim.stats(); if (!s.erupting && s.hotLavaCells === 0) break; }

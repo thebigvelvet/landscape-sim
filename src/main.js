@@ -307,7 +307,7 @@ async function main() {
     volcanoStats: async () => {
       const [vr, lv, b] = await Promise.all(['volcRock', 'lava', 'bedrock'].map((n) => sim.readLayer(n)));
       const cells = sim.world.cells, A = sim.world.cellSize ** 2;
-      const vol = [0, 0, 0, 0], area = [0, 0, 0, 0];
+      const vol = new Array(8).fill(0), area = new Array(8).fill(0);
       let molten = 0, hot = 0;
       for (let i = 0; i < cells; i++) {
         molten += lv[4 * i]; if (lv[4 * i] > 0.01 && lv[4 * i + 1] >= 0.15) hot++;
@@ -321,8 +321,9 @@ async function main() {
           if (th > 0) { vol[t] += th * A; if (b[i] <= hi) area[t] += A; }
         }
       }
-      const vents = sim.volcanoes.vents.map((e) => ({ id: e.id, x: e.x, y: e.y, coneHeight_m: e.H || 0, left_days: Math.max(e.left, 0), source: e.src }));
-      return { basalt_m3: vol[1], cinders_m3: vol[2], plug_m3: vol[3], basaltArea_m2: area[1], cindersArea_m2: area[2], plugArea_m2: area[3], moltenLava_m3: molten * A, hotLavaCells: hot, erupting: sim.volcanoes.erupting, erupted_m3: sim.cum.erupted, vents };
+      const vents = sim.volcanoes.vents.map((e) => ({ id: e.id, style: e.style, x: e.x, y: e.y, coneHeight_m: e.H || 0, left_days: Math.max(e.left, 0), source: e.src, pyroSource: e.src2 }));
+      return { basalt_m3: vol[1], cinders_m3: vol[2], plug_m3: vol[3], basaltArea_m2: area[1], cindersArea_m2: area[2], plugArea_m2: area[3],
+        andesite_m3: vol[4], ash_m3: vol[5], tuff_m3: vol[6], breccia_m3: vol[7], andesiteArea_m2: area[4], ashArea_m2: area[5], tuffArea_m2: area[6], brecciaArea_m2: area[7], moltenLava_m3: molten * A, hotLavaCells: hot, erupting: sim.volcanoes.erupting, erupted_m3: sim.cum.erupted, vents };
     },
     get engine() { return sim; },
     get renderer() { return renderer; },

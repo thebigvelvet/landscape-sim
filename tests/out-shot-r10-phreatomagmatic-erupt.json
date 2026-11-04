@@ -1,0 +1,49 @@
+{
+  "mode": "erupt",
+  "day": 180.12677500000007,
+  "bal": 6.876805716185193e-7,
+  "solidsErr": 19.36263278964907,
+  "erupted": 1980958.445902524,
+  "nan": false,
+  "volc": {
+    "basalt_m3": 0,
+    "cinders_m3": 0,
+    "plug_m3": 0,
+    "basaltArea_m2": 0,
+    "cindersArea_m2": 0,
+    "plugArea_m2": 0,
+    "andesite_m3": 0,
+    "ash_m3": 1250.048828125,
+    "tuff_m3": 6059954.764556885,
+    "breccia_m3": 0,
+    "andesiteArea_m2": 0,
+    "ashArea_m2": 0,
+    "tuffArea_m2": 1268800,
+    "brecciaArea_m2": 0,
+    "moltenLava_m3": 0,
+    "hotLavaCells": 0,
+    "erupting": true,
+    "erupted_m3": 1981013.0217909187,
+    "vents": [
+      {
+        "id": 1,
+        "style": "phreatomagmatic",
+        "x": 306,
+        "y": 368,
+        "coneHeight_m": 0,
+        "left_days": 29.8723950000001,
+        "source": {
+          "x": 306,
+          "y": 368,
+          "r": 0,
+          "cells": 0
+        },
+        "pyroSource": null
+      }
+    ]
+  },
+  "gpuErrors": 0,
+  "gpuFeatureStatusWebGPU": "enabled",
+  "electron": "45.2.1",
+  "chrome": "156.0.8078.75"
+}

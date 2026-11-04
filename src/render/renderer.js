@@ -193,7 +193,8 @@ export class Renderer {
       if (markers.length < 4 && e.type !== 'drought' && e.type !== 'volcano') markers.push([wx, wz, r, e.type === 'storm' ? 1 : e.type === 'flood' ? 3 : 4, a * (e.type === 'storm' ? 0.5 : 1)]);
       // eruption plume over the cone, while it erupts and a few seconds after
       const vent = e.type === 'volcano' && sim.volcanoes.vents.find((q) => q.id === e.id);
-      if (vent && vent.z0 !== null && vents.length < 2) vents.push([wx, wz, (vent.z0 + (vent.H || 0)) * this.vex, a]);
+      // w = eruption style index (volcano.js STYLE_ORDER) + strength 0..0.99
+      if (vent && vent.z0 !== null && vents.length < 2) vents.push([wx, wz, (vent.z0 + (vent.H || 0)) * this.vex, (vent.styleIndex ?? 1) + Math.min(Math.max(a, 0), 0.99)]);
     }
     return { storms, markers, vents };
   }

@@ -21,8 +21,9 @@
 //            (1 - fR, see scheduler.js) is logged as fast outflow like any other runoff.
 //   Wildfire sets the plants inside the circle on fire (vegetation.ignite). Dry fuel nearby can
 //            catch; the fire runs uphill and downwind for a few seconds, then dies down.
-//   Volcano  opens a vent at the click: a year (default) of cinders building a cone and lava pouring
-//            out at its foot (volcano.erupt, see sim/volcano.js). Intensity scales both.
+//   Volcano  opens a vent at the click in one of the eruption styles (volcano.js ERUPTION_STYLES):
+//            by default (Strombolian) a year of cinders building a cone and lava pouring out at its
+//            foot (volcano.erupt, see sim/volcano.js). Intensity scales the volumes.
 import { COMMON_WGSL, makeKernel, dispatchGrid } from './common.js';
 
 export const EVENT_DEFAULTS = {
@@ -198,9 +199,11 @@ export class Events {
     } else if (type === 'volcano') {
       this.volcano = ctx.volcano;
       // the brush ring is the cone's footprint; the throat is a small share of it
-      const e = ctx.volcano.erupt(x, y, { id, radius: def.radius, intensity: I, days: o.days ?? def.days }, ctx.readLayer);
-      ev.r = Math.max(4, (1.25 * e.Hfinal / 0.58) / this.world.cellSize);
-      ev.coneHeight = e.Hfinal; ev.cinders = e.cinders; ev.lava = e.lava; ev.days = e.days;
+      const wind = this.prevailing || this.wind;
+      const e = ctx.volcano.erupt(x, y, { id, style: o.style, radius: def.radius, intensity: I, days: o.days, wind }, ctx.readLayer);
+      ev.r = e.footprint;
+      ev.style = e.style; ev.coneHeight = Math.max(e.Hfinal, e.domeH, e.ringH); ev.cinders = e.cinders; ev.lava = e.lava; ev.days = e.days;
+      ev.pyro = e.pyro; ev.ashT = e.ashT; ev.craterD = e.craterD; ev.craterR = e.craterR; ev.ringH = e.ringH;
       ev.ready = e.ready;
     }
     this.log.push(ev);

@@ -1,0 +1,54 @@
+{
+  "mode": "cooled",
+  "day": 6080,
+  "bal": -5.6261788186851395e-8,
+  "solidsErr": 97.68992803990841,
+  "erupted": 32679536.761569284,
+  "nan": false,
+  "volc": {
+    "basalt_m3": 370283.19931030273,
+    "cinders_m3": 0,
+    "plug_m3": 0,
+    "basaltArea_m2": 24300,
+    "cindersArea_m2": 0,
+    "plugArea_m2": 0,
+    "andesite_m3": 25675563.24081421,
+    "ash_m3": 506.43463134765625,
+    "tuff_m3": 6027036.949157715,
+    "breccia_m3": 0,
+    "andesiteArea_m2": 545000,
+    "ashArea_m2": 0,
+    "tuffArea_m2": 125000,
+    "brecciaArea_m2": 0,
+    "moltenLava_m3": 157.82218564466746,
+    "hotLavaCells": 0,
+    "erupting": false,
+    "erupted_m3": 32679536.761569284,
+    "vents": [
+      {
+        "id": 1,
+        "style": "pelean",
+        "x": 306,
+        "y": 368,
+        "coneHeight_m": 0,
+        "left_days": 0,
+        "source": {
+          "x": 306,
+          "y": 368,
+          "r": 3,
+          "cells": 29
+        },
+        "pyroSource": {
+          "x": 261.31040197119,
+          "y": 342.19844854809037,
+          "r": 5,
+          "cells": 79
+        }
+      }
+    ]
+  },
+  "gpuErrors": 0,
+  "gpuFeatureStatusWebGPU": "enabled",
+  "electron": "45.2.1",
+  "chrome": "156.0.8078.75"
+}

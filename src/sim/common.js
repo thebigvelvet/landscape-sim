@@ -41,7 +41,8 @@ fn gwCapRock(soilDepth : f32, sol : f32) -> f32 { return gwCap(soilDepth) * (1.0
 
 // Volcanic rock on top of the plateau stack (sim/volcano.js). world.volcRock holds 2 vec4 per cell:
 //   [2i]   the bases of up to 4 units, bottom first (bedrock heights, m)
-//   [2i+1] their type codes (strata.js VOLCANIC: 1 basalt, 2 cinders, 3 plug; 0 = no unit)
+//   [2i+1] their type codes (strata.js VOLCANIC: 1 basalt, 2 cinders, 3 plug, 4 andesite/dacite,
+//          5 ash and pumice, 6 tuff/ignimbrite, 7 explosion breccia; 0 = no unit)
 // Unit k runs from its base up to the next unit's base; the top unit runs up to the rock surface.
 // Below the lowest base the plateau beds apply. Erosion simply cuts down through the units: a unit
 // whose base is above the rock top is gone (vrAdd tidies such units up when it next adds one).
@@ -51,7 +52,11 @@ export const VOLC_WGSL = /* wgsl */`
 fn vrProps(t : f32) -> vec3<f32> {
   if (t < 1.5) { return vec3<f32>(${v(1).erode}, ${v(1).weather}, ${v(1).cliffTan}); }
   if (t < 2.5) { return vec3<f32>(${v(2).erode}, ${v(2).weather}, ${v(2).cliffTan}); }
-  return vec3<f32>(${v(3).erode}, ${v(3).weather}, ${v(3).cliffTan});
+  if (t < 3.5) { return vec3<f32>(${v(3).erode}, ${v(3).weather}, ${v(3).cliffTan}); }
+  if (t < 4.5) { return vec3<f32>(${v(4).erode}, ${v(4).weather}, ${v(4).cliffTan}); }
+  if (t < 5.5) { return vec3<f32>(${v(5).erode}, ${v(5).weather}, ${v(5).cliffTan}); }
+  if (t < 6.5) { return vec3<f32>(${v(6).erode}, ${v(6).weather}, ${v(6).cliffTan}); }
+  return vec3<f32>(${v(7).erode}, ${v(7).weather}, ${v(7).cliffTan});
 }
 // index of the unit holding height z (-1: below the pile, or no pile)
 fn vrUnit(z : f32, c : vec4<f32>, t : vec4<f32>) -> i32 {

@@ -95,6 +95,23 @@
       <h2>Weather events <span class="tip" data-tip="Pick a tool, then click (or drag) on the land to make it happen there. Storms, droughts, floods and fires all follow the same physics as the normal weather, and every drop of water is counted.">?</span></h2>
       <div id="tools" class="tools"></div>
       <p id="tool-help" class="toolhelp"></p>
+      <div id="volcano-style-row" class="row" hidden>
+        <label class="field grow"><span>Eruption style <span class="tip" data-tip="How the volcano erupts. The magmatic styles run from runny basalt (Hawaiian, mostly lava) to sticky, gas-rich magma (Plinian, mostly ash and pumice). In the steam-driven styles groundwater meets the heat of magma and explodes: Phreatic blasts out old rock only, Phreatomagmatic shatters the magma too into ash and digs a maar crater.">?</span></span>
+        <select id="volcano-style">
+          <optgroup label="Magmatic">
+            <option value="hawaiian">Hawaiian</option>
+            <option value="strombolian" selected>Strombolian</option>
+            <option value="vulcanian">Vulcanian</option>
+            <option value="pelean">Pelean</option>
+            <option value="plinian">Plinian</option>
+          </optgroup>
+          <optgroup label="Non-magmatic (steam-driven)">
+            <option value="phreatic">Phreatic</option>
+            <option value="phreatomagmatic">Phreatomagmatic</option>
+          </optgroup>
+        </select>
+        </label>
+      </div>
       <label class="slider">
         <span>Brush size <span class="tip" data-tip="How big an area the storm, fire or shaping brush covers. The ring on the land shows it.">?</span></span>
         <input id="brush-size" type="range" min="3" max="60" step="1" value="15" /><output id="brush-size-out">150 m</output>

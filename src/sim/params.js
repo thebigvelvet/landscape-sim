@@ -4,6 +4,8 @@
 
 import { TABLE_LEN, STRATA_PARAM_FIELDS } from './strata.js';
 
+export const VENT_EXTRA = ['lw', 'px', 'py', 'pr', 'pd', 'ct', 'ck', 'cu', 'g0', 'g1', 'cD', 'cR', 'rH', 'rL', 'ru', 'aT', 'aL', 'awx', 'awy', 'sp', 'k0', 'k1'];
+
 // [name, type] - all 4 bytes except the bed table at the end. Order is the memory layout.
 export const PARAM_FIELDS = [
   ['N', 'u32'], ['frame', 'u32'], ['logSize', 'u32'], ['nSub', 'u32'],
@@ -53,6 +55,12 @@ export const PARAM_FIELDS = [
   ['v0ld', 'f32'], ['v1x', 'f32'], ['v1y', 'f32'], ['v1r', 'f32'],
   ['v1h0', 'f32'], ['v1h1', 'f32'], ['v1lx', 'f32'], ['v1ly', 'f32'],
   ['v1lr', 'f32'], ['v1ld', 'f32'], ['volcP2', 'f32'], ['volcP3', 'f32'],
+  // eruption styles (volcano.js ERUPTION_STYLES), per vent: stiffness (log10 viscosity) of the main
+  // lava; pyroclastic-flow source centre, radius (cells) and depth added per iteration (m); cone flank
+  // tan, rim factor and rock type; share of the eruption done before/after this batch; explosion
+  // crater depth and radius (m); ejecta ring height and fall-off length (m) and rock type; ash
+  // thickness at the vent (m), fall-off length (m) and downwind direction
+  ...VENT_EXTRA.flatMap((n) => [0, 1].map((k) => [`v${k}${n}`, 'f32'])),
   // karst and salt (sim/column.js): dissolution rate (m/yr of soluble rock), landscape years this batch
   ['kDiss', 'f32'], ['yrsE', 'f32'],
   // rock layers (sim/strata.js): on/off, top of the stack (m, bedrock frame), dip, monocline, fold

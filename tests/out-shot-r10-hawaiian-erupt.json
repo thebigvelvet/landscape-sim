@@ -1,0 +1,49 @@
+{
+  "mode": "erupt",
+  "day": 190.1259400000001,
+  "bal": 7.509922444789011e-7,
+  "solidsErr": -112.90107794478536,
+  "erupted": 2453120.396364317,
+  "nan": false,
+  "volc": {
+    "basalt_m3": 1082.2708129882812,
+    "cinders_m3": 35958.09631347656,
+    "plug_m3": 627491.7098999023,
+    "basaltArea_m2": 700,
+    "cindersArea_m2": 6000,
+    "plugArea_m2": 2900,
+    "andesite_m3": 0,
+    "ash_m3": 0,
+    "tuff_m3": 0,
+    "breccia_m3": 0,
+    "andesiteArea_m2": 0,
+    "ashArea_m2": 0,
+    "tuffArea_m2": 0,
+    "brecciaArea_m2": 0,
+    "moltenLava_m3": 2381679.345527578,
+    "hotLavaCells": 4472,
+    "erupting": true,
+    "erupted_m3": 2453120.396364317,
+    "vents": [
+      {
+        "id": 1,
+        "style": "hawaiian",
+        "x": 306,
+        "y": 368,
+        "coneHeight_m": 19.27196130825215,
+        "left_days": 343.2660599999993,
+        "source": {
+          "x": 292.2913191157672,
+          "y": 362.32167845550595,
+          "r": 3.5,
+          "cells": 37
+        },
+        "pyroSource": null
+      }
+    ]
+  },
+  "gpuErrors": 0,
+  "gpuFeatureStatusWebGPU": "enabled",
+  "electron": "45.2.1",
+  "chrome": "156.0.8078.75"
+}

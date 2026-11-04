@@ -229,3 +229,4 @@ section.dropdown.open > h2::before { transform: rotate(90deg); }
 section.dropdown.open > h2 { margin-bottom: 10px; }
 section.dropdown:not(.open) > :not(h2) { display: none; }
 section.dropdown > h2:focus-visible { outline: 1px solid var(--accent); outline-offset: 2px; }
+#volcano-style-row[hidden] { display: none; }

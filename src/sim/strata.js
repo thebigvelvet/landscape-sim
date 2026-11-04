@@ -129,6 +129,15 @@ export const VOLCANIC = {
     fresh: [0.30, 0.12, 0.09], old: [0.52, 0.26, 0.18] },
   3: { key: 'plug', name: 'Volcanic plug', erode: 0.1, weather: 0.25, cliffTan: 6.0,
     fresh: [0.17, 0.16, 0.17], old: [0.27, 0.25, 0.25] },
+  // eruption styles (sim/volcano.js ERUPTION_STYLES)
+  4: { key: 'dome', name: 'Andesite and dacite lava', erode: 0.12, weather: 0.3, cliffTan: 5.0,
+    fresh: [0.30, 0.29, 0.28], old: [0.50, 0.45, 0.40] },
+  5: { key: 'ash', name: 'Ash and pumice', erode: 5.0, weather: 3.0, cliffTan: 0.7,
+    fresh: [0.60, 0.58, 0.54], old: [0.72, 0.64, 0.50] },
+  6: { key: 'tuff', name: 'Tuff and ignimbrite', erode: 1.2, weather: 1.0, cliffTan: 2.0,
+    fresh: [0.52, 0.45, 0.37], old: [0.68, 0.55, 0.40] },
+  7: { key: 'breccia', name: 'Explosion breccia', erode: 0.8, weather: 0.8, cliffTan: 1.2,
+    fresh: [0.38, 0.35, 0.33], old: [0.50, 0.45, 0.40] },
 };
 
 // ---- provinces ----

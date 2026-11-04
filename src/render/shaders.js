@@ -103,6 +103,10 @@ fn volcCol(t: f32, p: vec2f) -> vec3f {
   var f = vec3f(${vc(1, 'fresh')}); var o = vec3f(${vc(1, 'old')});
   if (t > 1.5) { f = vec3f(${vc(2, 'fresh')}); o = vec3f(${vc(2, 'old')}); }
   if (t > 2.5) { f = vec3f(${vc(3, 'fresh')}); o = vec3f(${vc(3, 'old')}); }
+  if (t > 3.5) { f = vec3f(${vc(4, 'fresh')}); o = vec3f(${vc(4, 'old')}); }
+  if (t > 4.5) { f = vec3f(${vc(5, 'fresh')}); o = vec3f(${vc(5, 'old')}); }
+  if (t > 5.5) { f = vec3f(${vc(6, 'fresh')}); o = vec3f(${vc(6, 'old')}); }
+  if (t > 6.5) { f = vec3f(${vc(7, 'fresh')}); o = vec3f(${vc(7, 'old')}); }
   let m = vnoise(p * 0.03) * 0.6 + vnoise(p * 0.21) * 0.4;
   return srgb(mix(f, o, smoothstep(0.45, 0.85, m) * 0.7)) * (0.75 + 0.5 * vnoise(p * 1.9));
 }
@@ -238,6 +242,16 @@ struct VO { @builtin(position) pos: vec4f, @location(0) ndc: vec2f };
 
 // Volcanic rock lookups for shaders that bind volcRock (terrain, block sides).
 const VOLC_DATA = VOLC_WGSL + /* wgsl */ `
+// Volcanic rock overlay colours (must match src/ui/legend.js)
+fn volcOverlay(t: f32) -> vec3f {
+  if (t < 1.5) { return vec3f(0.20, 0.24, 0.45); }   // basalt
+  if (t < 2.5) { return vec3f(0.90, 0.30, 0.15); }   // cinders
+  if (t < 3.5) { return vec3f(0.55, 0.20, 0.70); }   // plug
+  if (t < 4.5) { return vec3f(0.45, 0.62, 0.80); }   // andesite / dacite
+  if (t < 5.5) { return vec3f(0.92, 0.88, 0.70); }   // ash and pumice
+  if (t < 6.5) { return vec3f(0.85, 0.60, 0.25); }   // tuff / ignimbrite
+  return vec3f(0.40, 0.70, 0.40);                     // explosion breccia
+}
 // volcanic unit type at bedrock height z in cell i (0 = plateau rock)
 fn volcType(i: u32, z: f32) -> f32 {
   let t = volcRock[2u * i + 1u];
@@ -298,7 +312,7 @@ struct VO {
   @location(7) m5: vec4f,   // moisture memory, sediment bed thickness (sqrt(t/16 m)), top bed grain, top bed hash
   @location(8) m6: vec2f,   // local wind speed, shelter (0 = in the lee), sim/wind.js
   @location(9) m7: vec4f,   // glacier ice thickness (m), debris (m), ice speed (m/yr), ice surface slope (tan)
-  @location(10) m8: vec4f,  // molten lava depth (m), its temperature 0..1, afterglow of fresh rock 0..1, unused
+  @location(10) m8: vec4f,  // molten lava depth (m), its temperature 0..1, afterglow of fresh rock 0..1, stiffness (log10 Pa s; < 4 pyroclastic flow)
 };
 @vertex fn vs(@builtin(vertex_index) vi: u32) -> VO {
   let n = u32(R_.grid.x);
@@ -334,7 +348,7 @@ struct VO {
   let gk = glacier[i];
   o.m7 = vec4f(gk.x, gk.y, gk.z, length(vec2f(hr - hl, hb - ht)) / (2.0 * dx));
   let lv = lava[i];
-  o.m8 = vec4f(lv.x, select(0.0, lv.y, lv.x > 0.01), lv.z, 0.0);
+  o.m8 = vec4f(lv.x, select(0.0, lv.y, lv.x > 0.01), lv.z, lv.w);
   return o;
 }
 
@@ -546,7 +560,10 @@ fn overlay(mode: i32, m0: vec4f, m1: vec4f, m3: vec2f, m4: vec4f, m5: vec4f, m6:
   // --- Lava (sim/volcano.js): a black, ropy crust over the moving flow.
   let lavaCov = smoothstep(0.02, 0.3, i.m8.x);
   let rope = vnoise(p2 * vec2f(0.6, 0.25)) * 0.5 + vnoise(p2 * 2.4) * 0.5;
-  albedo = mix(albedo, srgb(vec3f(0.07, 0.065, 0.07)) * (0.7 + 0.6 * rope), lavaCov);
+  // stiff andesite/dacite crusts grey and blocky; a pyroclastic flow is a pale grey-brown ash cloud
+  let pyro = select(0.0, 1.0, i.m8.w > 0.5 && i.m8.w < 4.0);
+  let crust = mix(srgb(vec3f(0.07, 0.065, 0.07)), srgb(vec3f(0.26, 0.25, 0.24)), smoothstep(7.0, 9.0, i.m8.w));
+  albedo = mix(albedo, mix(crust * (0.7 + 0.6 * rope), srgb(vec3f(0.55, 0.50, 0.46)) * (0.8 + 0.4 * rope), pyro), lavaCov);
 
   // --- Lighting.
   let L = normalize(R_.sunDir.xyz);
@@ -584,7 +601,7 @@ fn overlay(mode: i32, m0: vec4f, m1: vec4f, m3: vec2f, m4: vec4f, m5: vec4f, m6:
     let ix = vec2i(round(i.m2.yz));
     let n = i32(R_.grid.x);
     let vt = volcType(u32(clamp(ix.y, 0, n - 1) * n + clamp(ix.x, 0, n - 1)), ground - soilD);
-    if (vt > 0.5) { ov = vec4f(select(select(vec3f(0.55, 0.20, 0.70), vec3f(0.90, 0.30, 0.15), vt < 2.5), vec3f(0.20, 0.24, 0.45), vt < 1.5), 0.9); }
+    if (vt > 0.5) { ov = vec4f(volcOverlay(vt), 0.9); }
     if (i.m8.z > 0.05) { ov = vec4f(mix(ov.rgb, vec3f(1.0, 0.25, 0.1), i.m8.z), max(ov.a, i.m8.z)); }
     if (lavaCov > 0.0 && i.m8.y > 0.15) { ov = vec4f(1.0, 0.65, 0.1, lavaCov); }
   }
@@ -601,7 +618,7 @@ fn overlay(mode: i32, m0: vec4f, m1: vec4f, m3: vec2f, m4: vec4f, m5: vec4f, m6:
   // ---- Fire: glowing front, embers in the fresh scar ----
   let tt = R_.camPos.w;
   // ---- Lava: glowing cracks in the crust, bright where it is hottest; freshly set rock still glows dull red ----
-  let heat = max(i.m8.y * lavaCov, 0.35 * i.m8.z);
+  let heat = max(i.m8.y * lavaCov * select(1.0, 0.45, i.m8.w > 0.5 && i.m8.w < 4.0), 0.35 * i.m8.z);
   if (heat > 0.01) {
     let cr = 1.0 - smoothstep(0.0, 0.08 + 0.3 * heat, crackDist(p2 * 0.09 + vec2f(tt * 0.004, 0.0)));
     let glowC = mix(vec3f(0.60, 0.05, 0.01), vec3f(1.0, 0.62, 0.14), smoothstep(0.35, 0.95, heat));
@@ -1259,6 +1276,19 @@ struct VO {
 fn hh(n: u32) -> f32 { return fract(sin(f32(n) * 12.9898 + 78.233) * 43758.5453); }
 @vertex fn vs(@builtin(vertex_index) vi: u32, @builtin(instance_index) ii: u32) -> VO {
   let v = R_.vent[ii];
+  // style (sim/volcano.js STYLE_ORDER): fountain alpha, fountain height, column height, column size,
+  // steam share, column alpha, drift
+  let st = u32(clamp(floor(v.w), 0.0, 6.0));
+  let va = v.w - floor(v.w);
+  let S = array<array<f32, 7>, 7>(
+    array<f32, 7>(1.0, 1.7, 0.45, 0.7, 0.5, 0.5, 1.0),   // Hawaiian: tall lava fountain, thin fume
+    array<f32, 7>(1.0, 1.0, 1.0, 1.0, 0.0, 0.7, 1.0),    // Strombolian
+    array<f32, 7>(0.35, 1.3, 1.7, 1.3, 0.0, 0.9, 1.3),   // Vulcanian: few bombs, dark ash bursts
+    array<f32, 7>(0.15, 0.4, 0.7, 1.7, 0.0, 0.85, 0.6),  // Pelean: low, rolling ash clouds
+    array<f32, 7>(0.0, 1.0, 5.0, 2.6, 0.1, 1.0, 3.0),    // Plinian: towering column
+    array<f32, 7>(0.0, 1.0, 0.9, 1.1, 1.0, 0.75, 0.8),   // phreatic: white steam
+    array<f32, 7>(0.0, 1.0, 1.6, 1.5, 0.55, 0.9, 1.2),   // phreatomagmatic: grey cypressoid jets and steam
+  )[st];
   let k = vi / 6u; let cr = vi % 6u;
   let qs = array<vec2f, 6>(vec2f(-1.0, -1.0), vec2f(1.0, -1.0), vec2f(1.0, 1.0), vec2f(-1.0, -1.0), vec2f(1.0, 1.0), vec2f(-1.0, 1.0));
   let q = qs[cr];
@@ -1272,16 +1302,17 @@ fn hh(n: u32) -> f32 { return fract(sin(f32(n) * 12.9898 + 78.233) * 43758.5453)
     ph = fract(t * (0.35 + 0.3 * h) + h * 7.0);
     let ang = h * 40.0;
     let sp = 0.3 + 0.7 * hh(k * 19u + ii + 3u);
-    c += vec3f(cos(ang) * sp * 70.0 * ph, 4.0 * 140.0 * sp * ph * (1.0 - ph) * vex, sin(ang) * sp * 70.0 * ph);
+    c += vec3f(cos(ang) * sp * 70.0 * ph, 4.0 * 140.0 * S[1] * sp * ph * (1.0 - ph) * vex, sin(ang) * sp * 70.0 * ph);
     size = 4.0 + 5.0 * h;
-    alpha = v.w * (1.0 - 0.6 * ph);
+    alpha = va * S[0] * (1.0 - 0.6 * ph);
     kind = 1.0;
   } else {
     ph = fract(t * 0.045 + h + f32(k) / ${PLUME_PUFFS}.0);
-    let drift = pow(ph, 1.4) * 1100.0;
-    c += vec3f(wind.x * drift + (h - 0.5) * 120.0 * ph, ph * 1300.0 * vex, wind.y * drift + (hh(k * 3u + ii) - 0.5) * 120.0 * ph);
-    size = (35.0 + 280.0 * ph) * (0.7 + 0.6 * h);
-    alpha = v.w * (1.0 - ph) * smoothstep(0.0, 0.06, ph) * 0.7;
+    let drift = pow(ph, 1.4) * 1100.0 * S[6];
+    c += vec3f(wind.x * drift + (h - 0.5) * 120.0 * ph * S[3], ph * 1300.0 * S[2] * vex, wind.y * drift + (hh(k * 3u + ii) - 0.5) * 120.0 * ph * S[3]);
+    size = (35.0 + 280.0 * ph) * (0.7 + 0.6 * h) * S[3];
+    alpha = va * (1.0 - ph) * smoothstep(0.0, 0.06, ph) * S[5];
+    kind = -S[4];
   }
   let wp = c + R_.camRight.xyz * q.x * size + R_.camUp.xyz * q.y * size;
   var o: VO;
@@ -1304,9 +1335,10 @@ fn hh(n: u32) -> f32 { return fract(sin(f32(n) * 12.9898 + 78.233) * 43758.5453)
   if (a < 0.003) { discard; }
   let sunI = R_.sunDir.w;
   // dark ash low down, paler steam higher up, lit orange from below by the fountain
-  let ash = mix(srgb(vec3f(0.22, 0.21, 0.21)), srgb(vec3f(0.62, 0.61, 0.60)), smoothstep(0.1, 0.7, i.a.y) * (0.6 + 0.4 * nz));
+  var ash = mix(srgb(vec3f(0.22, 0.21, 0.21)), srgb(vec3f(0.62, 0.61, 0.60)), smoothstep(0.1, 0.7, i.a.y) * (0.6 + 0.4 * nz));
+  ash = mix(ash, srgb(vec3f(0.92, 0.93, 0.95)), -i.a.w);   // steam-driven blasts are white
   var c = ash * (R_.sunColor.rgb * 1.5 * sunI + mix(R_.skyHorizon.rgb, R_.skyZenith.rgb, 0.5) * 0.6);
-  c = mix(c, srgb(vec3f(1.0, 0.42, 0.10)) * 2.2, (1.0 - smoothstep(0.0, 0.12, i.a.y)) * 0.6);
+  c = mix(c, srgb(vec3f(1.0, 0.42, 0.10)) * 2.2, (1.0 - smoothstep(0.0, 0.12, i.a.y)) * 0.6 * (1.0 + i.a.w));
   c = applyHaze(c, i.wpos);
   return vec4f(tonemap(c), a);
 }`;

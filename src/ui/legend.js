@@ -77,9 +77,9 @@ export const OVERLAYS = [
   {
     id: 11, name: 'Volcanic rock', dot: 'linear-gradient(135deg,#333d73,#e64d26,#8c33b3)',
     desc: 'Rock made by volcanoes, under the soil or at the surface, and lava that is still molten.',
-    gradient: 'linear-gradient(90deg, rgb(51,61,115) 0 25%, rgb(230,77,38) 25% 50%, rgb(140,51,179) 50% 75%, rgb(255,166,26) 75%)',
-    labels: ['basalt', 'cinders', 'plug', 'molten lava'],
-    note: 'Basalt is set lava: very hard, so old flows end up capping ridges and mesas. Cinders are loose and frothy and wash away quickly. The plug is lava that set in the throat of the volcano; it outlasts the cone as a rocky neck. Paint a volcano with the Volcano brush, or load maps until one starts with an old volcano.',
+    gradient: 'linear-gradient(90deg, rgb(51,61,115) 0 12.5%, rgb(230,77,38) 12.5% 25%, rgb(140,51,179) 25% 37.5%, rgb(115,158,204) 37.5% 50%, rgb(235,224,179) 50% 62.5%, rgb(217,153,64) 62.5% 75%, rgb(102,179,102) 75% 87.5%, rgb(255,166,26) 87.5%)',
+    labels: ['basalt', 'cinders', 'plug', 'andesite', 'ash', 'tuff', 'breccia', 'lava'],
+    note: 'Basalt is set lava: very hard, so old flows end up capping ridges and mesas. Cinders are loose and frothy and wash away quickly. The plug is lava that set in the throat of the volcano; it outlasts the cone as a rocky neck. Andesite and dacite are the stiff lavas of Vulcanian and Pelean eruptions (lava domes). Ash and pumice from explosive eruptions is the softest of all, so rain soon gullies it. Tuff is ash welded or packed together: tuff rings round maars, and the ignimbrite left by pyroclastic flows. Breccia is the broken old rock thrown out by steam blasts. Paint a volcano with the Volcano brush (pick the eruption style under it), or load maps until one starts with an old volcano.',
   },
   {
     id: 12, name: 'Subsurface', dot: 'linear-gradient(135deg,#0dbfcc,#264df2,#ff4019)',

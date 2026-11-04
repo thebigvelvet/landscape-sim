@@ -6,6 +6,7 @@
 // from the renderer's own inverse view-projection, so it matches what is on screen exactly,
 // including the lens shift that keeps the land clear of the side panel.
 import { TOOL_IDS } from '../render/renderer.js';
+import { ERUPTION_STYLES } from '../sim/volcano.js';
 
 const $ = (id) => document.getElementById(id);
 
@@ -20,7 +21,7 @@ export const TOOLS = [
     icon: '<svg viewBox="0 0 24 24"><path d="M2 9c2 0 2-1.6 4-1.6S8 9 10 9s2-1.6 4-1.6S16 9 18 9s2-1.6 4-1.6M2 14c2 0 2-1.6 4-1.6S8 14 10 14s2-1.6 4-1.6 2 1.6 4 1.6 2-1.6 4-1.6M2 19c2 0 2-1.6 4-1.6S8 19 10 19s2-1.6 4-1.6 2 1.6 4 1.6 2-1.6 4-1.6" stroke-width="2" stroke-linecap="round" fill="none"/></svg>' },
   { id: 'wildfire', name: 'Wildfire', key: '5', tip: 'Click or drag to set the plants on fire. Dry plants nearby can catch, and fire runs uphill and with the wind. Burned slopes shed water and mud in the next storms until plants grow back.',
     icon: '<svg viewBox="0 0 24 24"><path d="M12.3 2.2c.4 3-1.5 4.6-3 6.3-1.6 1.8-3 3.6-3 6.4A5.8 5.8 0 0 0 12 21a5.8 5.8 0 0 0 5.8-5.9c0-2.5-1.2-4.6-2.7-6.3-.3 1.4-1 2.6-2.2 3.2.6-3.2-.1-6.6-.6-9.8z"/><path d="M12 20.5c-1.6 0-2.8-1.2-2.8-2.8 0-1.6 1.3-2.6 2.2-3.8.2 1 .8 1.6 1.6 1.9.4-.6.5-1.2.6-1.8.9 1 1.2 2.2 1.2 3.4 0 1.7-1.2 3.1-2.8 3.1z" fill="#ffd27a"/></svg>' },
-  { id: 'volcano', name: 'Volcano', key: '6', tip: 'Click to open a volcano there: for a year it throws out cinders that build a cone about 120 m tall, while basalt lava pours out at its foot and runs downhill, burning plants and melting snow and ice in its way. The strength slider makes it bigger or smaller.',
+  { id: 'volcano', name: 'Volcano', key: '6', tip: 'Pick an eruption style, then click to open a volcano there: cinder cones, lava flows, lava domes, ash falls, pyroclastic flows or steam-blast craters, burning plants and melting snow and ice in their way. The strength slider makes it bigger or smaller.',
     icon: '<svg viewBox="0 0 24 24"><path d="M2 21l6.5-11h2.2l1.3 2 1.3-2h2.2L22 21z" stroke="none"/><path d="M10 7c-.6-1.6.3-3.2 2-3.4M14 7c.8-1.2.3-2.8-1-3.6M12 6.5V2" stroke-width="1.6" stroke-linecap="round" fill="none"/><path d="M12 12.5c-.6 2-1.8 3-1.4 5 .3 1.2 1 1.9 1.4 3.5.4-1.6 1.1-2.3 1.4-3.5.4-2-.8-3-1.4-5z" fill="#ff7a2a"/></svg>' },
 ];
 
@@ -47,6 +48,7 @@ export class BrushTool {
     this.tool = 'none';
     this.radius = 15;
     this.intensity = 1;
+    this.volcanoStyle = 'strombolian';
     this.H = null; this.V = null; this.hN = 0; this.hTime = 0; this.hPending = false;
     this.down = null;
     this.buildRow();
@@ -88,12 +90,26 @@ export class BrushTool {
       $('brush-strength-out').textContent = Math.abs(this.intensity - 1) < 0.05 ? 'normal' : `${this.intensity.toFixed(1)}x`;
     };
     $('brush-strength').addEventListener('input', str); str();
+    const vs = $('volcano-style');
+    if (vs) {
+      try { const k = localStorage.getItem('volcanoStyle'); if (ERUPTION_STYLES[k]) vs.value = k; } catch { /* no storage */ }
+      const pick = () => {
+        this.volcanoStyle = ERUPTION_STYLES[vs.value] ? vs.value : 'strombolian';
+        try { localStorage.setItem('volcanoStyle', this.volcanoStyle); } catch { /* no storage */ }
+        this.showHelp();
+      };
+      vs.addEventListener('change', pick); pick();
+    }
   }
 
   // help lines: the selected tool's tip in its own row; the sculpt row says how to start
   showHelp() {
     const sc = isSculpt(this.tool);
-    $('tool-help').textContent = (sc ? TOOLS[0] : TOOLS.find((t) => t.id === this.tool)).tip;
+    $('tool-help').textContent = this.tool === 'volcano'
+      ? `${ERUPTION_STYLES[this.volcanoStyle].name}: ${ERUPTION_STYLES[this.volcanoStyle].tip} Click the land to erupt; the strength slider makes it bigger or smaller.`
+      : (sc ? TOOLS[0] : TOOLS.find((t) => t.id === this.tool)).tip;
+    const vr = $('volcano-style-row');
+    if (vr) vr.hidden = this.tool !== 'volcano';
     const sh = $('sculpt-help');
     if (sh) sh.textContent = sc ? SCULPT_TOOLS.find((t) => t.id === this.tool).tip : 'Pick a tool (keys Q W E R T), then hold and drag on the land. Ctrl+Z undoes the last stroke.';
   }
@@ -303,7 +319,7 @@ export class BrushTool {
     if (type === 'fire') type = 'wildfire';
     const o = { x, y, radius: opts.radius ?? this.radius, intensity: opts.intensity ?? this.intensity, days: opts.days };
     if (type === 'drought') delete o.radius;
-    if (type === 'volcano') { delete o.radius; if (this.H && this.hN === this.sim.world.N) o.ground = this.heightAt(x, y); }
+    if (type === 'volcano') { delete o.radius; o.style = opts.style ?? this.volcanoStyle; if (this.H && this.hN === this.sim.world.N) o.ground = this.heightAt(x, y); }
     const ev = this.sim.brush(type, o);
     this.renderer.clickRipple(ev.x, ev.y, type === 'drought' ? this.sim.world.N * 0.35 : ev.r, TOOL_IDS[type]);
     this.explain(ev);
@@ -355,9 +371,24 @@ export class BrushTool {
       }
       this.toast('wildfire', 'Wildfire!', t + (sim.paused ? ' Press play to let it burn.' : ''), fuel !== null && fuel < 0.06 ? null : { label: speed > 120 ? 'Watch it at 1 day per second, then speed up' : 'Then watch it grow back at 1 year per second', speed: speed > 120 ? 1 : 365, later: speed > 120 });
     } else if (ev.type === 'volcano') {
-      let t = `A vent has opened. For ${fmt(ev.days / 365)} year${ev.days === 365 ? '' : 's'} it throws out cinders that pile into a cone about ${Math.round(ev.coneHeight)} m tall, while ${fmt(ev.lava / 1e6)} million m³ of basalt lava pours out at its foot and runs downhill. The lava crusts over, sets into black rock and burns or buries whatever is in its way.`;
-      if (speed > 36 && !sim.paused) t += ' At this speed the eruption still takes a few seconds, so you can watch the flows find their way down.';
-      this.toast('volcano', 'Eruption!', t + pausedNote, speed < 3 || speed > 120 ? { label: 'Watch it at 10 days per second', speed: 10 } : null);
+      const S = ERUPTION_STYLES[ev.style] || ERUPTION_STYLES.strombolian;
+      const span = ev.days >= 365 ? `${fmt(ev.days / 365)} year${ev.days === 365 ? '' : 's'}` : `${fmt(ev.days)} days`;
+      const mm3 = (v) => `${fmt(v / 1e6)} million m³`;
+      const t = {
+        hawaiian: `For ${span} fountains of runny basalt build a small spatter cone (about ${Math.round(ev.coneHeight)} m) while ${mm3(ev.lava)} of lava pours out in rivers that run far down the valleys and set into black rock.`,
+        strombolian: `For ${span} it throws out cinders that pile into a cone about ${Math.round(ev.coneHeight)} m tall, while ${mm3(ev.lava)} of basalt lava pours out at its foot and runs downhill. The lava crusts over, sets into black rock and burns or buries whatever is in its way.`,
+        vulcanian: `For ${span} cannon-shot blasts throw out blocks and ash that build a steep cone about ${Math.round(ev.coneHeight)} m tall and dust the land downwind (up to ${fmt(ev.ashT * 100)} cm near the vent), while a short, thick flow of andesite lava (${mm3(ev.lava)}) creeps out at its foot.`,
+        pelean: `Over ${span} ${mm3(ev.lava)} of stiff dacite lava swells into a dome over the vent, while collapses off its front send ${mm3(ev.pyro)} of glowing pyroclastic flows racing down the valleys. They burn everything and leave tuff on the valley floors.`,
+        plinian: `For ${span} a column of ash and pumice towers over the land. Up to ${fmt(ev.ashT)} m of pumice falls near the vent, thinning downwind; ${mm3(ev.pyro)} of pyroclastic flows pour down the valleys and a crater ${Math.round(ev.craterD)} m deep opens. Rain will wash the loose ash into mudflows for years.`,
+        phreatic: `Groundwater flashed to steam blasts a crater ${Math.round(ev.craterD)} m deep and ${Math.round(ev.craterR * 2)} m across out of the old rock over ${span}, and throws the broken rock around it in a rim about ${Math.round(ev.ringH)} m high. No new magma comes out.`,
+        phreatomagmatic: `Over ${span} magma meeting groundwater explodes into fine ash, digging a maar crater ${Math.round(ev.craterD)} m below the old ground and ${fmt(ev.craterR * 2 / 1000)} km across, ringed by a tuff ring about ${Math.round(ev.ringH)} m high. Groundwater may fill it into a lake.`,
+      }[ev.style] || '';
+      let x = t;
+      if (speed > 36 && !sim.paused) x += ' At this speed the eruption still takes a few seconds, so you can watch it unfold.';
+      const quick = ev.days < 30;
+      const act = quick ? (speed > 3 ? { label: 'Watch it at 1 day per second', speed: 1 } : null)
+        : (speed < 3 || speed > 120 ? { label: 'Watch it at 10 days per second', speed: 10 } : null);
+      this.toast('volcano', `${S.name} eruption!`, x + pausedNote, act);
     }
   }
 
