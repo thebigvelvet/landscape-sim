@@ -141,6 +141,7 @@ async function main() {
 
   panel = new Panel(app);
   brushTool = new BrushTool(app);
+  app.brushTool = brushTool;   // the panel shows its notices through it
   await app.load(scenario, { size, seed, preset });
 
   // ------------- sub-step governor -------------

@@ -1,0 +1,19 @@
+{
+  "province": "gulf",
+  "describe": "Gulf Coastal Plain: 19 beds, dipping 0.20° to the S.",
+  "notes": [
+    "Regional heat flow ~45 mW/m²; kilometres of light sediment and salt below.",
+    "An E-W growth fault steps the beds down 74 m toward the sea; water seeps along it. Seismic: thickening beds on the down side.",
+    "A salt dome 330 m across, beds ringing it: caprock about 12 m down, then salt that dissolves so the ground sinks into a hollow or lake. Strong gravity low; sulfur in the caprock.",
+    "A salt dome 510 m across, beds ringing it: caprock about 17 m down, then salt that dissolves so the ground sinks into a hollow or lake. Strong gravity low; sulfur in the caprock.",
+    "5 soluble beds (limestone, gypsum, chalk): where exposed, streams lose water into the ground and the rock slowly dissolves."
+  ],
+  "day": 73239.99999999943,
+  "bal": -6.511721826802161e-9,
+  "solidsErr": 25.81084059420391,
+  "nan": false,
+  "gpuErrors": 0,
+  "gpuFeatureStatusWebGPU": "enabled",
+  "electron": "45.2.1",
+  "chrome": "156.0.8078.75"
+}

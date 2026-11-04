@@ -1,0 +1,92 @@
+{
+  "checks": {
+    "gulfBringsItsClimate": {
+      "pass": true,
+      "preset": "Gulf Coast humid",
+      "province": "gulf",
+      "toast": ""
+    },
+    "ownClimateStands": {
+      "pass": true,
+      "preset": "Temperate"
+    },
+    "rockiesBringsAlpine": {
+      "pass": true,
+      "preset": "Colorado alpine"
+    },
+    "plateauBringsDesert": {
+      "pass": true,
+      "preset": "Utah desert"
+    },
+    "randomFollowsSeed": {
+      "pass": true,
+      "province": "gulf",
+      "preset": "Gulf Coast humid"
+    },
+    "gulfClimateSane": {
+      "pass": true,
+      "gulf": {
+        "jan": {
+          "snow_mm": 0,
+          "frost_m": 0
+        },
+        "meanVeg": 0.8199672719929367,
+        "groundwater_m3": 876600.1253128052,
+        "precip_m3": 294811035.55145264,
+        "evap_m3": 173521457.98339844,
+        "bal": 1.7861155165098063e-7,
+        "nan": false
+      },
+      "temperate": {
+        "jan": {
+          "snow_mm": 9.036184936951427,
+          "frost_m": 0.13232729727012327
+        },
+        "meanVeg": 0.8898832548875362,
+        "groundwater_m3": 921373.7742424011,
+        "precip_m3": 179804307.88879395,
+        "evap_m3": 75613135.52322388,
+        "bal": 3.3591184526561896e-7,
+        "nan": false
+      }
+    },
+    "noGpuErrors": {
+      "pass": true,
+      "gpuErrors": 0
+    }
+  },
+  "afterGulf": {
+    "preset": "Gulf Coast humid",
+    "province": "gulf",
+    "toast": ""
+  },
+  "gulfHumid": {
+    "jan": {
+      "snow_mm": 0,
+      "frost_m": 0
+    },
+    "meanVeg": 0.8199672719929367,
+    "groundwater_m3": 876600.1253128052,
+    "precip_m3": 294811035.55145264,
+    "evap_m3": 173521457.98339844,
+    "bal": 1.7861155165098063e-7,
+    "nan": false
+  },
+  "temperate": {
+    "jan": {
+      "snow_mm": 9.036184936951427,
+      "frost_m": 0.13232729727012327
+    },
+    "meanVeg": 0.8898832548875362,
+    "groundwater_m3": 921373.7742424011,
+    "precip_m3": 179804307.88879395,
+    "evap_m3": 75613135.52322388,
+    "bal": 3.3591184526561896e-7,
+    "nan": false
+  },
+  "gpuErrors": 0,
+  "passed": "7/7",
+  "gpuFeatureStatusWebGPU": "enabled",
+  "electron": "45.2.1",
+  "chrome": "156.0.8078.75"
+}

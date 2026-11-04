@@ -1,5 +1,6 @@
 // Side panel, date card, time bar and tooltips (layout from the Artist build, wired to the engine).
 import { PRESETS } from '../sim/climate.js';
+import { PROVINCES, resolveProvince } from '../sim/strata.js';
 import { OVERLAYS, showLegend } from './legend.js';
 
 const $ = (id) => document.getElementById(id);
@@ -237,7 +238,22 @@ export class Panel {
     document.body.classList.toggle('collapsed', on);
   }
 
+  // A new province brings its home climate (Plateau: Utah desert, Rockies: Colorado alpine, Valley and
+  // Ridge: Temperate, Gulf: Gulf Coast humid). Only when the province changes, so a climate you pick
+  // yourself afterwards stands when you remake the same province.
+  pickHomeClimate() {
+    const prov = resolveProvince($('province').value, +$('seed').value);
+    if (prov === this.climateFor) return;
+    this.climateFor = prov;
+    const home = PROVINCES[prov].climate;
+    if (!home || !PRESETS[home] || home === this.app.sim.climate.presetName) return;
+    this.setPreset(home);
+    this.app.brushTool?.toast('climate', `Climate: ${home}`,
+      `The ${PROVINCES[prov].name} comes with its home climate. You can pick a different one under Place & climate; it will stand until you change the geology.`);
+  }
+
   generate() {
+    this.pickHomeClimate();
     this.app.load($('scenario').value, {
       size: +$('size').value,
       seed: +$('seed').value,
@@ -254,6 +270,7 @@ export class Panel {
     $('size').value = String(res.N);
     $('seed').value = res.seed;
     $('province').value = sim.province || 'plateau';
+    this.climateFor = sim.provinceUsed;   // the province now loaded: only a change brings a new climate
     $('strata-info').textContent = sim.strataInfo
       ? `This landscape: ${sim.strataInfo.describe}${(sim.strataInfo.notes || []).map((n) => `
 • ${n}`).join('')}` : '';

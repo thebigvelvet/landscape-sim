@@ -55,6 +55,20 @@ export const PRESETS = {
     forest: { conifer: 0.2, autumn: 1, shrub: 0 },        // oak-maple-beech, red and orange in October
     wind: { from: 260, speed: 0.7, steady: 0.5, sandy: 0.3 },
   },
+  // Home climate of the Gulf Coastal Plain (sim/strata.js), like Baton Rouge or Houston: about 20 degC
+  // mean, mild winters with rare frost, ~1.5 m of rain a year peaking in summer thunderstorms and
+  // tropical storms, and high evaporation. Warm, wet ground is where salt and limestone dissolve fastest.
+  'Gulf Coast humid': {
+    tSea: 20.5, tAmp: 8.5, lapse: 6.5, pMean: 4.1, pSeas: 0.25, pPeakDay: 200, tPeakDay: 205, dtr: 9,
+    orog: 0.3, ksat: 0.03, gwMax: 0.35, etMul: 1.3, baseElevation: 20, wetFrac: 0.40, stormLen: 1.5,
+    colors: { soil: [0.40, 0.31, 0.21], veg: [0.20, 0.38, 0.16], rock: [0.62, 0.58, 0.50] },
+    blurb: 'The Gulf Coastal Plain of Louisiana and east Texas: long hot, humid summers with afternoon thunderstorms and the odd tropical storm, mild winters with hardly any frost, and about 1.5 m of rain a year. Pine and oak forest, bayous.',
+    tagline: 'Hot and wet',
+    // display palette (sRGB) used by the renderer
+    palette: { rock: [0.62, 0.58, 0.50], rock2: [0.54, 0.50, 0.43], soil: [0.40, 0.30, 0.20], talus: [0.58, 0.54, 0.46], veg: [0.20, 0.34, 0.15], vegAmount: 0.85, sand: [0.82, 0.76, 0.62], banding: 0.2 },
+    forest: { conifer: 0.5, autumn: 0.4, shrub: 0 },      // loblolly pine with oak and sweetgum
+    wind: { from: 160, speed: 0.6, steady: 0.5, sandy: 0.5 },    // onshore breeze off the Gulf
+  },
 };
 
 export const PRESET_NAMES = Object.keys(PRESETS);

@@ -5,7 +5,7 @@
 const e = sim.engine, c = sim.renderer.camera;
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const prov = window.__province || 'plateau';
-const preset = { plateau: 'Utah desert', rockies: 'Colorado alpine', valleyRidge: 'Temperate', gulf: 'Temperate' }[prov];
+const preset = window.__preset || sim.provinces[prov].climate;   // the province's home climate
 await sim.load('random', { size: window.__size || 512, seed: window.__seed || 5, preset, province: prov, volcanoes: false }); sim.pause();
 const out = { province: prov, describe: e.strataInfo.describe, notes: e.strataInfo.notes };
 if (window.__years !== 0) await e.run(365 * (window.__years ?? 15000));

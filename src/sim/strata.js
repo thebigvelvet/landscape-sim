@@ -132,32 +132,33 @@ export const VOLCANIC = {
 };
 
 // ---- provinces ----
+// climate: its home climate preset (sim/climate.js), which the Geology menu switches to.
 // relief: multiplier on the terrain relief at load (the Gulf plain is low). heatFlow: regional
 // background (mW/m2) for the description. hard/soft(f): weighted rock lists at depth fraction f.
 export const PROVINCES = {
   plateau: {
-    name: 'Colorado Plateau', relief: 1, heatFlow: 60, meanBed: 20,
+    name: 'Colorado Plateau', climate: 'Utah desert', relief: 1, heatFlow: 60, meanBed: 20,
     blurb: 'flat-lying sandstone, mudstone and limestone',
     hard: (f) => [['eolian', f < 0.75 ? 0.38 : 0.1], ['massiveSand', 0.22], ['thinSand', 0.18], ['conglomerate', 0.06], ['limestone', 0.06 + 0.4 * f]],
     soft: (f) => [['mudstone', 0.28], ['redShale', 0.24], ['grayShale', 0.3 * (1 - f)], ['siltstone', 0.18], ['gypsum', f > 0.55 ? 0.6 * (f - 0.55) : 0]],
     startHard: 0.6, hardHard: 0.25, softHard: 0.65,
   },
   rockies: {
-    name: 'Southern Rockies', relief: 1, heatFlow: 90, meanBed: 15,
+    name: 'Southern Rockies', climate: 'Colorado alpine', relief: 1, heatFlow: 90, meanBed: 15,
     blurb: 'a granite, gneiss and schist core with sediments turned up on one flank',
     hard: () => [['arkose', 0.4], ['massiveSand', 0.3], ['limestone', 0.3]],
     soft: () => [['redShale', 0.45], ['grayShale', 0.35], ['siltstone', 0.2]],
     startHard: 0.5, hardHard: 0.2, softHard: 0.7,
   },
   valleyRidge: {
-    name: 'Valley and Ridge', relief: 1, heatFlow: 50, meanBed: 15,
+    name: 'Valley and Ridge', climate: 'Temperate', relief: 1, heatFlow: 50, meanBed: 15,
     blurb: 'tightly folded quartzite, limestone, dolomite, shale and coal',
     hard: () => [['quartzite', 0.35], ['thinSand', 0.25], ['limestone', 0.25], ['dolomite', 0.15]],
     soft: () => [['grayShale', 0.5], ['redShale', 0.25], ['siltstone', 0.17], ['coal', 0.08]],
     startHard: 0.5, hardHard: 0.3, softHard: 0.6,
   },
   gulf: {
-    name: 'Gulf Coastal Plain', relief: 0.3, heatFlow: 45, meanBed: 12,
+    name: 'Gulf Coastal Plain', climate: 'Gulf Coast humid', relief: 0.3, heatFlow: 45, meanBed: 12,
     blurb: 'young, soft sand, clay, marl and chalk dipping gently to the sea',
     hard: () => [['chalk', 0.6], ['ironstone', 0.4]],
     soft: () => [['sand', 0.45], ['clay', 0.4], ['marl', 0.15]],
