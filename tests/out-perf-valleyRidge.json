@@ -1,0 +1,21 @@
+{
+  "province": "valleyRidge",
+  "anomalies": 8,
+  "1 day/s": {
+    "fpsMin": 59.94159085385961,
+    "fpsAvg": 59.950916483027335,
+    "simMs": 4.872097215804449,
+    "renderMs": 4.510205952037849
+  },
+  "1000 yr/s": {
+    "fpsMin": 59.943107357050735,
+    "fpsAvg": 59.955666587248416,
+    "simMs": 6.457107908484529,
+    "renderMs": 4.544678685354273
+  },
+  "nan": false,
+  "gpuErrors": 0,
+  "gpuFeatureStatusWebGPU": "enabled",
+  "electron": "45.2.1",
+  "chrome": "156.0.8078.75"
+}

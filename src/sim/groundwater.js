@@ -44,6 +44,9 @@ fn main(@builtin(global_invocation_id) gid : vec3<u32>) {
     let S = min(max(z - zn, 0.0) / dx, 1.0);
     o[k] = P.kGw * S * (g / P.gwPor) * P.gwDt / dx;         // depth leaving through this face over the batch
   }
+  // fault zones, joints, pipes and karst conduits carry water much faster than plain ground
+  // (sim/strata.js perm); dikes and clay hold it back
+  o = o * clamp(rockExtra(bedrock[i], x, y).y, 0.1, 40.0);
   let tot = o.x + o.y + o.z + o.w;
   // never move more than half the store in one batch (stable for any batch length); frozen ground is sealed
   var sc = 0.0;
@@ -61,6 +64,7 @@ ${COMMON_WGSL}
 @group(0) @binding(4) var<storage, read_write> acc : array<vec4<f32>>;
 @group(0) @binding(5) var<storage, read_write> spring : array<f32>;
 @group(0) @binding(6) var<storage, read> soil : array<f32>;
+@group(0) @binding(7) var<storage, read> bedrock : array<f32>;
 
 @compute @workgroup_size(16, 16)
 fn main(@builtin(global_invocation_id) gid : vec3<u32>) {
@@ -83,7 +87,7 @@ fn main(@builtin(global_invocation_id) gid : vec3<u32>) {
   let gIn = g;
   // springs: saturation excess emerges at the surface (capacity depends on soil depth, so water
   // also seeps out where erosion strips the soil off)
-  let ex = max(g - gwCap(soil[i]), 0.0);
+  let ex = max(g - gwCapRock(soil[i], rockExtra(bedrock[i], x, y).x), 0.0);
   g = g - ex;
   let routed = ex * P.fR;
   let w0 = water[i];
@@ -104,9 +108,9 @@ class GroundwaterKernel {
     this.device = device; this.world = world;
     const B = world.buffers;
     this.ko = makeKernel(device, 'groundwater.out', OUT_WGSL, ['r', 'r', 'r', 'r', 'rw']);
-    this.ka = makeKernel(device, 'groundwater.apply', APPLY_WGSL, ['rw', 'r', 'rw', 'rw', 'rw', 'r']);
+    this.ka = makeKernel(device, 'groundwater.apply', APPLY_WGSL, ['rw', 'r', 'rw', 'rw', 'rw', 'r', 'r']);
     this.bo = this.ko.bind(world.params.buffer, [B.bedrock, B.soil, B.groundwater, B.frostDepth, B.gwFlux]);
-    this.ba = this.ka.bind(world.params.buffer, [B.groundwater, B.gwFlux, B.water, B.acc, B.spring, B.soil]);
+    this.ba = this.ka.bind(world.params.buffer, [B.groundwater, B.gwFlux, B.water, B.acc, B.spring, B.soil, B.bedrock]);
   }
   record(pass) {
     pass.setPipeline(this.ko.pipeline); pass.setBindGroup(0, this.bo); dispatchGrid(pass, this.world.N);

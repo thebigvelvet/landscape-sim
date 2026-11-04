@@ -5,7 +5,7 @@ import { Panel } from './ui/panel.js';
 import { PRESETS } from './sim/climate.js';
 import { GpuTimer } from './gpuTimer.js';
 import { BrushTool } from './ui/brush.js';
-import { strataLayer, makeStrata } from './sim/strata.js';
+import { strataLayer, strataDepth, anomalyAt, jointAt, makeStrata, PROVINCES, LITHOLOGY } from './sim/strata.js';
 import { volcLayer } from './sim/volcano.js';
 import { bedsAt, depositSummary } from './sim/deposits.js';
 
@@ -88,7 +88,7 @@ async function main() {
     pause() { sim.paused = true; panel?.sync(); },
     play() { sim.paused = false; panel?.sync(); },
     async bench(sizes = [256, 512, 1024]) {
-      const prev = { scenario: sim.scenario, size: sim.N, seed: sim.seed, cellSize: sim.cellSize };
+      const prev = { scenario: sim.scenario, size: sim.N, seed: sim.seed, cellSize: sim.cellSize, province: sim.province };
       const prevSpeed = sim.speed, prevPaused = sim.paused, prevSub = sim.nSub;
       const out = {};
       for (const N of sizes) {
@@ -122,7 +122,7 @@ async function main() {
         sim.paused = true;
       }
       busy('');
-      await app.load(prev.scenario || 'random', { size: prev.size, seed: prev.seed, cellSize: prev.cellSize });
+      await app.load(prev.scenario || 'random', { size: prev.size, seed: prev.seed, cellSize: prev.cellSize, province: prev.province });
       sim.speed = prevSpeed; sim.paused = prevPaused; sim.nSub = prevSub;
       panel?.sync();
       console.table(out);
@@ -249,6 +249,14 @@ async function main() {
     get strataBeds() { return sim.strataInfo?.beds; },
     get strataStructure() { return sim.strataInfo?.struct; },
     makeStrata,
+    // geologic provinces and anomalies: the province in use, its anomaly table, the anomalies over a
+    // cell (by footprint) and depth into the stack
+    provinces: PROVINCES, lithology: LITHOLOGY,
+    get province() { return sim.provinceUsed; },
+    get strataAnomalies() { return sim.strataInfo?.anoms; },
+    anomalyAt: (x, y, T = sim.strataInfo) => anomalyAt(x, y, T),
+    strataDepth: (z, x, y, T = sim.strataInfo) => strataDepth(z, x, y, T),
+    jointAt: (x, y, T = sim.strataInfo) => jointAt(x, y, T),
     // sediment beds (sim/deposits.js): one cell's stack (top bed first) and a whole-map summary
     bedsAt: async (x, y) => bedsAt(await sim.readLayer('deposit'), y * sim.N + x),
     depositStats: async () => depositSummary(await sim.readLayer('deposit'), sim.world.cells, sim.world.cellSize ** 2),

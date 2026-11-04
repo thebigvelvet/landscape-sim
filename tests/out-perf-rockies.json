@@ -1,0 +1,21 @@
+{
+  "province": "rockies",
+  "anomalies": 7,
+  "1 day/s": {
+    "fpsMin": 59.942201762085375,
+    "fpsAvg": 59.95269741651085,
+    "simMs": 4.89004246130026,
+    "renderMs": 4.75932191951292
+  },
+  "1000 yr/s": {
+    "fpsMin": 59.938988968842004,
+    "fpsAvg": 59.95065784580826,
+    "simMs": 6.159753994288712,
+    "renderMs": 4.794071220437341
+  },
+  "nan": false,
+  "gpuErrors": 0,
+  "gpuFeatureStatusWebGPU": "enabled",
+  "electron": "45.2.1",
+  "chrome": "156.0.8078.75"
+}

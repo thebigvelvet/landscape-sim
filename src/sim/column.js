@@ -51,7 +51,7 @@ ${ROCK_WGSL}
 // m: moisture memory (groundwater fill smoothed over ~1 year) that plants respond to
 // ice: glacier ice thickness (m); deb: rock debris on/in it (m), which slows the melt
 struct Col { swe : f32, g : f32, d : f32, fr : f32, mn : f32, m : f32, ice : f32 };
-struct Cell { z : f32, so : f32, asp : f32, extra : f32, cap : f32, vg : f32, bn : f32, deb : f32 };
+struct Cell { z : f32, so : f32, asp : f32, extra : f32, cap : f32, vg : f32, bn : f32, deb : f32, heat : f32, kMul : f32 };
 
 // Painted local storms (sim/events.js): extra precipitation in m/day at this cell, already averaged
 // over the batch, so a 3-day storm adds 3 storm-days of water at any speed. Smooth cosine bell.
@@ -74,7 +74,8 @@ fn integrate(st : ptr<function, Col>, n : u32, dt : f32, start : f32, c : Cell) 
   let mk = 1.0 - exp(-dt / 365.0);
   for (var k = 0u; k < n; k++) {
     let doy = start + (f32(k) + 0.5) * dt;
-    let T = airTemp(doy, c.z) + select(1.5, 1.0, c.asp > 0.0) * c.asp;
+    // c.heat: hot springs warm the ground around them (sim/strata.js), melting snow and frost
+    let T = airTemp(doy, c.z) + select(1.5, 1.0, c.asp > 0.0) * c.asp + c.heat;
     let pr = (precipRate(doy, c.z) + c.extra) * dt;
     let sn = snowStep((*st).swe, T, pr, dt, 1.0 + 0.5 * c.asp);
     (*st).swe = sn.x;
@@ -90,7 +91,7 @@ fn integrate(st : ptr<function, Col>, n : u32, dt : f32, start : f32, c : Cell) 
     (*st).d = frostStep((*st).d, T, (*st).swe, dt);
     (*st).fr = frozenFactor((*st).d, T);
     let cyc = ftCycles(T, dt) * select(0.0, 1.0, (*st).swe < 0.03);   // snow cover damps surface cycles
-    let s3 = soilStep((*st).g, liquid, T, (*st).fr, dt, c.cap, c.vg, c.bn);
+    let s3 = soilStep((*st).g, liquid, T, (*st).fr, dt, c.cap, c.vg, c.bn, c.kMul);
     (*st).g = s3.x; a.z += s3.y; a.y += s3.z;
     let fill = clamp((*st).g / c.cap, 0.0, 1.0);
     (*st).m = (*st).m + (fill - (*st).m) * mk;
@@ -139,7 +140,9 @@ fn main(@builtin(global_invocation_id) gid : vec3<u32>) {
   var gl = glacier[i];
   // most of the rock rides near the bed; only near a thin snout does it make a cover on the surface
   let cover = gl.y / (1.0 + gl.x / 5.0);
-  let c = Cell(z, so, asp, localStorms(vec2<f32>(f32(x), f32(y))), gwCap(so), clamp(veg[i], 0.0, 1.0), clamp(burn[i], 0.0, 1.0), cover);
+  let rx = rockExtra(br, x, y);   // (dissolution, conductivity, heat) of the rock here
+  let c = Cell(z, so, asp, localStorms(vec2<f32>(f32(x), f32(y))), gwCapRock(so, rx.x), clamp(veg[i], 0.0, 1.0), clamp(burn[i], 0.0, 1.0), cover, rx.z,
+    1.0 + 8.0 * min(rx.x, 1.0) * (1.0 - smoothstep(0.0, 0.3, so)));   // karst: bare soluble rock swallows rain
   let swe0 = snowSWE[i];
   let g0 = groundwater[i];
   let ice0 = gl.x;
@@ -196,10 +199,29 @@ fn main(@builtin(global_invocation_id) gid : vec3<u32>) {
   // weathering: bedrock -> soil, exact f32 change so solids are conserved; shale crumbles faster
   // than sandstone (sim/strata.js)
   let w = min(aW * rockAt(br, x, y).y, 2.0);
+  var brNow = br;
   if (w > 0.0) {
     let nb = br - w;
     bedrock[i] = nb;
     soil[i] = so + (br - nb);
+    brNow = nb;
+  }
+  // karst and salt: groundwater dissolves soluble rock (limestone, gypsum, salt) at the rock surface,
+  // fastest where the store is full and at sinkhole seeds. The rock leaves in solution, logged with
+  // the sediment out of the map so the solids books stay closed (exact f32 change).
+  var dissolved = 0.0;
+  // Soluble rock a little way down dissolves too, and the ground above settles into the hole
+  // (cover-collapse sinkholes, the sinks over salt domes, the collapsed crests of salt anticlines).
+  var solE = rx.x;
+  if (P.strataOn > 0.5 && P.yrsE > 0.0) {
+    solE = max(solE, max(0.5 * rockExtra(brNow - 8.0, x, y).x, max(0.25 * rockExtra(brNow - 25.0, x, y).x, 0.1 * rockExtra(brNow - 60.0, x, y).x)));
+  }
+  if (solE > 0.0 && P.yrsE > 0.0) {
+    let fillD = clamp(g / c.cap, 0.0, 1.0);
+    let dd = min(P.kDiss * solE * (0.1 + fillD) * P.yrsE, 0.5);
+    let nb = brNow - dd;
+    bedrock[i] = nb;
+    dissolved = brNow - nb;
   }
   // runoff: routed part to the surface layer, the rest leaves as fast event flow
   let routed = aR * P.fR;
@@ -214,7 +236,11 @@ fn main(@builtin(global_invocation_id) gid : vec3<u32>) {
   // its ET in soilStep, and gating keeps the result independent of how runoff is spread in time.
   let e = min(h, P.eSurf * clamp((tMean + 5.0) / 25.0, 0.05, 2.0) * tau * clamp(h / 0.05, 0.0, 1.0));
   h = h - e;
-  let tl = min(h, min(P.kTrans * tau * (1.0 - 0.9 * fr) * clamp(h / 0.02, 0.0, 1.0), max(c.cap - g, 0.0)));
+  // losing streams: water sinks fast into bare limestone/gypsum/salt (swallow holes), and into
+  // fault zones and other conduits
+  let bare = 1.0 - smoothstep(0.0, 0.3, so);
+  let sink = 1.0 + bare * (5.0 * min(rx.x, 1.0) + 0.1 * min(max(rx.y - 1.0, 0.0), 20.0));
+  let tl = min(h, min(P.kTrans * sink * tau * (1.0 - 0.9 * fr) * clamp(h / 0.02, 0.0, 1.0), max(c.cap - g, 0.0)));
   h = h - tl;
   let gPre = g;
   g = g + tl;
@@ -226,7 +252,7 @@ fn main(@builtin(global_invocation_id) gid : vec3<u32>) {
   groundwater[i] = g;
   plant[i] = vec4<f32>(pl.x, clamp(st.m, 0.0, 1.0), pl.z, pl.w);
   // (air temperature 'temp' is written by the vegetation kernel, which runs later in the batch)
-  acc[i] = acc[i] + vec4<f32>(aP, fast - roundoff, aET + e, 0.0);
+  acc[i] = acc[i] + vec4<f32>(aP, fast - roundoff, aET + e, dissolved);
 }
 `;
 

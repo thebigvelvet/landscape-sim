@@ -1,0 +1,174 @@
+{
+  "plateau": {
+    "describe": "Colorado Plateau: 23 beds, dipping 0.62° to the E; a basement-cored uplift raises them 423 m; an old volcano with 1 basalt flow.",
+    "notes": [
+      "Regional heat flow ~60 mW/m².",
+      "A salt anticline: salt ~723 m into the stack. Once erosion reaches it, groundwater dissolves it and the crest collapses into a long valley. Gravity low.",
+      "4 soluble beds (limestone, gypsum, chalk): where exposed, streams lose water into the ground and the rock slowly dissolves."
+    ],
+    "anoms": [
+      "salt"
+    ],
+    "beds": [
+      "limestone",
+      "siltstone",
+      "siltstone",
+      "massiveSand",
+      "siltstone",
+      "grayShale",
+      "eolian",
+      "massiveSand",
+      "eolian",
+      "mudstone",
+      "massiveSand",
+      "redShale",
+      "siltstone",
+      "redShale",
+      "thinSand",
+      "siltstone",
+      "thinSand",
+      "grayShale",
+      "limestone",
+      "redShale",
+      "limestone",
+      "redShale",
+      "limestone",
+      "basement"
+    ],
+    "bal": 1.4835723459267376e-7,
+    "solids": -110.81471741199493,
+    "nan": false,
+    "sedOut": 76479.14304435253
+  },
+  "rockies": {
+    "describe": "Southern Rockies: a granite, gneiss and schist core under 19 beds of cover, turned up into hogbacks along the NW flank; an old volcano with 1 basalt flow.",
+    "notes": [
+      "Regional heat flow ~90 mW/m²; Bouguer gravity low under the range (thick, light crust).",
+      "A E-W fault zone of crushed rock wears into a gully and carries groundwater to springs. Resistivity and gravity low.",
+      "A N-S fault zone of crushed rock wears into a gully and carries groundwater to springs. Resistivity and gravity low.",
+      "3 dikes (NE-SW, NE-SW, NW-SE): hard dark sheets that stand up as walls and dam groundwater. Magnetic highs.",
+      "A hydrothermally altered zone 390 m across: soft ochre rock that weathers fast (mineral-belt style). Magnetic low.",
+      "A hot spring on the fault: +26°C at the vent, heat flow ~480 mW/m². It melts the snow and keeps the ground unfrozen.",
+      "3 soluble beds (limestone, gypsum, chalk): where exposed, streams lose water into the ground and the rock slowly dissolves."
+    ],
+    "anoms": [
+      "fault",
+      "fault",
+      "dike",
+      "dike",
+      "dike",
+      "alteration",
+      "hotSpring"
+    ],
+    "beds": [
+      "siltstone",
+      "limestone",
+      "redShale",
+      "redShale",
+      "massiveSand",
+      "redShale",
+      "limestone",
+      "grayShale",
+      "massiveSand",
+      "redShale",
+      "arkose",
+      "redShale",
+      "redShale",
+      "limestone",
+      "redShale",
+      "redShale",
+      "massiveSand",
+      "grayShale",
+      "grayShale",
+      "basement"
+    ],
+    "bal": -1.7922758049686286e-7,
+    "solids": -70.02846667276208,
+    "nan": false,
+    "sedOut": 5628.091269045011
+  },
+  "valleyRidge": {
+    "describe": "Valley and Ridge: 12 beds, dipping 0.43° to the SE; tight folds every 980 m, 1401 m high, plunging along their axes; an old volcano with 1 basalt flow.",
+    "notes": [
+      "Regional heat flow ~50 mW/m².",
+      "A N-S thrust fault stacks the beds 842 m: its crushed zone wears into a gully and leaks groundwater. Seismic: repeated reflectors.",
+      "A N-S thrust fault stacks the beds 444 m: its crushed zone wears into a gully and leaks groundwater. Seismic: repeated reflectors.",
+      "6 sinkhole seeds in the limestone: they dissolve into closed hollows, and streams on bare limestone sink into the ground and come out as cave springs. Microgravity lows over voids."
+    ],
+    "anoms": [
+      "fault",
+      "fault",
+      "sinkhole",
+      "sinkhole",
+      "sinkhole",
+      "sinkhole",
+      "sinkhole",
+      "sinkhole"
+    ],
+    "beds": [
+      "quartzite",
+      "quartzite",
+      "grayShale",
+      "redShale",
+      "grayShale",
+      "quartzite",
+      "grayShale",
+      "limestone",
+      "grayShale",
+      "limestone",
+      "dolomite",
+      "grayShale",
+      "basement"
+    ],
+    "bal": 3.6052205086465725e-8,
+    "solids": -194.5011151023209,
+    "nan": false,
+    "sedOut": 13103.107451181859
+  },
+  "gulf": {
+    "describe": "Gulf Coastal Plain: 19 beds, dipping 0.20° to the S; an old volcano with 1 basalt flow.",
+    "notes": [
+      "Regional heat flow ~45 mW/m²; kilometres of light sediment and salt below.",
+      "A E-W growth fault steps the beds down 74 m toward the sea; water seeps along it. Seismic: thickening beds on the down side.",
+      "A salt dome 330 m across, beds ringing it: caprock ~367 m into the stack, then salt that dissolves so the ground sinks into a hollow or lake. Strong gravity low; sulfur in the caprock.",
+      "A salt dome 510 m across, beds ringing it: caprock ~446 m into the stack, then salt that dissolves so the ground sinks into a hollow or lake. Strong gravity low; sulfur in the caprock.",
+      "5 soluble beds (limestone, gypsum, chalk): where exposed, streams lose water into the ground and the rock slowly dissolves."
+    ],
+    "anoms": [
+      "fault",
+      "salt",
+      "salt"
+    ],
+    "beds": [
+      "sand",
+      "sand",
+      "clay",
+      "clay",
+      "clay",
+      "sand",
+      "sand",
+      "marl",
+      "clay",
+      "clay",
+      "chalk",
+      "marl",
+      "sand",
+      "clay",
+      "clay",
+      "chalk",
+      "marl",
+      "sand",
+      "clay",
+      "basement"
+    ],
+    "bal": 5.144676832574195e-8,
+    "solids": -9.25486721098423,
+    "nan": false,
+    "sedOut": 9122.31532894075
+  },
+  "gpuErrors": 0,
+  "gpuErrorMsgs": [],
+  "gpuFeatureStatusWebGPU": "enabled",
+  "electron": "45.2.1",
+  "chrome": "156.0.8078.75"
+}

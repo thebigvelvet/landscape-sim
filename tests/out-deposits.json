@@ -6,58 +6,58 @@
       "negative": 0,
       "cellsWithMoreBedsThanSoil": 0,
       "worst_m": 0,
-      "balPct": 2.5068309883511713e-7,
-      "solidsError_m3": 11.337675596223562
+      "balPct": 1.1335612080817258e-7,
+      "solidsError_m3": 15.401178697356954
     },
     "placement": {
       "pass": true,
-      "volume_m3": 27586.280054918938,
-      "inHollowsFrac": 0.8439883984512088,
-      "onRidgesFrac": 0.0036013512563651986
+      "volume_m3": 29863.449054067063,
+      "inHollowsFrac": 0.8557893703849198,
+      "onRidgesFrac": 0.0033267392544057404
     },
     "bedding": {
       "pass": true,
-      "cellsOver1m": 42,
+      "cellsOver1m": 57,
       "medianBedsOver1m": 8,
       "grainClassesOver5pct": 3,
       "byGrain_m3": {
         "clay": 0,
-        "silt": 15496.112711044885,
-        "sand": 10064.95176601602,
-        "gravel": 2025.2155778580345
+        "silt": 15452.15141864512,
+        "sand": 10761.884368958272,
+        "gravel": 3649.413266463671
       }
     },
     "youngestFirst": {
       "pass": true,
-      "incisedCells": 79,
-      "meanCut_m": 0.09931554398359436,
+      "incisedCells": 80,
+      "meanCut_m": 0.10814916777007966,
       "olderBedsIntactFrac": 1,
       "examples": []
     },
     "pondFines": {
       "pass": true,
-      "lakeCells": 521,
-      "lakeMeanGrain": 0.21102101188186217,
-      "lakeSpeedMedian": 0.00588733915533287,
-      "steepCells": 1148,
-      "steepMeanGrain": 0.7827729030325926
+      "lakeCells": 548,
+      "lakeMeanGrain": 0.20866761746461543,
+      "lakeSpeedMedian": 0.0039227041382644086,
+      "steepCells": 1203,
+      "steepMeanGrain": 0.7948771492453739
     }
   },
   "summary": {
-    "maxThickness_m": 2.4098556339740753,
+    "maxThickness_m": 2.591547518968582,
     "maxBeds": 8,
-    "volume_m3": 27586.280054918938,
-    "coveredFrac": 0.0040740966796875,
+    "volume_m3": 29863.449054067063,
+    "coveredFrac": 0.0041046142578125,
     "volumeByGrain_m3": {
       "clay": 0,
-      "silt": 15496.112711044885,
-      "sand": 10064.95176601602,
-      "gravel": 2025.2155778580345
+      "silt": 15452.15141864512,
+      "sand": 10761.884368958272,
+      "gravel": 3649.413266463671
     }
   },
   "allPass": true,
   "failed": [],
-  "wallSeconds": 6.209600000023842,
+  "wallSeconds": 6.4275,
   "gpuFeatureStatusWebGPU": "enabled",
   "electron": "45.2.1",
   "chrome": "156.0.8078.75"

@@ -21,12 +21,22 @@ const PI : f32 = 3.14159265;
 // alluvium hold more. Equals the preset's gwMax at 1 m of soil. Mirrored on the CPU by gwCapacity().
 fn gwCap(soilDepth : f32) -> f32 { return P.gwMax * (0.15 + 0.85 * min(max(soilDepth, 0.0), 2.0)); }
 ${strataWGSL((i) => `P.${STRATA_PARAM_FIELDS[i]}`, (k) => `P.stBeds[${k}]`)}
-// Plateau rock at bedrock elevation z in cell (x, y): (erode multiplier, weather multiplier, cliff
-// tan). With rock layers off every cell is the same uniform rock as before.
+// Layered rock at bedrock elevation z in cell (x, y): (erode multiplier, weather multiplier, cliff
+// tan), including the anomalies. With rock layers off every cell is the same uniform rock as before.
 fn rockStrata(z : f32, x : i32, y : i32) -> vec3<f32> {
   if (P.strataOn < 0.5) { return vec3<f32>(1.0, 1.0, P.rockTan); }
   return stProps(z, vec2<f32>(f32(x), f32(y)));
 }
+// What the rock does to water and heat: (dissolution multiplier, groundwater conductivity
+// multiplier, ground warming deg C). Rock layers off: insoluble, plain, no heat.
+fn rockExtra(z : f32, x : i32, y : i32) -> vec3<f32> {
+  if (P.strataOn < 0.5) { return vec3<f32>(0.0, 1.0, 0.0); }
+  let r = stRock(z, vec2<f32>(f32(x), f32(y)));
+  return vec3<f32>(r.sol, r.perm, r.heat);
+}
+// Groundwater capacity of a cell over soluble rock: fissured, dissolved-out limestone (epikarst)
+// holds up to 5x the water of plain rock, so streams have somewhere to sink into.
+fn gwCapRock(soilDepth : f32, sol : f32) -> f32 { return gwCap(soilDepth) * (1.0 + 4.0 * min(max(sol, 0.0), 1.0)); }
 `;
 
 // Volcanic rock on top of the plateau stack (sim/volcano.js). world.volcRock holds 2 vec4 per cell:

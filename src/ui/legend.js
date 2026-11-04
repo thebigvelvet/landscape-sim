@@ -81,6 +81,13 @@ export const OVERLAYS = [
     labels: ['basalt', 'cinders', 'plug', 'molten lava'],
     note: 'Basalt is set lava: very hard, so old flows end up capping ridges and mesas. Cinders are loose and frothy and wash away quickly. The plug is lava that set in the throat of the volcano; it outlasts the cone as a rocky neck. Paint a volcano with the Volcano brush, or load maps until one starts with an old volcano.',
   },
+  {
+    id: 12, name: 'Subsurface', dot: 'linear-gradient(135deg,#0dbfcc,#264df2,#ff4019)',
+    desc: 'What the rock under each spot does underground: dissolves, carries groundwater, or warms the ground.',
+    gradient: 'linear-gradient(90deg, rgb(13,191,204) 0 20%, rgb(255,255,255) 20% 40%, rgb(38,77,242) 40% 60%, rgb(13,13,15) 60% 80%, rgb(255,64,26) 80%)',
+    labels: ['soluble rock', 'salt', 'water conduits', 'hard intrusions', 'hot ground'],
+    note: 'Cyan: limestone, gypsum and chalk that groundwater slowly dissolves (karst). White: salt, which dissolves fast so the ground above it sinks. Blue: fault zones, joints, breccia pipes and hot-spring conduits that carry groundwater fast (cave conduits in limestone show as cyan) and feed springs. Black: dikes, laccolith cores and volcanic necks that resist erosion. Red: ground warmed by a hot spring. Pick a province in Geology to see its own set; the landscape description lists each one with its geophysical signature.',
+  },
 ];
 
 export function showLegend(id) {

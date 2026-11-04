@@ -1,0 +1,21 @@
+{
+  "province": "rockies",
+  "describe": "Southern Rockies: a granite, gneiss and schist core under 19 beds of cover, turned up into hogbacks along the NW flank.",
+  "notes": [
+    "Regional heat flow ~90 mW/m²; Bouguer gravity low under the range (thick, light crust).",
+    "A E-W fault zone of crushed rock wears into a gully and carries groundwater to springs. Resistivity and gravity low.",
+    "A N-S fault zone of crushed rock wears into a gully and carries groundwater to springs. Resistivity and gravity low.",
+    "3 dikes (NE-SW, NE-SW, NW-SE): hard dark sheets that stand up as walls and dam groundwater. Magnetic highs.",
+    "A hydrothermally altered zone 780 m across: soft ochre rock that weathers fast (mineral-belt style). Magnetic low.",
+    "A hot spring on the fault: +26°C at the vent, heat flow ~480 mW/m². It melts the snow and keeps the ground unfrozen.",
+    "3 soluble beds (limestone, gypsum, chalk): where exposed, streams lose water into the ground and the rock slowly dissolves."
+  ],
+  "day": 5475240,
+  "bal": -1.4060253196729524e-7,
+  "solidsErr": -1051.8154344390496,
+  "nan": false,
+  "gpuErrors": 0,
+  "gpuFeatureStatusWebGPU": "enabled",
+  "electron": "45.2.1",
+  "chrome": "156.0.8078.75"
+}

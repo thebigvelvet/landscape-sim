@@ -9,9 +9,9 @@
     "books": {
       "pass": true,
       "overlayChange_m": 0.00006103515625,
-      "solidsError_m3": 12.588372383650182,
-      "sculptedVolume_m3": 353433.89892578125,
-      "balPct": -2.924881176152058e-7
+      "solidsError_m3": 14.978659868086197,
+      "sculptedVolume_m3": 353433.90197753906,
+      "balPct": 7.018565633801314e-8
     },
     "undo": {
       "pass": true,
@@ -24,7 +24,7 @@
       "pass": true,
       "flattenMeanDev_m": [
         37.87311968639304,
-        0.00012703044032794534
+        0.00012734026345611793
       ],
       "roughness": [
         8.304859438153095,
@@ -34,30 +34,30 @@
     "channel": {
       "pass": true,
       "meanCut_m": 7.632074991861979,
-      "waterInChannel_m": 0.002959821260176322,
-      "waterBeside_m": 0.000003102253161663356,
-      "balPct": -0.000009522192319919053
+      "waterInChannel_m": 0.003102459744665741,
+      "waterBeside_m": 0.0000034727570549845897,
+      "balPct": 0.000009269996483577739
     },
     "avalanches": {
       "pass": true,
       "off": {
-        "cliffSWE_m": 0.3843060062912089,
-        "cliffCells": 36059,
-        "footSWE_m": 0.37296956558950195,
+        "cliffSWE_m": 0.3842872620282085,
+        "cliffCells": 36045,
+        "footSWE_m": 0.37285085588825756,
         "footCells": 4962,
-        "totalSnow_m3": 2448576.036834717,
-        "meanWoody": 0.1765530360087095,
-        "balPct": 0.0000017670909567122268,
+        "totalSnow_m3": 2448574.920654297,
+        "meanWoody": 0.17709920497614892,
+        "balPct": -6.4097000370091e-7,
         "nan": false
       },
       "on": {
-        "cliffSWE_m": 0.1707964233112461,
-        "cliffCells": 36059,
-        "footSWE_m": 0.44619394270475915,
-        "footCells": 4961,
-        "totalSnow_m3": 2607005.6224823,
-        "meanWoody": 0.13124398784866184,
-        "balPct": -9.8831363313818e-8,
+        "cliffSWE_m": 0.17038229491621257,
+        "cliffCells": 36045,
+        "footSWE_m": 0.4477891339664393,
+        "footCells": 4963,
+        "totalSnow_m3": 2606787.392807007,
+        "meanWoody": 0.13144315013769814,
+        "balPct": -0.0000014295723374241939,
         "nan": false
       }
     },
@@ -65,15 +65,15 @@
       "pass": true,
       "nan": false,
       "years": 6638.6583333333265,
-      "bal": 8.785282745555554e-8,
-      "fps": 59.95536267488423,
+      "bal": 3.3239943131149773e-7,
+      "fps": 59.94409957148572,
       "gpuErrors": 0
     }
   },
   "gpuErrorMsgs": [],
   "allPass": true,
   "failed": [],
-  "wallSeconds": 13.69569999998808,
+  "wallSeconds": 13.779899999976157,
   "gpuFeatureStatusWebGPU": "enabled",
   "electron": "45.2.1",
   "chrome": "156.0.8078.75"

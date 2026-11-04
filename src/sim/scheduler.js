@@ -30,7 +30,11 @@ import { vegetation } from './vegetation.js';
 import { Events } from './events.js';
 import { sculptor } from './sculpt.js';
 import { gwCapacity } from './common.js';
-import { makeStrata, packStrata, STRATA_PARAM_FIELDS } from './strata.js';
+import { makeStrata, packStrata, STRATA_PARAM_FIELDS, PROVINCES, resolveProvince } from './strata.js';
+
+// rock dissolved by groundwater (m/yr) in plain limestone with a full store; gypsum x5, salt x30,
+// sinkhole seeds x20 (sim/strata.js sol). Dissolved rock leaves the map in solution (solids books).
+export const KARST_PARAMS = { kDiss: 5e-5 };
 import { deposits, DEP_EPOCHS } from './deposits.js';
 import { wind, towardVector, WIND_PARAMS } from './wind.js';
 import { glacier, GLACIER_PARAMS } from './glacier.js';
@@ -77,6 +81,10 @@ export class Simulation {
     this.scenario = scenario; this.seed = seed;
     this.ruggedness = opts.ruggedness ?? this.ruggedness ?? 0.5;
     this.relief = opts.relief ?? this.relief ?? 1;
+    // geologic province (sim/strata.js): 'plateau', 'rockies', 'valleyRidge', 'gulf' or 'random' (from the seed)
+    this.province = opts.province ?? this.province ?? 'plateau';
+    this.provinceUsed = resolveProvince(this.province, seed);
+    const reliefUsed = this.relief * PROVINCES[this.provinceUsed].relief;
     await this._rb.catch(() => {});
     await this.device.queue.onSubmittedWorkDone();
     if (!this.world || this.world.N !== N || this.cellSize !== cellSize) {
@@ -103,7 +111,7 @@ export class Simulation {
       this.onWorldChanged?.(this.world);
     }
     const volcanoes = opts.volcanoes ?? this.oldVolcanoes;
-    const { height, soil, volcRock, volcanoInfo } = generateTerrain(scenario, { N, cellSize, seed, ruggedness: this.ruggedness, relief: this.relief, preErode: opts.preErode !== false, volcanoes });
+    const { height, soil, volcRock, volcanoInfo } = generateTerrain(scenario, { N, cellSize, seed, ruggedness: this.ruggedness, relief: reliefUsed, preErode: opts.preErode !== false, volcanoes });
     const bedrock = new Float32Array(N * N);
     for (let i = 0; i < N * N; i++) bedrock[i] = height[i] - soil[i];
     const gw = new Float32Array(N * N);
@@ -114,7 +122,7 @@ export class Simulation {
     for (let i = 0; i < N * N; i++) { const h = height[i]; if (h < mn) mn = h; if (h > mx) mx = h; sum += h; }
     this.terrainRange = { min: mn, max: mx, mean: sum / (N * N) };
     // a fresh rock stack for this landscape (same seed, same rocks); beds thicken with the relief slider
-    this.strataInfo = makeStrata(seed, height, N, cellSize, Math.max(0.5, this.relief));
+    this.strataInfo = makeStrata(seed, height, N, cellSize, Math.max(0.5, reliefUsed), this.provinceUsed);
     this.strataPack = packStrata(this.strataInfo, true);
     this.volcanoInfo = volcanoInfo;
     if (volcanoInfo?.length) {
@@ -175,7 +183,7 @@ export class Simulation {
     const st = this.strataPack, stFields = {};
     STRATA_PARAM_FIELDS.forEach((name, i) => { stFields[name] = st.head[i]; });
     stFields.strataOn = this.strata ? 1 : 0;
-    w.params.setArray('stBeds', st.beds);
+    w.params.setArray('stBeds', st.table);
     const plan = {
       N: w.N, frame: this.frame, logSize: LOG_SIZE, nSub: n,
       cellSize: dx, cellArea: dx * dx, dtH, g: WATER_PARAMS.g,
@@ -197,6 +205,7 @@ export class Simulation {
       sandTan: wind.enabled ? WIND_PARAMS.sandTan : EROSION_PARAMS.talusTan,
       ...GLACIER_PARAMS, glacOn: glacier.enabled ? 1 : 0, glacK: glacier.iterations(Dcol),
       ...stFields,
+      kDiss: KARST_PARAMS.kDiss, yrsE: yearsE,
       ...ev.fields,
       ...vp.fields,
     };

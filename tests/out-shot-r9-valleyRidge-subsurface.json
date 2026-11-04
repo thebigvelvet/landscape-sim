@@ -1,0 +1,18 @@
+{
+  "province": "valleyRidge",
+  "describe": "Valley and Ridge: 12 beds, dipping 0.43° to the SE; tight folds every 2.0 km, 1442 m high, plunging along their axes.",
+  "notes": [
+    "Regional heat flow ~50 mW/m².",
+    "A N-S thrust fault stacks the beds 867 m: its crushed zone wears into a gully and leaks groundwater. Seismic: repeated reflectors.",
+    "A N-S thrust fault stacks the beds 457 m: its crushed zone wears into a gully and leaks groundwater. Seismic: repeated reflectors.",
+    "6 sinkhole seeds in the limestone: they dissolve into closed hollows, and streams on bare limestone sink into the ground and come out as cave springs. Microgravity lows over voids."
+  ],
+  "day": 5475240,
+  "bal": 2.0301519211723071e-7,
+  "solidsErr": -184.59206405095756,
+  "nan": false,
+  "gpuErrors": 0,
+  "gpuFeatureStatusWebGPU": "enabled",
+  "electron": "45.2.1",
+  "chrome": "156.0.8078.75"
+}

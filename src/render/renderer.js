@@ -10,12 +10,12 @@ import { makeKernels } from './gpu.js';
 import { Lighting } from './lighting.js';
 import { OrbitCamera } from './camera.js';
 import { PRESETS } from '../sim/climate.js';
-import { MAX_BEDS } from '../sim/strata.js';
+import { MAX_BEDS, TABLE_LEN } from '../sim/strata.js';
 
 // Overlay names, in the order of the shader's overlay modes (0 = natural view).
-export const OVERLAYS = ['none', 'water', 'sediment', 'snow', 'frost', 'change', 'groundwater', 'plants', 'beds', 'wind', 'glaciers', 'volcanic'];
+export const OVERLAYS = ['none', 'water', 'sediment', 'snow', 'frost', 'change', 'groundwater', 'plants', 'beds', 'wind', 'glaciers', 'volcanic', 'subsurface'];
 export const TOOL_IDS = { none: 0, storm: 1, drought: 2, flood: 3, wildfire: 4, raise: 5, lower: 5, smooth: 5, flatten: 5, channel: 5, volcano: 6 };
-const VENT_AT = 156 + 16 + 2 * 4 * MAX_BEDS;   // R.vent (after the bed tables)
+const VENT_AT = 156 + 16 + 4 * TABLE_LEN + 4 * MAX_BEDS;   // R.vent (after the rock table and bed colours)
 const UB_FLOATS = VENT_AT + 8;
 
 const SAMPLES = 4;
@@ -357,7 +357,7 @@ export class Renderer {
     const st = sim.strataPack;
     if (st) {
       u.set(st.head, 156); u[156] = sim.strata ? 1 : 0;
-      u.set(st.beds, 172); u.set(st.colors, 172 + 4 * MAX_BEDS);
+      u.set(st.table, 172); u.set(st.colors, 172 + 4 * TABLE_LEN);
     } else u[156] = 0;
     for (let k = 0; k < 2; k++) u.set(vis.vents[k] || [0, 0, 0, 0], VENT_AT + 4 * k);
     this.device.queue.writeBuffer(this.ub, 0, u);

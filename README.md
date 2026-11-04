@@ -5,6 +5,44 @@ second. All of the simulation runs on the graphics card (WebGPU compute shaders)
 
 **To run it, double-click `start.bat`** (or the "Landscape Time-Lapse" shortcut on the desktop).
 
+## Round 9: geologic provinces and what lies underground
+
+Built directly, on branch `r9-provinces` (cut from `main`).
+
+**What you can do now**
+- A **Geology** dropdown (Landscape section) picks the kind of country the rock comes from. Random picks one from the seed. Every province has its own rocks, structure and anomalies:
+  - **Colorado Plateau** (updated): flat-lying cross-bedded dune sandstone, ledgy and river sandstones, purple-green bentonitic mudstone, marine gray shale, limestone and gypsum near the base. Thick dune sandstones sit on soft mudstone, so cliffs stand over slopes. Structure: gentle dip, monoclines, broad folds, basement-cored uplifts and Moab-style normal faults. Anomalies: laccoliths, salt anticlines, breccia pipes, joint sets and the odd volcanic neck with radiating dikes.
+  - **Southern Rockies**: a crystalline core of pink granite, banded gneiss and dark schist. A thin cover of sediments survives on one flank, turned up on edge into hogbacks by a steep monocline. Anomalies: dikes, crushed fault zones, a hydrothermally altered (ochre) zone, and a hot spring on a fault.
+  - **Valley and Ridge**: tight, plunging folds of quartzite, sandstone, limestone, dolomite, shale and coal, cut by thrust faults. Anomalies: karst with sinkhole seeds, losing streams and cave springs, and sometimes a warm spring on a thrust.
+  - **Gulf Coastal Plain**: a low plain (terrain relief × 0.3) of soft sand, clay, marl and chalk dipping gently to the sea, stepped by growth faults. Anomalies: salt domes ringed by upturned beds, with caprock over salt.
+- The landscape description under the dropdown lists each anomaly with what it does and its **geophysical signature** (magnetic, gravity, heat flow, seismic, radiometric).
+- A new **Subsurface** view: soluble rock (cyan), salt (white), groundwater conduits (blue), hard intrusions (black) and hot ground (red).
+
+**How it works** (`src/sim/strata.js`, plus small additions to the column and groundwater kernels)
+- Every rock now has two more properties: how fast groundwater dissolves it (limestone 1, gypsum 5, salt 30) and how easily groundwater moves through it.
+- The structure gains fault steps, domes (round or long), a fold plunge and joint sets. All of it is analytic, like the beds, so it needs no new buffer and survives erosion and sculpting exactly.
+- Anomalies are a table of up to 12 shapes (a line segment or a point, with a half-width). Buried bodies (salt, laccolith cores) start at a set depth in the stack.
+- **Effects on the land:**
+  - Hardness: dikes, necks and laccolith cores resist erosion; fault zones, altered rock and breccia pipes wear fast; jointed sandstone wears faster along the joints.
+  - Groundwater moves up to 20× faster along faults and 10× through pipes and hot-spring conduits, so springs come out where they cross the valleys.
+  - Streams lose water fast where they cross bare soluble rock (and fault zones).
+  - Groundwater dissolves soluble rock at the surface and up to 60 m below it, so the ground settles into sinkholes, over salt domes and along salt-anticline crests. The dissolved rock leaves the map in solution and is counted with the sediment out, so the solids books stay closed.
+  - Hot springs warm the ground by 8-30 °C at the vent, fading over three vent radii: no snow or frost there.
+
+**Checks** (RTX 4060 Ti)
+- `tests/provinces.js` passes 22/22:
+  - Generator, 200 seeds per province: plateau beds stay irregular (median thickness CV 0.82), dips 0.3-3.9°, basement never shows at the start, and 85 % of dune sandstones sit on soft rock. Anomaly rates match the design (laccolith 24 %, salt anticline 25 %, breccia pipes 44 %, joints 57 %, uplift 20 %, neck 15 %). Rockies: 92 % of cells start in the crystalline core, and every map has dikes and faults (hot spring 65 %). Valley and Ridge: 3.3 fold crests across the map on average, 18 beds exposed, thrusts on every map, sinkholes on 95 %. Gulf: dips 0.05-0.49°, a salt dome and a growth fault on every map.
+  - Rockies, 20,000 years: dikes lowered 1.2 m vs 3.1 m beside them; fault zones 13.3 m vs 4.1 m; spring flow on the fault zones 4.6× the ground beside them. At the hot spring in late January: 3 mm of snow water and no frost, against 0.30 m and 1.1 m of frost around it.
+  - Valley and Ridge, 20,000 years, twin runs with sinkholes off: rock under the sinkholes dissolved 52.6 m vs 1.8 m, leaving closed hollows in the rock floor (4 vs 1). Under a painted 3-day storm on bare limestone, karst cut the storm runoff leaving the map by 38 % against an insoluble twin.
+  - Gulf: relief 326 m against 1,085 m for the same seed as Plateau; the ground over the salt domes sank 2.1 m while the ground around them gained 0.2 m.
+  - Plateau: the rock along a salt anticline's crest went down 82.5 m vs 29.6 m on its flanks (the collapsed valley fills with sediment); jointed sandstone wore 1.21× as fast as unjointed; an exposed laccolith core (19 cells, a small exposure) lowered 3.9 m vs 13.6 m on its flanks (40,000 years at 3× erosion).
+  - Water balance within 3e-7 % in every run. Solids balance within the same float rounding as with layers off (about 1e-7 of the rock volume).
+- Regression: `strata` 7/7, `round2` 10/10, `round3` 7/7, `deposits` 5/5, `glacier` 11/11. Two tests miss their thresholds because the plateau rock changed, not because of a fault in their code:
+  - `wind` 11/12: `directionDial` along-wind share is 0.49 against 0.5. It passed only narrowly before (0.504).
+  - `volcano` 16/17: `basaltIsHard`: basalt now wears 0.74× as fast as the plateau rock around it (needs < 0.7×), because the new plateau has thick, hard dune sandstones.
+- Frame rate (`tests/perf-provinces.js`, 512): 60 fps in every province at 1 day/s and 1000 yr/s. Rendering costs up to about 1 ms more per frame (Gulf, 4.9 ms against 3.8 ms with layers off).
+- Pictures: `tests/shot-r9-{plateau,rockies,valleyRidge,gulf}.png` after 15,000 years, and `tests/shot-r9-{rockies,valleyRidge}-subsurface.png` in the Subsurface view.
+
 ## Round 7: glaciers
 
 Built directly, on branch `r7-glaciers` (cut from `r6-wind`).

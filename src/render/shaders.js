@@ -1,4 +1,4 @@
-import { strataWGSL, MAX_BEDS, VOLCANIC } from '../sim/strata.js';
+import { strataWGSL, MAX_BEDS, TABLE_LEN, TB, VOLCANIC, ANOM_COLORS } from '../sim/strata.js';
 import { VOLC_WGSL } from '../sim/common.js';
 // WGSL for the renderer: shared uniforms, sky, terrain, terrain block sides, water, falling precipitation.
 
@@ -32,9 +32,9 @@ struct R {
   st: array<vec4f, 4>,   // active storm clouds: world x, world z, radius (m), strength 0..1
   stX: vec4f,         // x = cloud base height (world y), y = snow 0..1, z = flash 0..1, w = cloud top height
   view: vec4f,        // viewport width, height (px), projection scale (P11), tree density scale
-  // rock layers (sim/strata.js): 16 structure floats in packStrata order, bed table, bed colours
+  // rock layers (sim/strata.js): 16 structure floats in packStrata order, rock table (TB layout), bed colours
   stS: array<vec4f, 4>,
-  stBeds: array<vec4f, ${MAX_BEDS}>,
+  stBeds: array<vec4f, ${TABLE_LEN}>,
   stCol: array<vec4f, ${MAX_BEDS}>,
   vent: array<vec4f, 2>,   // erupting vents (sim/volcano.js): world x, world z, cone top (world y), strength 0..1
 };
@@ -43,15 +43,58 @@ struct R {
 
 const vc = (k, f) => VOLCANIC[k][f].map((x) => x.toFixed(3)).join(', ');
 const STRATA_R = strataWGSL((i) => `R_.stS[${i >> 2}].${'xyzw'[i & 3]}`, (k) => `R_.stBeds[${k}]`);
+const ac = (k) => `vec3f(${ANOM_COLORS[k].map((x) => x.toFixed(3)).join(', ')})`;
 export const COMMON = STRATA_R + /* wgsl */ `
 // Rock colour from the simulated beds at bedrock height z, grid cell g (linear rgb); a = 0 when off.
 fn strataRock(z: f32, g: vec2f) -> vec4f {
   if (R_.stS[0].x < 0.5) { return vec4f(0.0); }
-  let L = stLayer(z, g);
-  let k = u32(L.x);
+  let r = stRock(z, g);
+  let k = u32(r.k);
+  var c = srgb(R_.stCol[k].rgb);
+  // crystalline core: pink granite, banded gneiss, dark schist
+  let mws = r.mw.x + r.mw.y + r.mw.z;
+  if (mws > 0.0) {
+    let p = stP(g);
+    let band = 0.8 + 0.2 * sin(dot(p, vec2f(0.6, 0.8)) * 0.15 + 3.0 * vnoise(p * 0.02));   // foliation ~40 m apart
+    let cb = srgb(R_.stBeds[${TB.baseCol}].rgb) * r.mw.x * (0.9 + 0.2 * vnoise(p * 0.7))
+           + srgb(R_.stBeds[${TB.baseCol + 1}].rgb) * r.mw.y * band
+           + srgb(R_.stBeds[${TB.baseCol + 2}].rgb) * r.mw.z * (0.9 + 0.1 * band);
+    c = mix(c, cb / max(mws, 1e-3), mws);
+  }
+  if (r.cw > 0.0) { c = mix(c, srgb(anomColor(r.col)), clamp(r.cw, 0.0, 1.0)); }
   // the contact itself shows as a slightly darker seam
-  let seam = 1.0 - 0.25 * (1.0 - smoothstep(0.0, 0.8, min(L.y, L.z)));
-  return vec4f(srgb(R_.stCol[k].rgb) * seam, 1.0);
+  let seam = 1.0 - 0.25 * (1.0 - smoothstep(0.0, 0.8, min(r.lyz.x, r.lyz.y)));
+  return vec4f(c * seam, 1.0);
+}
+// Colours of the anomaly bodies (sim/strata.js ANOM_COLORS)
+fn anomColor(id: f32) -> vec3f {
+  let i = u32(id + 0.5);
+  switch i {
+    case 1u: { return ${ac(1)}; }
+    case 2u: { return ${ac(2)}; }
+    case 3u: { return ${ac(3)}; }
+    case 4u: { return ${ac(4)}; }
+    case 6u: { return ${ac(6)}; }
+    case 7u: { return ${ac(7)}; }
+    case 8u: { return ${ac(8)}; }
+    case 9u: { return ${ac(9)}; }
+    case 10u: { return ${ac(10)}; }
+    default: { return ${ac(11)}; }
+  }
+}
+// Subsurface overlay (mode 12): what the rock does underground. Hard intrusions black, salt white,
+// soluble rock cyan, conduits that carry groundwater blue, hot ground red on top.
+fn subsurface(z: f32, g: vec2f) -> vec4f {
+  if (R_.stS[0].x < 0.5) { return vec4f(0.0); }
+  let r = stRock(z, g);
+  var c = vec3f(0.0); var a = 0.0;
+  if (r.sol > 0.05) { c = mix(vec3f(0.55, 0.95, 0.95), vec3f(0.0, 0.75, 0.80), clamp(log(1.0 + r.sol) / log(31.0), 0.0, 1.0)); a = 0.8; }
+  if (r.sol > 10.0) { c = vec3f(1.0, 1.0, 1.0); a = 0.95; }
+  if (r.perm > 2.5 && r.sol < 0.05) { let t = clamp(log(r.perm / 2.5) / log(10.0), 0.0, 1.0); c = mix(c, vec3f(0.15, 0.30, 0.95), max(t, 0.5)); a = max(a, 0.85); }
+  let i = u32(r.col + 0.5);
+  if ((i == 1u || i == 9u || i == 10u) && r.cw > 0.3) { c = vec3f(0.05, 0.05, 0.06); a = 0.95; }
+  if (r.heat > 0.5) { c = mix(c, vec3f(1.0, 0.25, 0.10), clamp(r.heat / 15.0, 0.4, 1.0)); a = 0.95; }
+  return vec4f(c, a);
 }
 fn srgb(c: vec3f) -> vec3f { return pow(c, vec3f(2.2)); }
 // Volcanic rock colour (linear rgb) of type t (sim/strata.js VOLCANIC) at ground position p: mottled
@@ -545,6 +588,7 @@ fn overlay(mode: i32, m0: vec4f, m1: vec4f, m3: vec2f, m4: vec4f, m5: vec4f, m6:
     if (i.m8.z > 0.05) { ov = vec4f(mix(ov.rgb, vec3f(1.0, 0.25, 0.1), i.m8.z), max(ov.a, i.m8.z)); }
     if (lavaCov > 0.0 && i.m8.y > 0.15) { ov = vec4f(1.0, 0.65, 0.1, lavaCov); }
   }
+  if (i32(R_.skyZenith.w) == 12) { ov = subsurface(ground - soilD, i.m2.yz); }
   if (i32(R_.skyZenith.w) > 0) {
     // Mute the natural colours so the overlay reads clearly.
     let g = dot(outc, vec3f(0.3, 0.55, 0.15));

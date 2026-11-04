@@ -1,0 +1,17 @@
+{
+  "province": "plateau",
+  "describe": "Colorado Plateau: 23 beds, dipping 0.62° to the E; a basement-cored uplift raises them 436 m.",
+  "notes": [
+    "Regional heat flow ~60 mW/m².",
+    "A salt anticline: salt about 31 m down. Once erosion reaches it, groundwater dissolves it and the crest collapses into a long valley. Gravity low.",
+    "4 soluble beds (limestone, gypsum, chalk): where exposed, streams lose water into the ground and the rock slowly dissolves."
+  ],
+  "day": 5475240,
+  "bal": -1.518368797048177e-7,
+  "solidsErr": -826.1612235885113,
+  "nan": false,
+  "gpuErrors": 0,
+  "gpuFeatureStatusWebGPU": "enabled",
+  "electron": "45.2.1",
+  "chrome": "156.0.8078.75"
+}

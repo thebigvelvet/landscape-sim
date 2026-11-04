@@ -2,7 +2,7 @@
 // It is written ONCE per frame/batch with a single queue.writeBuffer, so there is no
 // per-dispatch uniform churn and every pipeline shares the same bind-group layout slot 0.
 
-import { MAX_BEDS, STRATA_PARAM_FIELDS } from './strata.js';
+import { TABLE_LEN, STRATA_PARAM_FIELDS } from './strata.js';
 
 // [name, type] - all 4 bytes except the bed table at the end. Order is the memory layout.
 export const PARAM_FIELDS = [
@@ -53,15 +53,17 @@ export const PARAM_FIELDS = [
   ['v0ld', 'f32'], ['v1x', 'f32'], ['v1y', 'f32'], ['v1r', 'f32'],
   ['v1h0', 'f32'], ['v1h1', 'f32'], ['v1lx', 'f32'], ['v1ly', 'f32'],
   ['v1lr', 'f32'], ['v1ld', 'f32'], ['volcP2', 'f32'], ['volcP3', 'f32'],
+  // karst and salt (sim/column.js): dissolution rate (m/yr of soluble rock), landscape years this batch
+  ['kDiss', 'f32'], ['yrsE', 'f32'],
   // rock layers (sim/strata.js): on/off, top of the stack (m, bedrock frame), dip, monocline, fold
   ...STRATA_PARAM_FIELDS.map((n) => [n, 'f32']),
-  // bed table: (base depth m, erode, weather, cliffTan) per bed; must stay last
-  ['stBeds', `array<vec4<f32>, ${MAX_BEDS}>`],
+  // rock table (strata.js TB layout: beds, faults, domes, anomalies, joints, basement); must stay last
+  ['stBeds', `array<vec4<f32>, ${TABLE_LEN}>`],
 ];
 const SCALARS = PARAM_FIELDS.length - 1;
 
 export const PARAMS_WGSL = `struct Params {\n${PARAM_FIELDS.map(([n, t]) => `  ${n} : ${t},`).join('\n')}\n};\n`;
-export const PARAMS_BYTES = Math.ceil((SCALARS * 4) / 16) * 16 + MAX_BEDS * 16;
+export const PARAMS_BYTES = Math.ceil((SCALARS * 4) / 16) * 16 + TABLE_LEN * 16;
 
 export class ParamBlock {
   constructor(device) {
@@ -83,7 +85,7 @@ export class ParamBlock {
       this.values[k] = v;
     }
   }
-  // array field (the bed table): copy floats in at its offset
+  // array field (the rock table): copy floats in at its offset
   setArray(name, data) { this.f.set(data, Math.ceil(SCALARS / 4) * 4); }
   upload() { this.device.queue.writeBuffer(this.buffer, 0, this.raw); }
 }

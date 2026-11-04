@@ -182,6 +182,7 @@ export class Panel {
     $('spin').addEventListener('change', () => { app.renderer.camera.autoRotate = $('spin').checked; });
     $('trees').addEventListener('change', () => { app.renderer.showTrees = $('trees').checked; });
     $('strata').addEventListener('change', () => { app.sim.strata = $('strata').checked; });
+    $('province').addEventListener('change', () => this.generate());
     $('glaciers').addEventListener('change', () => { app.sim.glaciers = $('glaciers').checked; });
     $('old-volcanoes').addEventListener('change', () => { app.sim.oldVolcanoes = $('old-volcanoes').checked; });
     // wind: on/off, a compass dial for where it blows from, strength and steadiness
@@ -241,6 +242,7 @@ export class Panel {
       seed: +$('seed').value,
       ruggedness: +$('rugged').value,
       preset: this.app.sim.climate.presetName,
+      province: $('province').value,
     });
   }
 
@@ -250,7 +252,10 @@ export class Panel {
     $('scenario').value = res.scenario;
     $('size').value = String(res.N);
     $('seed').value = res.seed;
-    $('strata-info').textContent = sim.strataInfo ? `This landscape: ${sim.strataInfo.describe}` : '';
+    $('province').value = sim.province || 'plateau';
+    $('strata-info').textContent = sim.strataInfo
+      ? `This landscape: ${sim.strataInfo.describe}${(sim.strataInfo.notes || []).map((n) => `
+• ${n}`).join('')}` : '';
     $('rugged').value = sim.ruggedness;
     $('rugged-out').textContent = (+sim.ruggedness).toFixed(2);
     this.initialSolid = null;

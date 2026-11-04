@@ -32,9 +32,10 @@ export const WATER_VERTICAL_WGSL = /* wgsl */`
 //   from the top). Transpiration is part of the ET flux, so it is logged as evap and the water
 //   balance stays exact.
 // returns (newGroundwater, runoff, evapotranspiration)
-fn soilStep(gw : f32, liquid : f32, T : f32, frozen : f32, dt : f32, cap : f32, vg : f32, bn : f32) -> vec3<f32> {
+// kMul: infiltration multiplier (bare limestone swallows rain through its cracks, sim/column.js)
+fn soilStep(gw : f32, liquid : f32, T : f32, frozen : f32, dt : f32, cap : f32, vg : f32, bn : f32, kMul : f32) -> vec3<f32> {
   let space = max(cap - gw, 0.0);
-  let kInf = P.ksat * (0.7 + 1.0 * vg) * (1.0 - 0.75 * bn);
+  let kInf = P.ksat * (0.7 + 1.0 * vg) * (1.0 - 0.75 * bn) * kMul;
   let infil = min(liquid, min(kInf * dt * (1.0 - 0.92 * frozen), space));
   var g = gw + infil;
   var runoff = liquid - infil;

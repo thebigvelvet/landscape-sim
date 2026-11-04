@@ -2,82 +2,82 @@
   "checks": {
     "dunesForm": {
       "pass": true,
-      "relief_m": 30.770687103271484
+      "relief_m": 29.838650703430176
     },
     "dunesTravelDownwind": {
       "pass": true,
-      "cellsIn50yr": 10
+      "cellsIn50yr": 9
     },
     "slipFaces": {
       "pass": true,
-      "leeP90deg": 30.814670041222033,
-      "stossP90deg": 27.34499476950094
+      "leeP90deg": 30.46956722557261,
+      "stossP90deg": 27.15704764897239
     },
     "crestsAcrossSteadyWind": {
       "pass": true,
-      "alongShare": 0.5704811731961095,
-      "gradientAngleToWind": 31.843497143020823,
-      "coherence": 0.31800225526224835
+      "alongShare": 0.5493122823601134,
+      "gradientAngleToWind": 37.28321542537833,
+      "coherence": 0.3706005593865791
     },
     "booksSand": {
       "pass": true,
-      "solidsError_m3": -117.38568541035056,
-      "sedOut_m3": 6135768.1070208885,
-      "balPct": 3.264993948183484e-8
+      "solidsError_m3": -93.76320833992213,
+      "sedOut_m3": 6308609.554052402,
+      "balPct": -8.182312410202642e-8
     },
     "linearDunesAlongWind": {
       "pass": true,
-      "alongShare": 0.04289623836335149,
-      "gradientAngleToWind": 88.66805471074933,
-      "coherence": 0.9151965172064019
+      "alongShare": 0.05576366938443277,
+      "gradientAngleToWind": 89.85943469672891,
+      "coherence": 0.88848335644379
     },
     "directionDial": {
-      "pass": true,
-      "alongShare": 0.5041144879192389,
-      "gradientAngleToWind": 42.28139544418096,
+      "pass": false,
+      "alongShare": 0.4897718379566523,
+      "gradientAngleToWind": 55.049627579428645,
       "travelSouthCells": 10
     },
     "protectedSurfaces": {
       "pass": true,
-      "wetGreen": 0.08300399780273438,
-      "pavementMeanChange_m": 0.0007241464985741509,
-      "pavementRelief": 0.004436492919921875
+      "wetGreen": 0.29895734786987305,
+      "pavementMeanChange_m": 0.0014463833388355042,
+      "pavementRelief": 0.023968935012817383
     },
     "sandblastingDifferential": {
       "pass": true,
-      "hard_m": 0.037590739507379865,
-      "soft_m": 0.17992666346119265,
+      "hard_m": 0.030372769818091897,
+      "soft_m": 0.23767929353008496,
       "cells": {
-        "hard": 7783,
-        "soft": 29977
+        "hard": 7061,
+        "soft": 30699
       },
-      "stack": "27 beds, dipping 0.4° to the S; a monocline drops them 444 m at up to 16°; a broad syncline arches them 11 m."
+      "stack": "Colorado Plateau: 23 beds, dipping 0.37° to the S; a monocline drops them 444 m at up to 16°; a broad syncline arches them 11 m."
     },
     "snowDrifts": {
       "pass": true,
-      "leeGain": 1.3489343638183844,
-      "exposedLoss": 0.2458419854087486,
-      "leeCells": 30548,
-      "exposedCells": 18872,
-      "balOn": -1.002725496170757e-7,
-      "snowOn_m3": 1593291.1659240723,
-      "snowOff_m3": 1558312.9314422607
+      "leeGain": 1.3433607700902923,
+      "exposedLoss": 0.25895035123859494,
+      "leeCells": 30559,
+      "exposedCells": 18595,
+      "balOn": 0.0000011866456092190725,
+      "snowOn_m3": 1594367.763710022,
+      "snowOff_m3": 1559195.984840393
     },
     "booksSnow": {
       "pass": true,
-      "balPct": -1.002725496170757e-7
+      "balPct": 0.0000011866456092190725
     },
     "booksLandscape": {
       "pass": true,
-      "solidsError_m3": -13.796360307605937,
-      "sedOut_m3": 1061170.1170613233,
-      "balPct": 1.0665353748916393e-7,
+      "solidsError_m3": -16.928450693376362,
+      "sedOut_m3": 1289210.3836373193,
+      "balPct": 1.7650422960820892e-7,
       "nan": false,
-      "maxErosion_m": 116.25677490234375,
-      "meanWind": 0.7184176820632935,
-      "shelteredFrac": 0.5225067138671875,
-      "sandCoverFrac": 0.3943023681640625,
-      "topSandVolume_m3": 1031910.635124892,
+      "maxErosion_m": 134.464111328125,
+      "meanWind": 0.7152949095838852,
+      "shelteredFrac": 0.523162841796875,
+      "sandCoverFrac": 0.4292755126953125,
+      "topSandVolume_m3": 1079648.3849231154,
       "lastBatch": {
         "K": 1,
         "eSand": 4.38469887491035e-12,
@@ -91,74 +91,74 @@
   },
   "runs": {
     "steady": {
-      "relief": 30.770687103271484,
-      "leeP90deg": 30.814670041222033,
-      "stossP90deg": 27.34499476950094,
-      "leeMedDeg": 16.852345367352182,
-      "stossMedDeg": 14.241694187527896,
-      "crestAngleToWind": 31.843497143020823,
-      "coherence": 0.31800225526224835,
-      "alongShare": 0.5704811731961095,
-      "travelCells50yr": 10,
-      "solidsError_m3": -117.38568541035056,
-      "sedOut_m3": 6135768.1070208885,
-      "balPct": 3.264993948183484e-8,
+      "relief": 29.838650703430176,
+      "leeP90deg": 30.46956722557261,
+      "stossP90deg": 27.15704764897239,
+      "leeMedDeg": 17.226907115790898,
+      "stossMedDeg": 14.279959477056211,
+      "crestAngleToWind": 37.28321542537833,
+      "coherence": 0.3706005593865791,
+      "alongShare": 0.5493122823601134,
+      "travelCells50yr": 9,
+      "solidsError_m3": -93.76320833992213,
+      "sedOut_m3": 6308609.554052402,
+      "balPct": -8.182312410202642e-8,
       "nan": false
     },
     "bimodal": {
-      "relief": 19.852590084075928,
-      "leeP90deg": 6.129454027960293,
-      "stossP90deg": 7.3818451393835955,
-      "leeMedDeg": 0.9983523949771159,
-      "stossMedDeg": 1.0428574413085834,
-      "crestAngleToWind": 88.66805471074933,
-      "coherence": 0.9151965172064019,
-      "alongShare": 0.04289623836335149
+      "relief": 19.886147022247314,
+      "leeP90deg": 7.349443212036991,
+      "stossP90deg": 8.61267485252613,
+      "leeMedDeg": 1.1365610336520287,
+      "stossMedDeg": 1.099233238242632,
+      "crestAngleToWind": 89.85943469672891,
+      "coherence": 0.88848335644379,
+      "alongShare": 0.05576366938443277
     },
     "north": {
-      "relief": 28.977625846862793,
-      "leeP90deg": 29.505735293982465,
-      "stossP90deg": 23.519764107628173,
-      "leeMedDeg": 15.889523378184249,
-      "stossMedDeg": 13.138747785103574,
-      "crestAngleToWind": 42.28139544418096,
-      "coherence": 0.08684491964002816,
-      "alongShare": 0.5041144879192389,
+      "relief": 29.824164390563965,
+      "leeP90deg": 29.57966206430572,
+      "stossP90deg": 23.422363239746712,
+      "leeMedDeg": 15.554007341755606,
+      "stossMedDeg": 12.807322324526002,
+      "crestAngleToWind": 55.049627579428645,
+      "coherence": 0.059527058676285834,
+      "alongShare": 0.4897718379566523,
       "travelCells50yr": 10
     },
     "protected": {
-      "wetGreen": 0.08300399780273438,
-      "pavementMeanChange_m": 0.0007241464985741509,
-      "pavementRelief": 0.004436492919921875
+      "wetGreen": 0.29895734786987305,
+      "pavementMeanChange_m": 0.0014463833388355042,
+      "pavementRelief": 0.023968935012817383
     },
     "abrasion": {
-      "hard_m": 0.037590739507379865,
-      "soft_m": 0.17992666346119265,
+      "hard_m": 0.030372769818091897,
+      "soft_m": 0.23767929353008496,
       "cells": {
-        "hard": 7783,
-        "soft": 29977
+        "hard": 7061,
+        "soft": 30699
       },
-      "stack": "27 beds, dipping 0.4° to the S; a monocline drops them 444 m at up to 16°; a broad syncline arches them 11 m."
+      "stack": "Colorado Plateau: 23 beds, dipping 0.37° to the S; a monocline drops them 444 m at up to 16°; a broad syncline arches them 11 m."
     },
     "snow": {
-      "leeGain": 1.3489343638183844,
-      "exposedLoss": 0.2458419854087486,
-      "leeCells": 30548,
-      "exposedCells": 18872,
-      "balOn": -1.002725496170757e-7,
-      "snowOn_m3": 1593291.1659240723,
-      "snowOff_m3": 1558312.9314422607
+      "leeGain": 1.3433607700902923,
+      "exposedLoss": 0.25895035123859494,
+      "leeCells": 30559,
+      "exposedCells": 18595,
+      "balOn": 0.0000011866456092190725,
+      "snowOn_m3": 1594367.763710022,
+      "snowOff_m3": 1559195.984840393
     },
     "utah1000": {
-      "solidsError_m3": -13.796360307605937,
-      "sedOut_m3": 1061170.1170613233,
-      "balPct": 1.0665353748916393e-7,
+      "solidsError_m3": -16.928450693376362,
+      "sedOut_m3": 1289210.3836373193,
+      "balPct": 1.7650422960820892e-7,
       "nan": false,
-      "maxErosion_m": 116.25677490234375,
-      "meanWind": 0.7184176820632935,
-      "shelteredFrac": 0.5225067138671875,
-      "sandCoverFrac": 0.3943023681640625,
-      "topSandVolume_m3": 1031910.635124892,
+      "maxErosion_m": 134.464111328125,
+      "meanWind": 0.7152949095838852,
+      "shelteredFrac": 0.523162841796875,
+      "sandCoverFrac": 0.4292755126953125,
+      "topSandVolume_m3": 1079648.3849231154,
       "lastBatch": {
         "K": 1,
         "eSand": 4.38469887491035e-12,
@@ -170,9 +170,9 @@
       }
     }
   },
-  "passed": 12,
+  "passed": 11,
   "total": 12,
-  "minutes": 0.35632833333313463,
+  "minutes": 0.3641050000001987,
   "gpuErrors": 0,
   "gpuFeatureStatusWebGPU": "enabled",
   "electron": "45.2.1",
