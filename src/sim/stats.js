@@ -187,10 +187,14 @@ export class Stats {
     enc.copyBufferToBuffer(B.fluxLog, 0, st, pBytes, LOG_SIZE * 16);
     enc.copyBufferToBuffer(B.plantPartials, 0, st, pBytes + LOG_SIZE * 16, STAT_GROUPS * 16);
     dev.queue.submit([enc.finish()]);
-    await st.mapAsync(GPUMapMode.READ);
-    const all = new Float32Array(st.getMappedRange().slice(0));
-    st.unmap();
-    this.pool.push(st);
+    let all;
+    try {
+      await st.mapAsync(GPUMapMode.READ);
+      all = new Float32Array(st.getMappedRange().slice(0));
+      st.unmap();
+    } catch (e) { st.destroy(); throw e; }
+    // a snapshot still in flight when the world was replaced must not go back into a dead pool
+    if (this.dead) st.destroy(); else this.pool.push(st);
     const part = all.subarray(0, STAT_GROUPS * STAT_STRIDE);
     const log = all.subarray(STAT_GROUPS * STAT_STRIDE, STAT_GROUPS * STAT_STRIDE + LOG_SIZE * 4);
     const pp = all.subarray(STAT_GROUPS * STAT_STRIDE + LOG_SIZE * 4);
@@ -212,5 +216,5 @@ export class Stats {
     return { state: out, log };
   }
 
-  destroy() { for (const b of this.pool) b.destroy(); this.pool = []; }
+  destroy() { for (const b of this.pool) b.destroy(); this.pool = []; this.dead = true; }
 }

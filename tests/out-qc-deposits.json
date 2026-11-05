@@ -1,0 +1,64 @@
+{
+  "checks": {
+    "books": {
+      "pass": true,
+      "badValues": 0,
+      "negative": 0,
+      "cellsWithMoreBedsThanSoil": 0,
+      "worst_m": 0,
+      "balPct": -3.99992333410216e-7,
+      "solidsError_m3": 14.396221574861556
+    },
+    "placement": {
+      "pass": true,
+      "volume_m3": 22967.46482607025,
+      "inHollowsFrac": 0.8124938726966108,
+      "onRidgesFrac": 0.004325593621425036
+    },
+    "bedding": {
+      "pass": true,
+      "cellsOver1m": 22,
+      "medianBedsOver1m": 7,
+      "grainClassesOver5pct": 2,
+      "byGrain_m3": {
+        "clay": 0,
+        "silt": 15279.804073100717,
+        "sand": 7473.079673793836,
+        "gravel": 214.58107917569578
+      }
+    },
+    "youngestFirst": {
+      "pass": true,
+      "incisedCells": 77,
+      "meanCut_m": 0.08268802156344936,
+      "olderBedsIntactFrac": 1,
+      "examples": []
+    },
+    "pondFines": {
+      "pass": true,
+      "lakeCells": 556,
+      "lakeMeanGrain": 0.2321505023200707,
+      "lakeSpeedMedian": 0.0063737812387910054,
+      "steepCells": 1238,
+      "steepMeanGrain": 0.7937142576399118
+    }
+  },
+  "summary": {
+    "maxThickness_m": 1.4809184223413467,
+    "maxBeds": 8,
+    "volume_m3": 22967.464826070256,
+    "coveredFrac": 0.00347900390625,
+    "volumeByGrain_m3": {
+      "clay": 0,
+      "silt": 15279.804073100717,
+      "sand": 7473.079673793836,
+      "gravel": 214.58107917569578
+    }
+  },
+  "allPass": true,
+  "failed": [],
+  "wallSeconds": 14.77180000001192,
+  "gpuFeatureStatusWebGPU": "enabled",
+  "electron": "45.2.1",
+  "chrome": "156.0.8078.75"
+}

@@ -25,7 +25,7 @@
     </button>
     <div class="speedwrap">
       <div class="speedlabel"><span>Speed</span><b id="speed-text">3 days / second</b>
-        <span class="tip" data-tip="How fast time runs. Slow speeds show individual storms, snowfalls and melt. Fast speeds skip the day-to-day weather and show the land itself changing over centuries. The seasons keep cycling so you can still see winter and summer.">?</span></div>
+        <span class="tip" tabindex="0" data-tip="How fast time runs. Slow speeds show individual storms, snowfalls and melt. Fast speeds skip the day-to-day weather and show the land itself changing over centuries. The seasons keep cycling so you can still see winter and summer.">?</span></div>
       <input id="speed" type="range" min="0" max="1000" value="100" aria-label="Simulation speed" />
       <div class="ticks"><span data-speed="0.0417" title="Slow motion: watch a flood wave travel">1 hour/s</span><span data-speed="1">1 day/s</span><span data-speed="30">1 month/s</span><span data-speed="365">1 year/s</span><span data-speed="365000">1000 yr/s</span></div>
     </div>
@@ -36,6 +36,7 @@
     <div id="legend-title"></div>
     <div id="legend-bar"></div>
     <div id="legend-labels"></div>
+    <div id="legend-swatches"></div>
     <div id="legend-note"></div>
   </div>
 
@@ -47,93 +48,77 @@
       <button id="collapse" class="ghost" title="Hide the panel">&laquo;</button>
     </header>
 
-    <section>
+    <section id="place">
       <h2>Place &amp; climate</h2>
       <div id="presets" class="presets"></div>
       <p id="preset-blurb" class="blurb"></p>
       <label class="slider">
-        <span>Temperature <span class="tip" data-tip="Shifts the whole year warmer or colder. Colder means more snow and more freeze-thaw on the peaks; warmer turns snow into rain.">?</span></span>
-        <input id="temp" type="range" min="-8" max="8" step="0.5" value="0" /><output id="temp-out">normal</output>
+        <span>Temperature <span class="tip" tabindex="0" data-tip="Shifts the whole year warmer or colder. Colder means more snow and frost on the peaks (and, a few degrees down, glaciers); warmer turns snow into rain.">?</span></span>
+        <input id="temp" type="range" min="-8" max="8" step="0.5" value="0" autocomplete="off" /><output id="temp-out">normal</output>
       </label>
       <label class="slider">
-        <span>Rain &amp; snow <span class="tip" data-tip="How much precipitation falls in a year compared with the real place. More water means bigger streams and faster erosion.">?</span></span>
-        <input id="precip" type="range" min="-2" max="1.6" step="0.05" value="0" /><output id="precip-out">normal</output>
-      </label>
-      <label class="slider">
-        <span>Season contrast <span class="tip" data-tip="How different summer and winter are. Zero gives the same weather all year; high values give bitter winters and hot summers.">?</span></span>
-        <input id="seas" type="range" min="0" max="2" step="0.05" value="1" /><output id="seas-out">normal</output>
-      </label>
-      <label class="slider">
-        <span>Erosion strength <span class="tip" data-tip="How easily water and frost wear the land down. Real rock is very slow, so the default is already sped up about 10x to make change visible over thousands of years.">?</span></span>
-        <input id="erosion" type="range" min="-1.5" max="2" step="0.05" value="0" /><output id="erosion-out">normal</output>
-      </label>
-      <label class="check"><input id="glaciers" type="checkbox" checked /> Glaciers <span class="tip" data-tip="Where snow outlasts the summer year after year it packs down into glacier ice. The ice creeps downhill, scrapes valleys into U-shapes and carves bowls (cirques) at their heads, and drops the rock it carries where it melts, leaving ridges of rubble (moraines). Turn the temperature down a few degrees to grow them; warm it up to watch them melt back. Glaciers take centuries, so use the faster speeds.">?</span></label>
-      <button id="storm" class="ghost">Send a big storm (3 days) <span class="tip" data-tip="Drops three days of very heavy rain or snow, about twelve times the usual amount. Watch streams flood, carry mud and cut into their beds.">?</span></button>
-    </section>
-
-    <section id="wind-section">
-      <h2>Wind <span class="tip" data-tip="The prevailing wind. On dry, bare ground it lifts sand into dunes, blows fine dust away (leaving a gravel pavement behind), sandblasts bare rock and drifts snow into the lee of ridges. Plants, damp ground, snow cover and frozen ground protect the surface. At the fastest speeds dunes travel slower than real ones would.">?</span></h2>
-      <label class="check"><input id="wind-on" type="checkbox" checked /> Wind shapes the land</label>
-      <div class="wind-row">
-        <div id="wind-dial" class="wind-dial" role="slider" aria-label="Wind direction" tabindex="0" title="Drag to set where the wind blows from">
-          <span class="nesw n">N</span><span class="nesw e">E</span><span class="nesw s">S</span><span class="nesw w">W</span>
-          <div id="wind-arrow" class="wind-arrow"></div>
-        </div>
-        <div class="wind-text"><b id="wind-from">from the SW</b><span id="wind-dunes" class="hint"></span></div>
-      </div>
-      <label class="slider">
-        <span>Strength <span class="tip" data-tip="How hard the wind blows on average. Sand starts moving above about 0.6 and the amount moved climbs steeply with speed, so a stronger wind builds and moves dunes much faster.">?</span></span>
-        <input id="wind-speed" type="range" min="0" max="2" step="0.05" value="1" /><output id="wind-speed-out">1.00</output>
-      </label>
-      <label class="slider">
-        <span>Steadiness <span class="tip" data-tip="How steady the wind direction is. Steady wind (right) builds ridges and crescent dunes across the wind. Two winds trading off by season (middle) build long straight dunes along the average wind. Wind from all around (left) piles sand into star dunes.">?</span></span>
-        <input id="wind-steady" type="range" min="0" max="1" step="0.05" value="0.75" /><output id="wind-steady-out">steady</output>
+        <span>Rain &amp; snow <span class="tip" tabindex="0" data-tip="How much falls in a year compared with the real place. More water means bigger streams and faster erosion.">?</span></span>
+        <input id="precip" type="range" min="-2" max="1.6" step="0.05" value="0" autocomplete="off" /><output id="precip-out">normal</output>
       </label>
     </section>
 
-    <section id="events" class="dropdown">
-      <h2>Weather events <span class="tip" data-tip="Pick a tool, then click (or drag) on the land to make it happen there. Storms, droughts, floods and fires all follow the same physics as the normal weather, and every drop of water is counted.">?</span></h2>
+    <section id="events" class="dropdown" data-default-open>
+      <h2>Paint on the land <span class="tip" tabindex="0" data-tip="Pick a tool, then click or drag on the land. Weather events follow the same physics as the normal weather; shaping tools push the ground around while time runs or while paused.">?</span></h2>
+      <div class="subhead">Weather <small>keys 1&ndash;6</small></div>
       <div id="tools" class="tools"></div>
       <p id="tool-help" class="toolhelp"></p>
       <div id="volcano-style-row" class="row" hidden>
-        <label class="field grow"><span>Eruption style <span class="tip" data-tip="How the volcano erupts. The magmatic styles run from runny basalt (Hawaiian, mostly lava) to sticky, gas-rich magma (Plinian, mostly ash and pumice). In the steam-driven styles groundwater meets the heat of magma and explodes: Phreatic blasts out old rock only, Phreatomagmatic shatters the magma too into ash and digs a maar crater.">?</span></span>
-        <select id="volcano-style">
+        <label class="field grow"><span>Eruption style <span class="tip" tabindex="0" data-tip="From runny basalt that makes lava rivers (Hawaiian) to sticky, gas-rich magma that makes ash and pumice (Plinian). In the steam-driven styles groundwater meets the heat and explodes.">?</span></span>
+        <select id="volcano-style" autocomplete="off">
           <optgroup label="Magmatic">
-            <option value="hawaiian">Hawaiian</option>
-            <option value="strombolian" selected>Strombolian</option>
-            <option value="vulcanian">Vulcanian</option>
-            <option value="pelean">Pelean</option>
-            <option value="plinian">Plinian</option>
+            <option value="hawaiian">Hawaiian &ndash; lava rivers</option>
+            <option value="strombolian" selected>Strombolian &ndash; cinder cone and lava</option>
+            <option value="vulcanian">Vulcanian &ndash; blasts and ash</option>
+            <option value="pelean">Pelean &ndash; lava dome, glowing avalanches</option>
+            <option value="plinian">Plinian &ndash; huge ash column</option>
           </optgroup>
-          <optgroup label="Non-magmatic (steam-driven)">
-            <option value="phreatic">Phreatic</option>
-            <option value="phreatomagmatic">Phreatomagmatic</option>
+          <optgroup label="Steam-driven">
+            <option value="phreatic">Phreatic &ndash; steam-blast crater</option>
+            <option value="phreatomagmatic">Phreatomagmatic &ndash; maar crater lake</option>
           </optgroup>
         </select>
         </label>
       </div>
-      <label class="slider">
-        <span>Brush size <span class="tip" data-tip="How big an area the storm, fire or shaping brush covers. The ring on the land shows it.">?</span></span>
-        <input id="brush-size" type="range" min="3" max="60" step="1" value="15" /><output id="brush-size-out">150 m</output>
+      <button id="storm" class="ghost wide">Big storm over the whole map (3 days)</button>
+      <div id="sculpt" class="subgroup">
+        <div class="subhead">Shape <small>keys Q W E R T &middot; Ctrl+Z undoes</small></div>
+        <div id="sculpt-tools" class="tools"></div>
+        <p id="sculpt-help" class="toolhelp"></p>
+        <button id="undo" class="undo" disabled title="Undo the last stroke (Ctrl+Z)">Undo last stroke</button>
+      </div>
+      <label class="slider" id="brush-size-row">
+        <span>Brush size <span class="tip" tabindex="0" data-tip="How wide the storm, fire or shaping brush is. The ring on the land shows it. Drought and Volcano don't use it.">?</span></span>
+        <input id="brush-size" type="range" min="3" max="60" step="1" value="15" autocomplete="off" /><output id="brush-size-out">150 m</output>
       </label>
       <label class="slider">
-        <span>Strength <span class="tip" data-tip="Normal is already a big event: a 100-year flood, a cloudburst of about 240 mm. Turn it up for a monster, down for something milder.">?</span></span>
-        <input id="brush-strength" type="range" min="-1.5" max="1.5" step="0.1" value="0" /><output id="brush-strength-out">normal</output>
+        <span>Brush strength <span class="tip" tabindex="0" data-tip="How big the event, or how hard the shaping tool digs or builds. Normal is already a big event (a 100-year flood, a 240 mm cloudburst).">?</span></span>
+        <input id="brush-strength" type="range" min="-1.5" max="1.5" step="0.1" value="0" autocomplete="off" /><output id="brush-strength-out">normal</output>
       </label>
     </section>
 
-    <section id="sculpt">
-      <h2>Shape the land <span class="tip" data-tip="Pick a tool, then hold the mouse button on the land and drag. It works while time runs or while paused. The brush size and strength sliders in Weather events set how wide and how hard; that menu opens when you pick a tool. Water, snow and plants react to the new ground right away.">?</span></h2>
-      <div id="sculpt-tools" class="tools"></div>
-      <p id="sculpt-help" class="toolhelp"></p>
-      <button id="undo" class="undo" disabled title="Undo the last stroke (Ctrl+Z)">Undo last stroke</button>
+    <section id="show-me" class="dropdown">
+      <h2>Show me <span id="show-me-current" class="current"></span></h2>
+      <div id="overlays" class="overlays"></div>
+      <div class="sep"></div>
+      <label class="slider">
+        <span>Stretch heights <span class="tip" tabindex="0" data-tip="Stretches the land upward so hills are easier to read. Does not change the simulation.">?</span></span>
+        <input id="vex" type="range" min="1" max="3" step="0.05" value="1.25" autocomplete="off" /><output id="vex-out">1.25x</output>
+      </label>
+      <label class="check"><input id="contours" type="checkbox" autocomplete="off" /> Contour lines every 100 m</label>
+      <label class="check"><input id="spin" type="checkbox" autocomplete="off" /> Slowly circle the view</label>
+      <label class="check"><input id="trees" type="checkbox" checked autocomplete="off" /> Show trees in 3D</label>
     </section>
 
-    <section>
-      <h2>Landscape</h2>
+    <section id="landscape" class="dropdown">
+      <h2>Make a new landscape</h2>
       <div class="row">
         <label class="field grow">Shape
-          <select id="scenario">
+          <select id="scenario" autocomplete="off">
             <option value="random">Mountain range (random)</option>
             <option value="cone">Single cone mountain</option>
             <option value="valley">V-shaped valley</option>
@@ -141,7 +126,7 @@
           </select>
         </label>
         <label class="field" title="Grid resolution. Larger is more detailed but slower.">Detail
-          <select id="size">
+          <select id="size" autocomplete="off">
             <option value="256">Low</option>
             <option value="512" selected>Medium</option>
             <option value="1024">High</option>
@@ -149,18 +134,18 @@
         </label>
       </div>
       <div class="row">
-        <label class="field grow"><span>Seed <span class="tip" data-tip="A number that picks which random mountain range you get. The same seed always makes the same land.">?</span></span>
-          <input id="seed" type="number" min="1" max="99999" value="7" />
+        <label class="field grow"><span>Seed <span class="tip" tabindex="0" data-tip="A number that picks which random landscape you get. The same seed always makes the same land.">?</span></span>
+          <input id="seed" type="number" min="1" max="99999" value="7" autocomplete="off" />
         </label>
-        <button id="dice" class="ghost" title="Pick a random seed">Surprise me</button>
+        <button id="dice" class="ghost" title="Pick a random seed and make it now">Surprise me</button>
       </div>
-      <label class="slider">
-        <span>Ruggedness <span class="tip" data-tip="Gentle rolling hills at the left, sharp jagged ridges at the right. Only used for the random mountain range.">?</span></span>
-        <input id="rugged" type="range" min="0" max="1" step="0.05" value="0.55" /><output id="rugged-out">0.55</output>
+      <label class="slider" id="rugged-row">
+        <span>Ruggedness <span class="tip" tabindex="0" data-tip="Gentle rolling hills at the left, sharp jagged ridges at the right.">?</span></span>
+        <input id="rugged" type="range" min="0" max="1" step="0.05" value="0.55" autocomplete="off" /><output id="rugged-out">0.55</output>
       </label>
       <div class="row">
-        <label class="field grow"><span>Geology <span class="tip" data-tip="Which kind of country the rock comes from. Colorado Plateau: flat-lying sandstone, mudstone and limestone with monoclines, laccoliths, salt anticlines, breccia pipes and joints. Southern Rockies: a granite, gneiss and schist core with hogbacks on one flank, dikes, fault zones, altered rock and hot springs. Valley and Ridge: tight folds of quartzite, limestone, shale and coal, thrust faults, sinkholes and cave springs. Gulf Coastal Plain: a low plain of soft sand, clay and chalk with growth faults and dissolving salt domes. Random picks one from the seed. Picking a province also switches to its home climate (Utah desert, Colorado alpine, Temperate, Gulf Coast humid); you can choose another climate afterwards.">?</span></span>
-        <select id="province">
+        <label class="field grow"><span>Geology <span class="tip" tabindex="0" data-tip="Which kind of country the rock comes from: flat-lying sandstone (Colorado Plateau), a granite core (Southern Rockies), tight folds (Valley and Ridge) or soft coastal sand and clay (Gulf Coastal Plain). Each brings its home climate; the description below lists its rocks.">?</span></span>
+        <select id="province" autocomplete="off">
           <option value="plateau">Colorado Plateau</option>
           <option value="rockies">Southern Rockies</option>
           <option value="valleyRidge">Valley and Ridge</option>
@@ -169,29 +154,54 @@
         </select>
         </label>
       </div>
-      <label class="check"><input id="strata" type="checkbox" checked /> Rock layers <span class="tip" data-tip="The province's rocks: hard beds (sandstone, quartzite, limestone, granite) and soft ones (shale, mudstone, clay, sand), plus the anomalies that go with them - dikes, faults, salt, sinkholes, hot springs. Water and frost wear the soft rock away fast while the hard rock holds up as cliffs and ridges; groundwater dissolves limestone, gypsum and salt and runs fast along faults and joints. Off: one uniform rock.">?</span></label>
-      <label class="check"><input id="old-volcanoes" type="checkbox" checked /> Old volcanoes <span class="tip" data-tip="About one landscape in three starts with the worn-down remains of a cinder cone or two, with old basalt lava flows running down the valleys from them. The hard basalt and the plug in the volcano's throat outlast the soft cinders and the rock around them, so over time the flows stand up as lava-capped ridges and the plug as a rocky neck. Paint new ones with the Volcano brush.">?</span></label>
-      <div id="strata-info" class="hint" style="white-space: pre-line"></div>
+      <label class="check"><input id="old-volcanoes" type="checkbox" checked autocomplete="off" /> Old volcanoes <small class="muted">(new landscapes only)</small> <span class="tip" tabindex="0" data-tip="About one landscape in three starts with a worn-down cinder cone or two and old basalt flows. The hard basalt outlasts the rock around it, so the flows end up as lava-capped ridges.">?</span></label>
       <button id="generate" class="primary">Make this landscape</button>
+      <details id="strata-details">
+        <summary>About this landscape's rocks</summary>
+        <div id="strata-info" class="hint" style="white-space: pre-line"></div>
+      </details>
     </section>
 
-    <section id="show-me" class="dropdown">
-      <h2>Show me</h2>
-      <div id="overlays" class="overlays"></div>
+    <section id="wind-section" class="dropdown">
+      <h2>Wind <span class="tip" tabindex="0" data-tip="The prevailing wind. On dry, bare ground it builds dunes, blows dust away, sandblasts rock and drifts snow behind ridges. Plants, damp ground and snow protect the surface.">?</span></h2>
+      <label class="check"><input id="wind-on" type="checkbox" checked autocomplete="off" /> Wind shapes the land</label>
+      <div class="wind-row">
+        <div id="wind-dial" class="wind-dial" role="slider" aria-label="Wind direction" aria-valuemin="0" aria-valuemax="359" tabindex="0" title="Drag the arrow to point where the wind blows to (arrow keys turn it)">
+          <span class="nesw n">N</span><span class="nesw e">E</span><span class="nesw s">S</span><span class="nesw w">W</span>
+          <div id="wind-arrow" class="wind-arrow"></div>
+        </div>
+        <div class="wind-text"><b id="wind-from">Wind from the SW</b><span id="wind-dunes" class="hint"></span></div>
+      </div>
       <label class="slider">
-        <span>Height exaggeration <span class="tip" data-tip="Stretches the land vertically to make relief easier to read. Does not change the simulation.">?</span></span>
-        <input id="vex" type="range" min="1" max="3" step="0.05" value="1.25" /><output id="vex-out">1.25x</output>
+        <span>Wind strength <span class="tip" tabindex="0" data-tip="How hard the wind blows on average. Sand starts moving at a moderate breeze, and a stronger wind moves it much faster.">?</span></span>
+        <input id="wind-speed" type="range" min="0" max="2" step="0.05" value="1" autocomplete="off" /><output id="wind-speed-out">moderate</output>
       </label>
-      <label class="check"><input id="contours" type="checkbox" /> Contour lines every 100 m</label>
-      <label class="check"><input id="spin" type="checkbox" /> Slowly circle the view</label>
-      <label class="check"><input id="trees" type="checkbox" checked /> Show trees in 3D</label>
-      <p class="hint">Drag to turn, right-drag or Shift-drag to slide, scroll to zoom. With a weather tool picked, left-click paints and Esc goes back to looking around.</p>
+      <label class="slider">
+        <span>Steadiness <span class="tip" tabindex="0" data-tip="Steady wind (right) builds crescent dunes across the wind; two winds trading off (middle) build long straight dunes; wind from all around (left) piles up star dunes.">?</span></span>
+        <input id="wind-steady" type="range" min="0" max="1" step="0.05" value="0.75" autocomplete="off" /><output id="wind-steady-out">steady</output>
+      </label>
     </section>
 
-    <section>
-      <h2>What's happening <span class="tip" data-tip="A running account of the water. Everything that fell as rain or snow is either still here (streams, lakes, snowpack), has flowed off the edge of the map, or has soaked in / evaporated. The check shows how well the books balance.">?</span></h2>
+    <section id="nature" class="dropdown">
+      <h2>Fine-tune nature</h2>
+      <label class="slider">
+        <span>Season contrast <span class="tip" tabindex="0" data-tip="How different summer and winter are. Zero gives the same weather all year; high values give bitter winters and hot summers.">?</span></span>
+        <input id="seas" type="range" min="0" max="2" step="0.05" value="1" autocomplete="off" /><output id="seas-out">normal</output>
+      </label>
+      <label class="slider">
+        <span>Erosion strength <span class="tip" tabindex="0" data-tip="How easily water and frost wear the land down. The default is already sped up about 10x so change shows over thousands of years.">?</span></span>
+        <input id="erosion" type="range" min="-1.5" max="2" step="0.05" value="0" autocomplete="off" /><output id="erosion-out">normal</output>
+      </label>
+      <label class="check"><input id="glaciers" type="checkbox" checked autocomplete="off" /> Glaciers <span class="tip" tabindex="0" data-tip="Snow that outlasts the summer packs into ice that creeps downhill, carves U-shaped valleys and leaves rubble ridges. Turn the temperature down a few degrees and use the fast speeds to grow them.">?</span></label>
+      <label class="check"><input id="strata" type="checkbox" checked autocomplete="off" /> Rock layers <span class="tip" tabindex="0" data-tip="Hard and soft beds of rock: soft ones wear away fast, hard ones stand up as cliffs and ridges. Off: one uniform rock. Takes effect right away.">?</span></label>
+    </section>
+
+    <section id="stats-section" class="dropdown">
+      <h2>What's happening <span class="tip" tabindex="0" data-tip="A running account. Every drop that fell as rain or snow is still here, has flowed off the map, or has soaked in or evaporated; the check shows the books add up.">?</span></h2>
       <div id="stats" class="stats"></div>
     </section>
+
+    <p class="keys-hint">Drag: turn &middot; right-drag: slide &middot; scroll: zoom &middot; Space: pause &middot; Esc: stop painting</p>
   </aside>
   <button id="expand" class="ghost hidden" title="Show the panel">&raquo; Controls</button>
 

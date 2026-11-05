@@ -1,0 +1,235 @@
+{
+  "checks": {
+    "finArches": {
+      "pass": true,
+      "runs": [
+        3,
+        4,
+        3,
+        0
+      ]
+    },
+    "rightRock": {
+      "pass": true
+    },
+    "seeThrough": {
+      "pass": true,
+      "arch": {
+        "kind": "arch",
+        "x": 39,
+        "y": 185,
+        "floor": 780.6171264648438,
+        "openH": 10.572040163664377,
+        "top": 831.0697021484375,
+        "span_cells": 2,
+        "width_cells": 3,
+        "age_kyr": 0.7549999999996148,
+        "rock": "Eolian sandstone",
+        "soft": false,
+        "lintel_m3": 24291.096377593385
+      }
+    },
+    "lifeCycle": {
+      "pass": true,
+      "fallen": 7,
+      "formed": 10
+    },
+    "noneElsewhere": {
+      "pass": true,
+      "valleyRidge": 0,
+      "gulf": 0
+    },
+    "noneWithoutJoints": {
+      "pass": true,
+      "seed": 2,
+      "formed": 0,
+      "bridges": 0
+    },
+    "bridge": {
+      "pass": true,
+      "site": {
+        "x": 40,
+        "y": 214,
+        "relief": 144.5345951244235,
+        "g": 186.4023048710078
+      },
+      "wetIn": 4.211816787719727,
+      "wetOut": 6.9182257652282715,
+      "bridges": [
+        {
+          "kind": "bridge",
+          "x": 18,
+          "y": 213,
+          "floor": 166.71475219726562,
+          "openH": 5.815171813964843,
+          "top": 183.27610778808594,
+          "span_cells": 1,
+          "width_cells": 3,
+          "age_kyr": 0,
+          "rock": "Eolian sandstone",
+          "soft": false,
+          "lintel_m3": 3223.855086231993
+        },
+        {
+          "kind": "bridge",
+          "x": 24,
+          "y": 213,
+          "floor": 166.12319946289062,
+          "openH": 6.114495086669922,
+          "top": 183.48118591308594,
+          "span_cells": 1,
+          "width_cells": 3,
+          "age_kyr": 0,
+          "rock": "Eolian sandstone",
+          "soft": false,
+          "lintel_m3": 3373.047409859397
+        },
+        {
+          "kind": "bridge",
+          "x": 30,
+          "y": 213,
+          "floor": 165.6679229736328,
+          "openH": 6.318494415283203,
+          "top": 183.6349639892578,
+          "span_cells": 1,
+          "width_cells": 3,
+          "age_kyr": 0,
+          "rock": "Eolian sandstone",
+          "soft": false,
+          "lintel_m3": 3494.5640305162606
+        },
+        {
+          "kind": "bridge",
+          "x": 36,
+          "y": 213,
+          "floor": 164.69805908203125,
+          "openH": 6.889631652832031,
+          "top": 184.23414611816406,
+          "span_cells": 1,
+          "width_cells": 3,
+          "age_kyr": 0,
+          "rock": "Eolian sandstone",
+          "soft": false,
+          "lintel_m3": 3793.9365531170365
+        },
+        {
+          "kind": "bridge",
+          "x": 42,
+          "y": 213,
+          "floor": 164.31907653808594,
+          "openH": 7.024454498291015,
+          "top": 184.38819885253906,
+          "span_cells": 1,
+          "width_cells": 3,
+          "age_kyr": 0,
+          "rock": "Eolian sandstone",
+          "soft": false,
+          "lintel_m3": 3913.4002993147847
+        }
+      ],
+      "necks": 5,
+      "waterUnder": 5.4174652099609375
+    },
+    "books": {
+      "pass": true,
+      "books": [
+        {
+          "run": "plateau 1",
+          "ok": true,
+          "bal": 8.500156958275996e-8,
+          "solids": -2674.60197784294,
+          "sedOut": 93808799.76032376,
+          "archRock": 24291.096377593385
+        },
+        {
+          "run": "plateau 4",
+          "ok": true,
+          "bal": 1.8900740080219564e-8,
+          "solids": -1364.494904552841,
+          "sedOut": 44052472.74877429,
+          "archRock": 9883.404895986176
+        },
+        {
+          "run": "plateau 7",
+          "ok": true,
+          "bal": -3.8144341449651364e-8,
+          "solids": -2425.717782974243,
+          "sedOut": 19510688.678884506,
+          "archRock": 0
+        },
+        {
+          "run": "plateau 8",
+          "ok": true,
+          "bal": -2.9574603820978896e-8,
+          "solids": -1874.0456819534302,
+          "sedOut": 61569815.31970501,
+          "archRock": 0
+        },
+        {
+          "run": "valleyRidge 3",
+          "ok": true,
+          "bal": -1.380324299294385e-7,
+          "solids": 517.7013874053955
+        },
+        {
+          "run": "gulf 3",
+          "ok": true,
+          "bal": -2.1212138717528584e-7,
+          "solids": -167.56945848464966
+        },
+        {
+          "run": "bridge",
+          "ok": true,
+          "bal": 8.240611495515536e-8,
+          "solids": 33.08757935232643,
+          "archRock": 17798.803379039466
+        }
+      ]
+    },
+    "noGpuErrors": {
+      "pass": true,
+      "errors": 0
+    }
+  },
+  "runs": {
+    "plateau1": {
+      "joints": 2,
+      "formed": 3,
+      "fallen": 2,
+      "standing": 1,
+      "maxStanding": 1,
+      "bridges": 0
+    },
+    "plateau4": {
+      "joints": 2,
+      "formed": 4,
+      "fallen": 2,
+      "standing": 2,
+      "maxStanding": 3,
+      "bridges": 0
+    },
+    "plateau7": {
+      "joints": 2,
+      "formed": 3,
+      "fallen": 3,
+      "standing": 0,
+      "maxStanding": 3,
+      "bridges": 0
+    },
+    "plateau8": {
+      "joints": 2,
+      "formed": 0,
+      "fallen": 0,
+      "standing": 0,
+      "maxStanding": 0,
+      "bridges": 0
+    }
+  },
+  "minutes": 2.6791616666674614,
+  "gpuErrors": 0,
+  "gpuErrorMsgs": [],
+  "passed": "9/9",
+  "gpuFeatureStatusWebGPU": "enabled",
+  "electron": "45.2.1",
+  "chrome": "156.0.8078.75"
+}

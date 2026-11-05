@@ -332,17 +332,18 @@ class WindModule {
     const B = world.buffers, prm = world.params.buffer;
     this.kp = makeKernel(device, 'wind.prep', PREP_WGSL, ['r', 'r', 'r', 'r', 'r', 'r', 'r', 'r', 'rw', 'rw', 'u', 'r']);
     this.kt = makeKernel(device, 'wind.transfer', TRANSFER_WGSL, ['r', 'r', 'rw', 'rw', 'rw', 'rw', 'rw', 'u', 'r']);
-    this.ubufs = []; this.pBG = []; this.tBG = [];
+    // the per-iteration uniforms do not depend on the grid, so a new world reuses them
+    this.ubufs ||= []; this.pBG = []; this.tBG = [];
     for (let k = 0; k < KMAX; k++) {
-      const u = device.createBuffer({ size: 32, usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST, label: `wind.iter${k}` });
-      this.ubufs.push(u);
+      const u = this.ubufs[k] ||= device.createBuffer({ size: 32, usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST, label: `wind.iter${k}` });
       // thermalDelta is free scratch here: erosion's thermal step has used it, avalanches come after
       this.pBG.push(this.kp.bind(prm, [B.bedrock, B.soil, B.water, B.snowSWE, B.frostDepth, B.veg, B.plant, B.deposit, B.thermalDelta, B.wind, u, B.glacier]));
       this.tBG.push(this.kt.bind(prm, [B.thermalDelta, B.wind, B.bedrock, B.soil, B.snowSWE, B.deposit, B.acc, u, B.volcRock]));
     }
   }
 
-  reset(seed = 1) { this.rand = mulberry(seed * 977 + 13); }
+  // the two-wind alternation restarts too, so the same seed gives the same dunes whatever came before
+  reset(seed = 1) { this.rand = mulberry(seed * 977 + 13); this.flip = 1; }
 
   // Plan this batch's iterations: Deros landscape days, Dcol climate days, day = start of the batch,
   // w = { from, speed, steady } (climate.windSettings()). Writes the per-iteration uniforms.

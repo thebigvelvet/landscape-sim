@@ -158,7 +158,8 @@ fn vrAdd(i : u32, zb : f32, ty : f32) {
 // The volcano's throat: one plug unit reaching PLUG_DEPTH down into the old rock.
 fn vrPlug(i : u32, zb : f32) {
   let t = volcRock[2u * i + 1u];
-  if (t.x > 2.5 && t.y < 0.5 && volcRock[2u * i].x < zb) { return; }
+  // already a plug (type 3) as the only unit: keep it (ash, tuff, breccia or andesite do not count)
+  if (abs(t.x - 3.0) < 0.5 && t.y < 0.5 && volcRock[2u * i].x < zb) { return; }
   volcRock[2u * i] = vec4<f32>(zb - ${PLUG_DEPTH}.0, 0.0, 0.0, 0.0);
   volcRock[2u * i + 1u] = vec4<f32>(3.0, 0.0, 0.0, 0.0);
 }
@@ -515,6 +516,7 @@ class Volcanoes {
     this.vents.push(e);
     this.hasLava = true;
     e.ready = Promise.all([readLayer('bedrock'), readLayer('soil')]).then(([b, s]) => { this._breach(e, b, s); });
+    e.ready.catch((err) => console.error('volcano: could not read the ground', err));
     return e;
   }
 
@@ -567,16 +569,27 @@ class Volcanoes {
     }
     const dg = g1 - g0;
     if (dg > 0 && (e.craterD > 0 || e.ringH > 0 || e.ashT > 0)) {
-      for (let y = 0; y < N; y++) {
-        for (let x = 0; x < N; x++) {
-          const qx = (x - e.x) * dx, qy = (y - e.y) * dx, r = Math.hypot(qx, qy);
-          if (e.craterD > 0 && r < e.craterR) { const u = r / e.craterR; v -= e.craterD * (1 - u * u) * (this._kf(e, g1) - this._kf(e, g0)); }
-          if (e.ringH > 0) v += ringProfile(r, e.craterR, e.ringH, e.ringL) * dg;
-          if (e.ashT > 0) v += ashProfile(qx, qy, e.ashT, e.ashL, e.wind[0], e.wind[1]) * dg;
-        }
-      }
+      // the crater, ring and ash profiles never change during an eruption, so their map totals are
+      // summed once (first batch) and scaled by this batch's share
+      const u = e.unit ||= this._unitVolumes(e);
+      v += -u.crater * (this._kf(e, g1) - this._kf(e, g0)) + (u.ring + u.ash) * dg;
     }
     return v * dx * dx;
+  }
+
+  // Map totals (m summed over cells, clipped to the map like the GPU) of the whole crater, ring and ash.
+  _unitVolumes(e) {
+    const N = this.world.N, dx = this.world.cellSize;
+    const u = { crater: 0, ring: 0, ash: 0 };
+    for (let y = 0; y < N; y++) {
+      for (let x = 0; x < N; x++) {
+        const qx = (x - e.x) * dx, qy = (y - e.y) * dx, r = Math.hypot(qx, qy);
+        if (e.craterD > 0 && r < e.craterR) { const q = r / e.craterR; u.crater += e.craterD * (1 - q * q); }
+        if (e.ringH > 0) u.ring += ringProfile(r, e.craterR, e.ringH, e.ringL);
+        if (e.ashT > 0) u.ash += ashProfile(qx, qy, e.ashT, e.ashL, e.wind[0], e.wind[1]);
+      }
+    }
+    return u;
   }
 
   /**

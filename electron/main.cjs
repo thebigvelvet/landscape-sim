@@ -34,7 +34,13 @@ protocol.registerSchemesAsPrivileged([
   { scheme: 'app', privileges: { standard: true, secure: true, supportFetchAPI: true, corsEnabled: true, stream: true } },
 ]);
 
-if (!app.requestSingleInstanceLock()) { app.quit(); }
+// One window at a time. A second launch hands focus to the first and stops here; a scripted run
+// (--selftest / --eval) says why and exits with an error so no stale results are mistaken for new ones.
+const GOT_LOCK = app.requestSingleInstanceLock();
+if (!GOT_LOCK) {
+  if (SCRIPTED) console.error('Landscape Time-Lapse is already open: close it first, then run the test again.');
+  app.exit(SCRIPTED ? 4 : 0);
+}
 
 let win = null;
 app.on('second-instance', () => { if (win) { if (win.isMinimized()) win.restore(); win.focus(); } });
@@ -62,7 +68,17 @@ function createWindow() {
   const evalArg = args.find((a) => a.startsWith('--eval='));
   const outArg = args.find((a) => a.startsWith('--out='));
   if (SELFTEST) runScript(SELFTEST_BODY, path.join(ROOT, 'selftest-results.json'));
-  else if (evalArg) runScript(fs.readFileSync(evalArg.slice(7), 'utf8'), outArg ? outArg.slice(6) : path.join(ROOT, 'eval-result.json'));
+  else if (evalArg) {
+    const out = outArg ? outArg.slice(6) : path.join(ROOT, 'eval-result.json');
+    let body;
+    try { body = fs.readFileSync(evalArg.slice(7), 'utf8'); } catch (e) {
+      fs.writeFileSync(out, JSON.stringify({ error: `could not read ${evalArg.slice(7)}: ${e.message}` }, null, 2));
+      console.error(`could not read ${evalArg.slice(7)}`);
+      app.exit(5);
+      return;
+    }
+    runScript(body, out);
+  }
 }
 
 // Built-in self test: cone 1000-year audit + benchmark. Body of an async function run in the page.
@@ -111,14 +127,14 @@ function runScript(body, out) {
   });
 }
 
-app.whenReady().then(() => {
+if (GOT_LOCK) app.whenReady().then(() => {
   protocol.handle('app', async (req) => {
     try {
       const u = new URL(req.url);
       let p = decodeURIComponent(u.pathname);
       if (!p || p === '/') p = '/index.html';
       const file = path.normalize(path.join(DIST, p));
-      if (!file.startsWith(DIST)) return new Response('forbidden', { status: 403 });
+      if (file !== DIST && !file.startsWith(DIST + path.sep)) return new Response('forbidden', { status: 403 });
       const data = await fs.promises.readFile(file);
       return new Response(data, { headers: { 'content-type': MIME[path.extname(file).toLowerCase()] || 'application/octet-stream' } });
     } catch (e) {

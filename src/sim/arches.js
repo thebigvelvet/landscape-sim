@@ -49,7 +49,10 @@ struct Params { N : u32 };
 @group(0) @binding(0) var<uniform> P : Params;
 @group(0) @binding(1) var<storage, read_write> bedrock : array<f32>;
 @group(0) @binding(2) var<storage, read_write> soil : array<f32>;
-@group(0) @binding(3) var<storage, read> edits : array<vec4<f32>>;
+@group(0) @binding(3) var<storage, read_write> edits : array<vec4<f32>>;
+// edit = (cell, floor, talus m, cut flag): cut flag > 0 cuts the cell down to the absolute floor
+// (rock above it and all soil, as of NOW, not as of the readback the plan came from), then talus is
+// added as soil. The volume actually cut (m) is written back into .y for the books.
 @compute @workgroup_size(64)
 fn main(@builtin(global_invocation_id) gid : vec3<u32>) {
   let n = u32(edits[0].x);
@@ -57,8 +60,13 @@ fn main(@builtin(global_invocation_id) gid : vec3<u32>) {
   let e = edits[gid.x + 1u];
   let i = u32(e.x);
   if (i >= P.N * P.N) { return; }
-  bedrock[i] = bedrock[i] + e.y;
-  soil[i] = max(soil[i] + e.z, 0.0);
+  var cut = 0.0;
+  if (e.w > 0.5) {
+    let b = bedrock[i];
+    if (b > e.y) { cut = b - e.y + soil[i]; bedrock[i] = e.y; soil[i] = 0.0; }
+  }
+  soil[i] = soil[i] + max(e.z, 0.0);
+  edits[gid.x + 1u].y = cut;
 }
 `;
 const MAX_EDITS = 8192;
@@ -70,10 +78,11 @@ export class Arches {
     if (this.world === world && this.k) return;
     this.device = device; this.world = world;
     // the kernel only needs N, so it has its own tiny uniform rather than the shared params block
-    this.k = makeKernel(device, 'arches.edit', EDIT_WGSL, ['rw', 'rw', 'r']);
-    this.ub = device.createBuffer({ size: 16, usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST, label: 'arches.ub' });
+    this.k ||= makeKernel(device, 'arches.edit', EDIT_WGSL, ['rw', 'rw', 'rw']);
+    // these do not depend on the grid size, so a new world reuses them
+    this.ub ||= device.createBuffer({ size: 16, usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST, label: 'arches.ub' });
     device.queue.writeBuffer(this.ub, 0, new Uint32Array([world.N, 0, 0, 0]));
-    this.editBuf = device.createBuffer({ size: (MAX_EDITS + 1) * 16, usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST, label: 'arches.edits' });
+    this.editBuf ||= device.createBuffer({ size: (MAX_EDITS + 1) * 16, usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST | GPUBufferUsage.COPY_SRC, label: 'arches.edits' });
     this.bg = this.k.bind(this.ub, [world.buffers.bedrock, world.buffers.soil, this.editBuf]);
   }
 
@@ -81,7 +90,9 @@ export class Arches {
     this.list = [];             // standing arches and bridges
     this.fallen = 0; this.formed = 0; this.bridgesFormed = 0;
     this.store = 0;             // m3 of rock held in the lintels (solids books)
-    this.lastDay = 0; this.lastWall = 0; this.busy = null;
+    this.orphans = [];          // cut rock owed to arches that fell before the cut was confirmed
+    // (an update still in flight keeps `busy` until it finishes; its gen check drops its result)
+    this.lastDay = 0; this.lastWall = 0;
     this.rng = ((seed | 0) * 2654435761 + 12345) >>> 0;
     this.log = [];
     this._upload();
@@ -99,7 +110,9 @@ export class Arches {
   due(sim) {
     if (!sim.strata || !sim.strataInfo || this.busy) return false;
     if (sim.day - this.lastDay < CHECK_YEARS * 365) return false;
-    return performance.now() - this.lastWall >= MIN_WALL_MS || sim.running;
+    // the scan runs on the main thread: on big maps give the frame loop more room between scans
+    const wall = MIN_WALL_MS * Math.max(1, (sim.world.N / 512) ** 2);
+    return performance.now() - this.lastWall >= wall || sim.running;
   }
 
   // Look for new arches and age the standing ones. Reads the ground back from the GPU.
@@ -128,34 +141,43 @@ export class Arches {
       return bed && ARCH_ROCK.has(bed.type) ? bed : null;
     };
     ctx.sandAt = sandAt;
+    // rock cut beyond plan for arches that had already fallen: down as talus now
+    for (const o of this.orphans.splice(0)) { this._talus(ctx.edits, o.cells, o.vol, A); this.store -= o.vol; }
     for (const a of [...this.list]) this._age(a, dtKyr, ctx);
     if (this.list.length < MAX_ARCHES && dtKyr > 0) {
       if (T.struct.joints.length) this._findFins(dtKyr, ctx);
       this._findBridges(dtKyr, ctx);
     }
-    this._flush(ctx.edits);
+    await this._flush(ctx.edits, A, gen, sim);
     this._upload();
   }
 
   // ---- edits ----
-  _edit(E, i, dB, dS) {
-    const e = E.get(i) || [0, 0];
-    e[0] += dB; e[1] += dS;
+  // a cell is cut down to an arch's floor (planned volume `plan` m, from the readback) and/or gets talus
+  _cut(E, i, floor, plan, arch, cells) {
+    const e = E.get(i) || { talus: 0 };
+    if (e.floor === undefined || floor < e.floor) { e.floor = floor; e.plan = plan; e.arch = arch; e.cells = cells; }
     E.set(i, e);
   }
   // spread m3 of talus over cells (as soil), even shares
   _talus(E, cells, vol, A) {
     if (vol <= 0 || !cells.length) return;
     const dz = vol / (cells.length * A);
-    for (const i of cells) this._edit(E, i, 0, dz);
+    for (const i of cells) { const e = E.get(i) || { talus: 0 }; e.talus += dz; E.set(i, e); }
   }
-  _flush(E) {
+  // Apply the edits on the GPU, then read back what was actually cut. The ground may have changed
+  // since the readback the plan came from (the frame loop keeps running), so the difference goes
+  // into that arch's lintel: the solids books stay exact.
+  async _flush(E, A, gen, sim) {
     if (!E.size) return;
-    const arr = new Float32Array((Math.min(E.size, MAX_EDITS) + 1) * 4);
-    let k = 0;
-    for (const [i, [dB, dS]] of E) {
-      if (k >= MAX_EDITS) break;
-      arr.set([i, dB, dS, 0], 4 * (k + 1)); k++;
+    // cuts first, so the cap never drops a cut whose rock was already booked into a lintel
+    const list = [...E].sort((p, q) => (q[1].floor !== undefined) - (p[1].floor !== undefined));
+    const k = Math.min(list.length, MAX_EDITS);
+    if (list.length > MAX_EDITS) console.warn(`arches: ${list.length - MAX_EDITS} edits dropped`);
+    const arr = new Float32Array((k + 1) * 4);
+    for (let j = 0; j < k; j++) {
+      const [i, e] = list[j];
+      arr.set([i, e.floor ?? 0, e.talus, e.floor !== undefined ? 1 : 0], 4 * (j + 1));
     }
     arr[0] = k;
     const d = this.device;
@@ -165,7 +187,27 @@ export class Arches {
     pass.setPipeline(this.k.pipeline); pass.setBindGroup(0, this.bg);
     pass.dispatchWorkgroups(Math.ceil(k / 64));
     pass.end();
+    const bytes = (k + 1) * 16;
+    const st = d.createBuffer({ size: bytes, usage: GPUBufferUsage.MAP_READ | GPUBufferUsage.COPY_DST, label: 'arches.cut' });
+    enc.copyBufferToBuffer(this.editBuf, 0, st, 0, bytes);
     d.queue.submit([enc.finish()]);
+    try {
+      await st.mapAsync(GPUMapMode.READ);
+      const out = new Float32Array(st.getMappedRange());
+      if (gen !== sim.gen) return;
+      for (let j = 0; j < k; j++) {
+        const e = list[j][1];
+        if (e.floor === undefined) continue;
+        const delta = (out[4 * (j + 1) + 1] - e.plan) * A;   // m3 cut beyond (or short of) the plan
+        if (!delta) continue;
+        this.store += delta;
+        if (this.list.includes(e.arch)) e.arch.L = Math.max(0, e.arch.L + delta);
+        else if (delta > 0) this.orphans.push({ cells: e.cells, vol: delta });   // its arch already fell: released as talus next check
+      }
+    } finally {
+      try { st.unmap(); } catch { /* not mapped */ }
+      st.destroy();
+    }
   }
 
   // ---- geometry helpers ----
@@ -217,13 +259,14 @@ export class Arches {
     const top = Math.min(G[iA], G[iB]);
     if (top - a.floor < a.openH + 3) return false;
     let removed = 0;
+    const flanks = this._flanks(a, N);
     for (let j = -a.jL; j <= a.jR; j++) for (const i of this._row(a, j, N)) {
       if (b[i] <= a.floor) continue;
       removed += (b[i] - a.floor + s[i]) * A;
-      this._edit(edits, i, a.floor - b[i], -s[i]);
+      this._cut(edits, i, a.floor, b[i] - a.floor + s[i], a, flanks);
     }
     const L = Math.min(this._lintel(a, top, N, A), removed);
-    this._talus(edits, this._flanks(a, N), removed - L, A);
+    this._talus(edits, flanks, removed - L, A);
     a.L = L; a.top = top; a.age = 0;
     this.store += L;
     this.list.push(a);
@@ -250,10 +293,11 @@ export class Arches {
       const j = side < 0 ? -a.jL - 1 : a.jR + 1;
       const next = side < 0 ? this._cell(N, a.x + (j - 1) * a.tx, a.y + (j - 1) * a.ty) : this._cell(N, a.x + (j + 1) * a.tx, a.y + (j + 1) * a.ty);
       if (next >= 0 && G[next] > a.floor + a.openH + 4) {
+        const flanks = this._flanks(a, N);
         for (const i of this._row(a, j, N)) {
           if (b[i] <= a.floor) continue;
           removed += (b[i] - a.floor + s[i]) * A;
-          this._edit(edits, i, a.floor - b[i], -s[i]);
+          this._cut(edits, i, a.floor, b[i] - a.floor + s[i], a, flanks);
         }
         if (side < 0) a.jL++; else a.jR++;
         [iA, iB] = this._abut(a, N);
@@ -264,7 +308,11 @@ export class Arches {
     a.top = top;
     const span = (a.jL + a.jR + 1) * ctx.cs;
     const thick = top - a.floor - a.openH;
-    if (thick < 1.0 + 0.02 * span || top < a.floor + 2) { this._collapse(a, ctx); return; }
+    if (thick < 1.0 + 0.02 * span || top < a.floor + 2) {
+      // rock cut while widening this check falls with the lintel (it was in nobody's books otherwise)
+      a.L += removed; this.store += removed;
+      this._collapse(a, ctx); return;
+    }
     // lintel: thins as the opening rises and its top wears down; the difference falls as talus
     const L = Math.min(this._lintel(a, top, N, A), a.L + removed);
     this._talus(edits, this._flanks(a, N), a.L + removed - L, A);

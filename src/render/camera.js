@@ -87,12 +87,18 @@ export class OrbitCamera {
     let drag = null;
     c.addEventListener('contextmenu', (e) => e.preventDefault());
     c.addEventListener('pointerdown', (e) => {
+      // any press on the land stops the slow circling (also when a brush is painting: the land
+      // should hold still under it)
+      this.stopAutoRotate();
       if (this.blockLeft?.(e)) return;       // a brush tool owns the left button (src/ui/brush.js)
       drag = { x: e.clientX, y: e.clientY, pan: e.button === 2 || e.button === 1 || e.shiftKey };
       c.setPointerCapture(e.pointerId);
-      this.autoRotate = false;
     });
-    c.addEventListener('pointerup', (e) => { drag = null; c.releasePointerCapture?.(e.pointerId); });
+    const end = (e) => { drag = null; c.releasePointerCapture?.(e.pointerId); };
+    c.addEventListener('pointerup', end);
+    // a cancelled drag (alt-tab, touch taken over) must not leave the view turning on plain moves
+    c.addEventListener('pointercancel', end);
+    c.addEventListener('lostpointercapture', () => { drag = null; });
     c.addEventListener('pointermove', (e) => {
       if (!drag) return;
       const dx = e.clientX - drag.x, dy = e.clientY - drag.y;
@@ -114,6 +120,12 @@ export class OrbitCamera {
       e.preventDefault();
       this.dist = Math.min(this.extent * 4, Math.max(this.extent * 0.06, this.dist * Math.exp(e.deltaY * 0.001)));
     }, { passive: false });
+  }
+
+  stopAutoRotate() {
+    if (!this.autoRotate) return;
+    this.autoRotate = false;
+    this.onAutoRotateChange?.(false);    // the panel unticks "Slowly circle the view"
   }
 
   clampTarget() {

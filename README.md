@@ -5,6 +5,87 @@ second. All of the simulation runs on the graphics card (WebGPU compute shaders)
 
 **To run it, double-click `start.bat`** (or the "Landscape Time-Lapse" shortcut on the desktop).
 
+## Using it
+
+**The panel** (left; the double arrow hides it, and it remembers):
+- **Place & climate**: pick a place (its climate, colours and elevation), then nudge Temperature and Rain & snow. These apply right away.
+- **Paint on the land**: tools you click or drag on the land.
+  - Weather (keys 1-6): Look around, Storm, Drought, Flood, Wildfire, Volcano. The Volcano tool has an eruption-style list:
+    Hawaiian (lava rivers), Strombolian (cinder cone and lava), Vulcanian (blasts and ash), Pelean (lava dome and glowing avalanches),
+    Plinian (huge ash column), Phreatic (steam-blast crater) and Phreatomagmatic (a maar crater that may fill with a lake).
+  - "Big storm over the whole map" drops three days of very heavy rain or snow everywhere.
+  - Shape (keys Q W E R T): Raise, Lower, Smooth, Flatten, Channel. Hold and drag. Ctrl+Z or the Undo button takes back a stroke (up to 20).
+  - Brush size and Brush strength apply to both rows. Drought covers the whole map and a volcano sizes itself, so they ignore the size.
+- **Show me**: the view (the heading says which one is on). Natural view, Water depth, Sediment in water, Snowpack, Frozen ground,
+  Erosion & deposition, Groundwater & springs, Plants & burn scars, Sediment beds, Wind & sand, Glaciers, Volcanic rock and Subsurface.
+  A legend appears at the bottom right. Below them: Stretch heights, contour lines, slowly circling the view, 3D trees.
+- **Make a new landscape**: Shape, Detail, Seed (or Surprise me), Ruggedness (random ranges only), Geology and Old volcanoes.
+  These wait for the **Make this landscape** button, which says "(settings changed)" when they differ from the map on screen;
+  a new Geology also brings its home climate. "About this landscape's rocks" lists what this map is made of.
+- **Wind**: a compass (drag the arrow to point where the wind blows *to*), strength and steadiness.
+- **Fine-tune nature**: Season contrast, Erosion strength, Glaciers on/off, Rock layers on/off (these apply right away).
+- **What's happening**: where all the water went, plants, burn scars, how much ground has been carried away, highest and lowest points, natural arches.
+
+**Mouse and keys**: drag to turn the view, right-drag (or Shift-drag) to slide it, scroll to zoom. Space plays and pauses,
+Esc puts the brush down, Ctrl+Z undoes a shaping stroke. The speed bar at the bottom runs from 15 minutes to 1000 years per second
+(click a label to jump there).
+
+## Quality-control pass (after round 11)
+
+Three read-only reviewers audited the code: two independent bug hunters and one for the interface. The confirmed findings were fixed on branch `qc-fixes`.
+
+**Engine fixes**
+- **Undo:** quick repeated undos (Ctrl+Z held down) could apply a stroke twice and leave the ground wrong. Each stroke now stores its own change, so undo needs no readback. Undoing a channel also gives the cut soil back as soil instead of turning it into rock.
+- **Loading:** the simulation kept running while a new map loaded, so the water books started off. Two loads could also overlap. Loads now queue, and nothing runs or is counted until a load is done.
+- **Wind:** "Make this landscape" no longer resets a custom wind.
+- **Volcano plug:** Vulcanian vents (and vents opened on old ash or tuff) now get their hard plug.
+- **Arch edits:** these cut to the arch floor as the ground is now, and the volume actually cut goes into the books. Rock cut while an arch widened and fell in the same check is no longer lost.
+- **Performance:**
+  - Eruption bookkeeping is now O(1) per frame (it used to sum the whole map every frame).
+  - The Sediment beds legend samples the layer instead of reading 64 bytes per cell.
+  - Arch scans are spaced out on big maps.
+  - The sub-step governor measures the sub-steps actually run.
+- **Smaller fixes:**
+  - Leaving the time-lapse no longer jumps up to a year in one frame.
+  - Clicks inside deep craters now land.
+  - GPU buffers are freed when the grid size changes.
+  - The same seed now gives the same dunes.
+  - Adapter limits are checked at start-up.
+  - Launcher: a scripted run while the app is open exits with an error instead of leaving old results; a crash is no longer reported as success.
+
+**Interface**
+- The panel is regrouped: Place & climate, Paint on the land (weather and shaping tools together, with one set of brush sliders), Show me, Make a new landscape, Wind, Fine-tune nature, What's happening.
+- **Fixed:**
+  - The broken drop-down arrows.
+  - The legend no longer covers the speed bar. Categorical views (volcanic rock, subsurface) get a swatch list, and gradient labels sit at their stops.
+  - Clicking a "?" no longer ticks a box or sends a storm.
+  - Space still plays and pauses after you use a slider.
+  - The spin box follows the camera.
+  - Long tooltips stay on screen.
+  - The wind-dial wording now says the arrow points where the wind blows to.
+- Geology and the other landscape settings now wait for the "Make this landscape" button.
+- Plain wording: wind strength in words, eruption styles explained, "All water accounted for".
+- Smaller items: a permanent line of mouse and key hints, keyboard access to views and speed labels, and the panel remembers whether it is hidden.
+
+**Checks:** tests/qc.js passes 9/9. These suites all pass:
+- round2 10/10
+- round3 7/7
+- strata 7/7
+- deposits 5/5
+- wind 12/12 (the old 0.49 near-miss is gone)
+- glacier 11/11
+- volcano 17/17
+- eruption-styles 23/23
+- provinces 22/22
+- province-climates 7/7
+- intrusions 9/9
+- karst-valleys 8/8
+- arches 9/9
+- ui-sculpt 7/7
+- tools/review/ui.js 22/22
+
+Results are in tests/out-qc-*.json.
+
 ## Round 9: geologic provinces and what lies underground
 
 Built directly, on branch `r9-provinces` (cut from `main`).
@@ -235,7 +316,7 @@ Checks on this build (RTX 4060 Ti):
 - Plants grow by themselves: grass, shrubs and forest wherever there is warmth, water and soil.
   There is a treeline. Aspens turn gold in a Colorado autumn, and maples turn red in Temperate.
   Conifers carry snow in winter, and everything browns in a drought.
-- **Weather events** (new panel section, keys 1-5, Esc to stop): pick a tool, then click or drag on
+- **Weather events** (new panel section, keys 1-6 since the Volcano brush, Esc to stop): pick a tool, then click or drag on
   the land. A dashed ring shows where it will land and how big it is, a ripple confirms the click,
   and a short message says what just happened. Some messages have a button that sets a good speed
   to watch, for example "Watch in slow motion".
@@ -503,8 +584,8 @@ know when swapping modules:
   92%. Groundwater gains infiltration and loses ET and baseflow. Weathering converts bedrock to soil,
   driven by frost cycles plus a slow chemical term, and is shielded by soil cover.
 - **Climate:** cosine seasonal temperature and precipitation curves, a lapse rate, orographic
-  enhancement, and four presets with base elevations (Utah 1400 m, Colorado 2900 m, PNW 150 m,
-  Temperate 300 m). The temperature, precipitation and seasonality sliders apply on top of the preset.
+  enhancement, and five presets with base elevations (Utah 1400 m, Colorado 2900 m, PNW 150 m,
+  Temperate 300 m, Gulf Coast humid near sea level). The temperature, precipitation and seasonality sliders apply on top of the preset.
   "Big storm" adds 3 storm-days at 12× precipitation, averaged correctly when one frame spans years.
 
 ## Time scaling (multi-rate scheme)
@@ -533,8 +614,9 @@ in real time. At 1000 years/s, MORPH is about 10⁵, capped per cell by the morp
 
 **Seasons at high speed:** above 20 days per frame the display is stroboscopic. Each frame advances
 whole years plus about 1.5 days of phase, so snow and seasons cycle smoothly on screen (about one
-year per 4 s) instead of flickering, while time advances at the requested rate. The HUD then reads
-"seasons sampled". Erosion uses the smooth requested `Deros`, so landscape change is not lumpy.
+year per 4 s) instead of flickering, while time advances at the requested rate. The date card then says
+"Time-lapse: ... seasons shown at about 1 year per 4 s"; between about 36 days/s and that point it says
+the day-to-day weather is averaged. Erosion uses the smooth requested `Deros`, so landscape change is not lumpy.
 
 **`run(days)`** picks batch lengths so the hydraulic solver gets about 96k sub-steps in total, which
 is enough for drainage networks to establish, and never more than 6083 days per batch.
@@ -573,15 +655,13 @@ years. No NaN in any case, and every balance error was below 5e-4 %.
 - At high speed, flows are routed at a capped intensity of 150× and the rest leaves as fast runoff.
   Closed basins therefore under-fill at high speed: in reality fast runoff would pond there.
 - Erosion constants are calibrated to look plausible (a few metres of incision per 1000 years), not
-  fitted to field data. The "Erosion rate" slider scales them.
-- Glaciers accumulate but do not flow.
+  fitted to field data. The "Erosion strength" slider (Fine-tune nature) scales them.
 - Groundwater flows only through a shallow store of fixed capacity per preset; there is no deep aquifer.
 - The f32 solids audit drifts slightly over very long runs (hundreds of m³ against 10⁵–10⁷ m³ of
   sediment moved).
 - At 1024², the per-sub-step cost exceeds L2 cache and becomes DRAM-bandwidth bound (5.4× the cost
   of 512² rather than 4×).
 - Random terrain at 1024² takes about 3 s to generate on the CPU.
-- The overlay buttons do not highlight when the overlay is changed through the API.
 
 ## What I'd do next
 - Fuse the erosion exchange into the water update kernel, and store flux as f16, to cut DRAM traffic

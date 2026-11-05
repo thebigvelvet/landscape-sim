@@ -1,0 +1,61 @@
+{
+  "checks": {
+    "rapidUndoRestoresGround": {
+      "pass": true,
+      "changedBy": 5.42742919921875,
+      "leftAfterUndo": 0.000030517578125,
+      "bedrockLeft": 0.0000762939453125
+    },
+    "channelUndoReturnsSoil": {
+      "pass": true,
+      "soilCut": 1.3791723251342773,
+      "soilLeft": 0,
+      "bedrockLeft": 0.0000762939453125
+    },
+    "undoStackEmpty": {
+      "pass": true
+    },
+    "loadAtTopSpeedBalances": {
+      "pass": true,
+      "dayBefore": 188752.14583333337,
+      "startDay": 12048.041666666666,
+      "startErrPct": -0.000004919728028604781,
+      "after2s": 9.657566377445077e-8,
+      "yearsAfter2s": 2534.625000000005
+    },
+    "regenerateKeepsWind": {
+      "pass": true,
+      "wind": {
+        "from": 123,
+        "speed": 1.6,
+        "steady": 0.2,
+        "sandy": 0.25,
+        "on": true
+      }
+    },
+    "vulcanianHasPlug": {
+      "pass": true,
+      "plugCells": 25,
+      "of": 25
+    },
+    "eruptionBooksCheap": {
+      "pass": true,
+      "firstMs": 31.30000001192093,
+      "perBatchMs": 0.005000001192092896
+    },
+    "booksAfterEruption": {
+      "pass": true,
+      "balPct": -4.67824010707837e-7,
+      "solidsErr": 401.40879495441914,
+      "erupted": 97335899.85022292
+    },
+    "noGpuErrors": {
+      "pass": true
+    }
+  },
+  "gpuErrors": 0,
+  "passed": "9/9",
+  "gpuFeatureStatusWebGPU": "enabled",
+  "electron": "45.2.1",
+  "chrome": "156.0.8078.75"
+}

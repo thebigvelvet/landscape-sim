@@ -1,0 +1,346 @@
+{
+  "checks": {
+    "coneForms": {
+      "pass": true,
+      "plannedHeight_m": 94.14318338527558,
+      "peak_m": 93.87790446997678,
+      "craterFloor_m": 75.32935384660959,
+      "maxAddedSlope": 0.6317000638991385,
+      "days": 1620
+    },
+    "lavaRunsDownValley": {
+      "pass": true,
+      "basaltCells": 5646,
+      "centroid": [
+        127.38505136379737,
+        108.92826780021254
+      ],
+      "source": {
+        "x": 131.94526663098196,
+        "y": 175.27884388640337,
+        "r": 2.5,
+        "cells": 20
+      },
+      "alongValley_cells": 220,
+      "across_cells": 35,
+      "meanThick_m": 11.643719721945754,
+      "maxThick_m": 40.16450446438148,
+      "basalt_m3": 7220333.672332764,
+      "cinders_m3": 4899250.076293945,
+      "plug_m3": 829088.8778686523,
+      "moltenLeft_m3": 71.04227082998591
+    },
+    "lavaIsAFlowNotAMound": {
+      "pass": true,
+      "basaltCells": 5646,
+      "centroid": [
+        127.38505136379737,
+        108.92826780021254
+      ],
+      "source": {
+        "x": 131.94526663098196,
+        "y": 175.27884388640337,
+        "r": 2.5,
+        "cells": 20
+      },
+      "alongValley_cells": 220,
+      "across_cells": 35,
+      "meanThick_m": 11.643719721945754,
+      "maxThick_m": 40.16450446438148,
+      "basalt_m3": 7220333.672332764,
+      "cinders_m3": 4899250.076293945,
+      "plug_m3": 829088.8778686523,
+      "moltenLeft_m3": 71.04227082998591
+    },
+    "lavaSets": {
+      "pass": true,
+      "days": 1620,
+      "molten_m3": 71.04227082998591
+    },
+    "plantsBurn": {
+      "pass": true,
+      "lavaCells": 1212,
+      "meanVegUnderLava": 0,
+      "edgeCells": 179,
+      "edgeBurnedOrBare": 0.9832402234636871
+    },
+    "books2day": {
+      "pass": true,
+      "balPct": 2.488459132787252e-7,
+      "solidsError_m3": 36.16157142445445,
+      "erupted_m3": 20000258.292648453,
+      "sedOut_m3": 8459776.222832017,
+      "nan": false
+    },
+    "books30day": {
+      "pass": true,
+      "balPct": 9.644125410011048e-8,
+      "solidsError_m3": 62.34918475523591,
+      "erupted_m3": 20000258.292648453,
+      "sedOut_m3": 8604525.263759157,
+      "nan": false,
+      "basalt_m3": 7228010.905838013,
+      "days": 20010
+    },
+    "basaltIsHard": {
+      "pass": true,
+      "real": 1.5268720349266536,
+      "plateauRock": 2.2338352239227266
+    },
+    "cindersWashAway": {
+      "pass": true,
+      "coneTop_real": 7.341854631889873,
+      "coneTop_basalt": 1.602167934168392,
+      "mean_real": 0.9841608428664633,
+      "mean_basalt": 0.8225055627723664
+    },
+    "booksLongRun": {
+      "pass": true,
+      "balPct": -2.2769447175640864e-7,
+      "solidsError_m3": 67.88713112846017,
+      "erupted_m3": 20000258.292648453,
+      "sedOut_m3": 10106253.420669846,
+      "nan": false
+    },
+    "meltsIce": {
+      "pass": true,
+      "lostWithEruption_m3": 2848251.1790552214,
+      "lostWithout_m3": 138104.29447348602
+    },
+    "booksWithIce": {
+      "pass": true,
+      "balPct": -6.219157471159817e-8,
+      "solidsError_m3": -179.10692900046706,
+      "erupted_m3": 20000258.292648323,
+      "sedOut_m3": 16081768.547220062,
+      "nan": false
+    },
+    "volcanicSoilIsFertile": {
+      "pass": true,
+      "onBasalt": {
+        "meanVeg": 0.45663323112530635,
+        "meanSoil_m": 1.2038606138899923,
+        "cells": 17920
+      },
+      "plainRock": {
+        "meanVeg": 0.37228208231930954,
+        "meanSoil_m": 1.1677096207227027,
+        "cells": 17920
+      }
+    },
+    "someMapsHaveVolcanoes": {
+      "pass": true,
+      "tried": 30,
+      "withVolcanoes": 9,
+      "example": {
+        "seed": 2,
+        "info": [
+          {
+            "x": 87.25982534885406,
+            "y": 77.37079343795776,
+            "cone_m": 100.12737843906507,
+            "flows": 3
+          },
+          {
+            "x": 183.4740082144737,
+            "y": 83.10308855772018,
+            "cone_m": 51.996638495475054,
+            "flows": 1
+          }
+        ],
+        "describe": "Colorado Plateau: 20 beds, dipping 1.1° to the W; 2 old volcanoes with 4 basalt flows."
+      }
+    },
+    "oldVolcanoRocks": {
+      "pass": true,
+      "plateau": 61285,
+      "basalt": 1203,
+      "cinders": 2991,
+      "plug": 57,
+      "throat": 3
+    },
+    "plainMapsUnchanged": {
+      "pass": true,
+      "seed": 1,
+      "maxDiff": 0
+    },
+    "noGpuErrors": {
+      "pass": true,
+      "errors": 0
+    }
+  },
+  "runs": {
+    "cone": {
+      "plannedHeight_m": 94.14318338527558,
+      "peak_m": 93.87790446997678,
+      "craterFloor_m": 75.32935384660959,
+      "maxAddedSlope": 0.6317000638991385,
+      "days": 1620
+    },
+    "flow": {
+      "basaltCells": 5646,
+      "centroid": [
+        127.38505136379737,
+        108.92826780021254
+      ],
+      "source": {
+        "x": 131.94526663098196,
+        "y": 175.27884388640337,
+        "r": 2.5,
+        "cells": 20
+      },
+      "alongValley_cells": 220,
+      "across_cells": 35,
+      "meanThick_m": 11.643719721945754,
+      "maxThick_m": 40.16450446438148,
+      "basalt_m3": 7220333.672332764,
+      "cinders_m3": 4899250.076293945,
+      "plug_m3": 829088.8778686523,
+      "moltenLeft_m3": 71.04227082998591
+    },
+    "plants": {
+      "lavaCells": 1212,
+      "meanVegUnderLava": 0,
+      "edgeCells": 179,
+      "edgeBurnedOrBare": 0.9832402234636871
+    },
+    "books2": {
+      "balPct": 2.488459132787252e-7,
+      "solidsError_m3": 36.16157142445445,
+      "erupted_m3": 20000258.292648453,
+      "sedOut_m3": 8459776.222832017,
+      "nan": false
+    },
+    "books30": {
+      "balPct": 9.644125410011048e-8,
+      "solidsError_m3": 62.34918475523591,
+      "erupted_m3": 20000258.292648453,
+      "sedOut_m3": 8604525.263759157,
+      "nan": false,
+      "basalt_m3": 7228010.905838013,
+      "days": 20010
+    },
+    "hardness": {
+      "real": {
+        "basaltLowered_m": 1.5268720349266536,
+        "cindersLowered_m": 0.9841608428664633,
+        "coneTopLowered_m": 7.341854631889873,
+        "s": {
+          "balPct": -2.2769447175640864e-7,
+          "solidsError_m3": 67.88713112846017,
+          "erupted_m3": 20000258.292648453,
+          "sedOut_m3": 10106253.420669846,
+          "nan": false
+        }
+      },
+      "plateauRock": {
+        "basaltLowered_m": 2.2338352239227266,
+        "cindersLowered_m": 0.9115993337363291,
+        "coneTopLowered_m": 7.238542437542492,
+        "s": {
+          "balPct": -6.167759546792881e-8,
+          "solidsError_m3": 61.98360696807504,
+          "erupted_m3": 20000258.292648453,
+          "sedOut_m3": 10404994.052536301,
+          "nan": false
+        }
+      },
+      "coneOfBasalt": {
+        "basaltLowered_m": 1.6269334639183248,
+        "cindersLowered_m": 0.8225055627723664,
+        "coneTopLowered_m": 1.602167934168392,
+        "s": {
+          "balPct": 2.068588945402631e-7,
+          "solidsError_m3": 68.61848011985421,
+          "erupted_m3": 20000258.292648453,
+          "sedOut_m3": 10136763.4713481,
+          "nan": false
+        }
+      }
+    },
+    "ice": {
+      "eruption": {
+        "vent": [
+          200,
+          40
+        ],
+        "ice0": 64.90128326416016,
+        "iceNear_before_m3": 3944423.3149137027,
+        "iceNear_after_m3": 1096172.135858481,
+        "s": {
+          "balPct": -6.219157471159817e-8,
+          "solidsError_m3": -179.10692900046706,
+          "erupted_m3": 20000258.292648323,
+          "sedOut_m3": 16081768.547220062,
+          "nan": false
+        },
+        "days": 147080
+      },
+      "noEruption": {
+        "vent": [
+          200,
+          40
+        ],
+        "ice0": 64.39337921142578,
+        "iceNear_before_m3": 3910540.1184094837,
+        "iceNear_after_m3": 3772435.8239359977,
+        "s": {
+          "balPct": -6.008138172779795e-7,
+          "solidsError_m3": -189.23589140176773,
+          "erupted_m3": 0,
+          "sedOut_m3": 379932.0646390319,
+          "nan": false
+        },
+        "days": 146730
+      }
+    },
+    "fertility": {
+      "onBasalt": {
+        "meanVeg": 0.45663323112530635,
+        "meanSoil_m": 1.2038606138899923,
+        "cells": 17920
+      },
+      "plainRock": {
+        "meanVeg": 0.37228208231930954,
+        "meanSoil_m": 1.1677096207227027,
+        "cells": 17920
+      }
+    },
+    "maps": {
+      "tried": 30,
+      "withVolcanoes": 9,
+      "example": {
+        "seed": 2,
+        "info": [
+          {
+            "x": 87.25982534885406,
+            "y": 77.37079343795776,
+            "cone_m": 100.12737843906507,
+            "flows": 3
+          },
+          {
+            "x": 183.4740082144737,
+            "y": 83.10308855772018,
+            "cone_m": 51.996638495475054,
+            "flows": 1
+          }
+        ],
+        "describe": "Colorado Plateau: 20 beds, dipping 1.1° to the W; 2 old volcanoes with 4 basalt flows."
+      },
+      "exampleCells": {
+        "plateau": 61285,
+        "basalt": 1203,
+        "cinders": 2991,
+        "plug": 57,
+        "throat": 3
+      }
+    }
+  },
+  "minutes": 2.1410466666668655,
+  "gpuErrors": 0,
+  "gpuErrorMsgs": [],
+  "passed": "17/17",
+  "gpuFeatureStatusWebGPU": "enabled",
+  "electron": "45.2.1",
+  "chrome": "156.0.8078.75"
+}

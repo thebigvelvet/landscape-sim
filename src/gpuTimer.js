@@ -7,6 +7,7 @@ export class GpuTimer {
     this.device = device;
     this.ok = device.features.has('timestamp-query');
     this.simMs = 0; this.renderMs = 0; this.samples = 0;
+    this.subMs = 0;   // GPU ms per hydraulic sub-step actually run
     if (!this.ok) return;
     this.qs = device.createQuerySet({ type: 'timestamp', count: 4 });
     this.resolve = device.createBuffer({ size: 32, usage: GPUBufferUsage.QUERY_RESOLVE | GPUBufferUsage.COPY_SRC });
@@ -23,13 +24,15 @@ export class GpuTimer {
     return { querySet: this.qs, beginningOfPassWriteIndex: 2, endOfPassWriteIndex: 3 };
   }
   // call after the render pass in the frame's last encoder, before submit
-  resolveInto(encoder) {
+  // nSub: hydraulic sub-steps the frame's sim pass actually ran (for the per-sub-step cost)
+  resolveInto(encoder, nSub = 0) {
+    const hasSim = this.simWritten;
+    this.simWritten = false;      // always: a skipped frame must not leave old timestamps marked as new
     if (!this.ok || !this.free.length) { this._pending = null; return; }
     const buf = this.free.pop();
     encoder.resolveQuerySet(this.qs, 0, 4, this.resolve, 0);
     encoder.copyBufferToBuffer(this.resolve, 0, buf, 0, 32);
-    this._pending = { buf, hasSim: this.simWritten };
-    this.simWritten = false;
+    this._pending = { buf, hasSim, nSub };
   }
   // call after submit
   collect() {
@@ -43,8 +46,12 @@ export class GpuTimer {
       this.free.push(p.buf);
       if (sim < 1000 && ren < 1000) {
         const a = this.samples < 5 ? 0.5 : 0.15;
-        this.simMs = this.simMs * (1 - a) + sim * a;
         this.renderMs = this.renderMs * (1 - a) + ren * a;
+        // frames with no sim pass (paused, fast-forwarding) say nothing about the sim's cost
+        if (p.hasSim && sim > 0) {
+          this.simMs = this.simMs * (1 - a) + sim * a;
+          if (p.nSub > 0) this.subMs = this.subMs ? this.subMs * (1 - a) + (sim / p.nSub) * a : sim / p.nSub;
+        }
         this.samples++;
       }
     }).catch(() => { this.free.push(p.buf); });

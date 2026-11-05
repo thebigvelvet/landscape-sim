@@ -8,8 +8,10 @@
 // built on the map edge raises that edge's base level with it.
 //
 // Because nothing else ever writes initHeight, the change made by a stroke is exactly
-// initHeight(after) - initHeight(before). Undo puts that difference back (applyDelta), so it removes
-// the sculpting and keeps any erosion that happened during or after the stroke.
+// initHeight(after) - initHeight(before), both snapshotted queue-ordered around the stroke. Undo
+// applies the opposite of that stored change (soil a channel cut goes back as soil, the rest as
+// rock), so it removes the sculpting, keeps any erosion that happened during or after the stroke,
+// and needs no readback of its own: several quick undos cannot trip over each other.
 //
 // Each dab is its own small command buffer with its own uniform buffer, dispatched only over the
 // brush's bounding box. It is queue-ordered between simulation batches and never touches the shared
@@ -60,8 +62,20 @@ fn main(@builtin(global_invocation_id) gid : vec3<u32>) {
   if (x < 0 || y < 0 || x >= n || y >= n) { return; }
   let i = ix(x, y);
   let p = vec2<f32>(f32(x), f32(y));
+  let NN = u.N * u.N;
   if (u.op == ${OP.copy}u) { scratch[i] = bedrock[i] + soil[i]; return; }
-  if (u.op == ${OP.delta}u) { let d = scratch[i]; if (d != 0.0) { moveGround(i, d); } return; }
+  if (u.op == ${OP.delta}u) {
+    // undo: scratch[i] = rock change, scratch[NN + i] = soil to give back (soil a channel cut away)
+    let db = scratch[i]; let ds = scratch[NN + i];
+    if (db != 0.0) { moveGround(i, db); }
+    if (ds != 0.0) {
+      let s0 = soil[i]; let s1 = max(s0 + ds, 0.0);
+      soil[i] = s1;
+      initHeight[i] = initHeight[i] + (s1 - s0);
+      scratch[2u * NN + i] = scratch[2u * NN + i] - (s1 - s0);
+    }
+    return;
+  }
   let ground = bedrock[i] + soil[i];
   if (u.op == ${OP.channel}u) {
     // capsule around the segment a -> b; the bed follows the ORIGINAL ground (za..zb, sampled at the
@@ -80,6 +94,7 @@ fn main(@builtin(global_invocation_id) gid : vec3<u32>) {
     let take = min(so, -dz * (1.0 - q));
     soil[i] = so - take;
     initHeight[i] = initHeight[i] - take;
+    scratch[2u * NN + i] = scratch[2u * NN + i] + take;   // remembered so undo returns it as soil
     dz = dz + take;
     moveGround(i, dz);
     return;
@@ -106,8 +121,9 @@ export class Sculptor {
   constructor() { this.undoStack = []; this.stroke = null; }
 
   init(device, world) {
+    this.destroy();
     this.device = device; this.world = world;
-    this.undoStack = []; this.stroke = null;
+    this.reset();
     if (!this.pipeline) {
       const entries = [{ binding: 0, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'uniform' } }];
       for (let b = 1; b <= 4; b++) entries.push({ binding: b, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'storage' } });
@@ -127,7 +143,9 @@ export class Sculptor {
     this.slot = 0;
   }
 
-  reset() { this.undoStack = []; this.stroke = null; }
+  reset() { this.undoStack = []; this.stroke = null; this.epoch = (this.epoch || 0) + 1; }
+
+  destroy() { for (const b of this.ring || []) b.destroy(); this.ring = []; }
 
   // one dispatch over the box [x0, x1] x [y0, y1] (inclusive, clipped to the map)
   _run(enc, op, box, fields = {}) {
@@ -181,42 +199,82 @@ export class Sculptor {
     return box;
   }
 
-  /** Start an undoable stroke: snapshot initHeight BEFORE any dab of the stroke is queued. */
-  beginStroke(readLayer) {
-    if (this.stroke) this.endStroke();
-    this.stroke = { box: [Infinity, Infinity, -Infinity, -Infinity], snap: readLayer('initHeight'), N: this.world.N };
+  // Snapshot of what the brushes have done so far: initHeight (moved only by sculpting) and the
+  // running total of soil cut by channels. Queue-ordered after every dab submitted before the call.
+  _snap() {
+    const { device, world } = this, NN = world.N * world.N, bytes = NN * 4;
+    const st = device.createBuffer({ size: 2 * bytes, usage: GPUBufferUsage.MAP_READ | GPUBufferUsage.COPY_DST, label: 'sculpt.snap' });
+    const enc = device.createCommandEncoder({ label: 'sculpt.snap' });
+    enc.copyBufferToBuffer(world.buffers.initHeight, 0, st, 0, bytes);
+    enc.copyBufferToBuffer(world.buffers.sculptScratch, 2 * bytes, st, bytes, bytes);
+    device.queue.submit([enc.finish()]);
+    return st.mapAsync(GPUMapMode.READ)
+      .then(() => new Float32Array(st.getMappedRange().slice(0)))
+      .finally(() => { try { st.unmap(); } catch { /* not mapped */ } st.destroy(); });
   }
 
-  /** Finish the stroke: keep only the part of the snapshot the stroke touched. */
-  async endStroke() {
+  /** Start an undoable stroke: snapshot BEFORE any dab of the stroke is queued. */
+  beginStroke() {
+    if (this.stroke) this.endStroke();
+    const before = this._snap();
+    before.catch(() => {});
+    this.stroke = { box: [Infinity, Infinity, -Infinity, -Infinity], before, N: this.world.N, epoch: this.epoch };
+  }
+
+  /**
+   * Finish the stroke: snapshot again AFTER its last dab and keep, for the box it touched, the rock
+   * change and the soil it cut. Undo applies the opposite of that stored change with no further
+   * readback, so undos are independent of each other and of anything else happening meanwhile.
+   */
+  endStroke() {
     const st = this.stroke; this.stroke = null;
-    if (!st || !(st.box[2] >= st.box[0])) return;
-    const N = st.N;
+    if (!st || !(st.box[2] >= st.box[0])) return Promise.resolve();
+    const N = st.N, NN = N * N;
     const x0 = Math.max(0, Math.floor(st.box[0])), y0 = Math.max(0, Math.floor(st.box[1]));
     const x1 = Math.min(N - 1, Math.ceil(st.box[2])), y1 = Math.min(N - 1, Math.ceil(st.box[3]));
-    const entry = { N, x0, y0, x1, y1, before: null };
+    const after = this._snap();
+    const entry = { N, x0, y0, x1, y1, epoch: st.epoch };
+    entry.ready = Promise.all([st.before, after]).then(([b, a]) => {
+      const w = x1 - x0 + 1, h = y1 - y0 + 1;
+      const rock = new Float32Array(w * h), soil = new Float32Array(w * h);
+      for (let y = y0; y <= y1; y++) {
+        for (let x = x0; x <= x1; x++) {
+          const i = y * N + x, k = (y - y0) * w + (x - x0);
+          const cut = a[NN + i] - b[NN + i];            // soil a channel took away (>= 0)
+          const dH = a[i] - b[i];                       // total change of the ground by the stroke
+          soil[k] = cut;                                // undo gives the soil back ...
+          rock[k] = -(dH + cut);                        // ... and puts the rock where it was
+        }
+      }
+      return { rock, soil };
+    });
+    entry.ready.catch(() => {});
     this.undoStack.push(entry);
     if (this.undoStack.length > SCULPT_DEFAULTS.undoDepth) this.undoStack.shift();
-    const full = await st.snap;
-    const w = x1 - x0 + 1, before = new Float32Array(w * (y1 - y0 + 1));
-    for (let y = y0; y <= y1; y++) before.set(full.subarray(y * N + x0, y * N + x1 + 1), (y - y0) * w);
-    entry.before = before;
+    return entry.ready.then(() => {}, () => {
+      // the snapshot failed (device lost?): this stroke cannot be undone
+      const k = this.undoStack.indexOf(entry); if (k >= 0) this.undoStack.splice(k, 1);
+    });
   }
 
   get canUndo() { return this.undoStack.length > 0; }
+  /** True while an undo is waiting for its stroke's snapshot (a new stroke should wait for it). */
+  get busy() { return this.pending > 0; }
 
   /** Undo the last stroke. Returns false if there is nothing to undo. */
-  async undo(readLayer) {
+  async undo() {
     const e = this.undoStack.pop();
-    if (!e || e.N !== this.world.N) return false;
-    while (!e.before) await new Promise((r) => setTimeout(r, 10));   // its snapshot is still on the way
-    const N = e.N, w = e.x1 - e.x0 + 1;
-    const now = await readLayer('initHeight');
-    const delta = new Float32Array(N * N);
+    if (!e || e.N !== this.world?.N || e.epoch !== this.epoch) return false;
+    this.pending = (this.pending || 0) + 1;
+    let d;
+    try { d = await e.ready; } catch { return false; } finally { this.pending--; }
+    if (e.epoch !== this.epoch || e.N !== this.world?.N) return false;   // a new map was loaded meanwhile
+    const N = e.N, NN = N * N, w = e.x1 - e.x0 + 1, buf = this.world.buffers.sculptScratch, q = this.device.queue;
     for (let y = e.y0; y <= e.y1; y++) {
-      for (let x = e.x0; x <= e.x1; x++) delta[y * N + x] = e.before[(y - e.y0) * w + (x - e.x0)] - now[y * N + x];
+      const k = (y - e.y0) * w;
+      q.writeBuffer(buf, (y * N + e.x0) * 4, d.rock, k, w);
+      q.writeBuffer(buf, (NN + y * N + e.x0) * 4, d.soil, k, w);
     }
-    this.device.queue.writeBuffer(this.world.buffers.sculptScratch, 0, delta);
     this._run(this.device.createCommandEncoder({ label: 'sculpt.undo' }), OP.delta, [e.x0, e.y0, e.x1, e.y1]);
     return { x0: e.x0, y0: e.y0, x1: e.x1, y1: e.y1 };
   }

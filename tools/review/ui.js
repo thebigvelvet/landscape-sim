@@ -31,7 +31,7 @@
   const opts = [...document.querySelectorAll('.overlay-opt')];
   let ovOk = true;
   for (const o of opts) { o.click(); await wait(150); if (R.mode !== +o.dataset.id || (R.mode > 0 && $('legend').classList.contains('hidden'))) ovOk = false; }
-  ok(`all ${opts.length} views switch and show a legend`, ovOk && opts.length === 7);
+  ok(`all ${opts.length} views switch and show a legend`, ovOk && opts.length === 13);
   opts[0].click();
   // fast speed
   document.querySelector('.ticks span[data-speed="365000"]').click();
@@ -61,7 +61,7 @@
   await wait(1200);
   const st = await S.stats();
   ok('water books balance', Math.abs(st.balanceErrorPct) < 0.01 && !st.hasNaN, st.balanceErrorPct.toExponential(2) + ' %');
-  ok('stats panel filled', /balance/.test($('stats').textContent) && /nvidia/i.test($('stats').textContent));
+  ok('stats panel filled', /accounted/.test($('stats').textContent) && /nvidia/i.test($('stats').textContent));
   ok('no GPU errors during the session', (window.__gpuErrors || 0) === errs0, String((window.__gpuErrors || 0) - errs0));
   ok('frame rate', st.fps > 50, st.fps.toFixed(0) + ' fps');
   document.querySelector('.ticks span[data-speed="3"]')?.click();

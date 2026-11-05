@@ -272,7 +272,7 @@ class VegetationModule {
     this.ki = makeKernel(device, 'veg.ignite', IGNITE_WGSL, ['r', 'rw']);
     this.bf = this.kf.bind(prm, [B.veg, B.plant, B.snowSWE, B.bedrock, B.soil, B.fireNext, B.water]);
     this.bg = this.kg.bind(prm, [B.veg, B.burn, B.plant, B.fireNext, B.bedrock, B.soil, B.water, B.snowSWE, B.temp, B.spring, B.volcRock]);
-    this.iub = device.createBuffer({ size: 32, usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST, label: 'ignite' });
+    this.iub ||= device.createBuffer({ size: 32, usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST, label: 'ignite' });
     this.bi = this.ki.bind(this.iub, [B.veg, B.plant]);
   }
 

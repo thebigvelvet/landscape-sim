@@ -77,7 +77,7 @@ export class BrushTool {
       }
     }
     this.showHelp();
-    $('undo')?.addEventListener('click', () => this.undo());
+    $('undo')?.addEventListener('click', () => { this.undo(); });
     const rad = () => {
       this.radius = +$('brush-size').value;
       const m = this.radius * (this.sim.world?.cellSize || 10);
@@ -107,7 +107,10 @@ export class BrushTool {
     const sc = isSculpt(this.tool);
     $('tool-help').textContent = this.tool === 'volcano'
       ? `${ERUPTION_STYLES[this.volcanoStyle].name}: ${ERUPTION_STYLES[this.volcanoStyle].tip} Click the land to erupt; the strength slider makes it bigger or smaller.`
-      : (sc ? TOOLS[0] : TOOLS.find((t) => t.id === this.tool)).tip;
+      : sc ? 'A shaping tool is picked (below). The brush size and strength sliders set how wide and how hard it digs or builds.'
+      : TOOLS.find((t) => t.id === this.tool).tip;
+    // Drought covers the whole map and a volcano sizes itself: the size slider does nothing for them
+    $('brush-size-row')?.classList.toggle('unused', this.tool === 'drought' || this.tool === 'volcano');
     const vr = $('volcano-style-row');
     if (vr) vr.hidden = this.tool !== 'volcano';
     const sh = $('sculpt-help');
@@ -122,26 +125,33 @@ export class BrushTool {
     for (const b of document.querySelectorAll('.tool')) b.classList.toggle('active', b.dataset.tool === id);
     this.showHelp();
     document.body.classList.toggle('painting', id !== 'none');
-    // the brush size and strength sliders live in the Weather events menu: open it so they show
-    if (id !== 'none') document.dispatchEvent(new CustomEvent('open-section', { detail: 'events' }));
     if (id === 'none') this.renderer.setCursor(false);
-    else this.refreshHeights(true);
+    else this.refreshHeights(true).catch(() => {});
   }
 
   // ---- height field cache for picking ----
   async refreshHeights(force = false) {
     const sim = this.sim;
-    if (!sim.world || this.hPending) return;
+    if (!sim.world || sim.loading) return;
+    if (this.hPending) { if (force) this.hAgain = true; return this.hPending; }
     const now = performance.now();
     const every = isSculpt(this.tool) ? 150 : 1200;   // sculpting changes the ground fast
-    if (!force && now - this.hTime < every && this.hN === sim.world.N) return;
-    this.hPending = true;
-    try {
-      const [b, s, v] = await Promise.all([sim.readLayer('bedrock'), sim.readLayer('soil'), sim.readLayer('veg')]);
-      for (let i = 0; i < b.length; i++) b[i] += s[i];
-      this.H = b; this.V = v; this.hN = sim.world.N; this.hTime = performance.now();
-    } finally { this.hPending = false; }
+    if (!force && now - this.hTime < every && this.hN === sim.world.N && this.hGen === sim.gen) return;
+    const N = sim.world.N, gen = sim.gen;
+    this.hPending = (async () => {
+      try {
+        const [b, s, v] = await Promise.all([sim.readLayer('bedrock'), sim.readLayer('soil'), sim.readLayer('veg')]);
+        // a new map arrived meanwhile: these heights belong to the old one
+        if (gen !== sim.gen || N !== sim.world?.N || b.length !== N * N) { this.hAgain = true; return; }
+        for (let i = 0; i < b.length; i++) b[i] += s[i];
+        this.H = b; this.V = v; this.hN = N; this.hGen = gen; this.hTime = performance.now();
+      } catch (e) { console.warn('heights', e); }
+    })();
+    try { await this.hPending; } finally { this.hPending = null; }
+    if (this.hAgain) { this.hAgain = false; return this.refreshHeights(true); }
   }
+
+  get heightsReady() { return !!this.H && this.hN === this.sim.world?.N && this.hGen === this.sim.gen; }
 
   heightAt(gx, gy, H = this.H) {
     const N = this.hN;
@@ -154,7 +164,7 @@ export class BrushTool {
   /** Screen point (client px) -> grid cell {x, y} on the terrain, or null if the ray misses. */
   pick(clientX, clientY) {
     const r = this.renderer, sim = this.sim;
-    if (!this.H || !r.lastInvViewProj || this.hN !== sim.world?.N) return null;
+    if (!this.heightsReady || !r.lastInvViewProj) return null;
     const rect = r.canvas.getBoundingClientRect();
     const nx = ((clientX - rect.left) / rect.width) * 2 - 1;
     const ny = 1 - ((clientY - rect.top) / rect.height) * 2;
@@ -217,14 +227,20 @@ export class BrushTool {
     this.renderer.camera.blockLeft = (e) => this.tool !== 'none' && e.button === 0 && !e.shiftKey;
     cv.addEventListener('pointermove', (e) => {
       if (this.tool === 'none') return;
-      this.refreshHeights();
+      this.refreshHeights().catch(() => {});
       const p = this.pick(e.clientX, e.clientY);
-      this.renderer.setCursor(!!p, p?.x, p?.y, this.radius, TOOL_IDS[this.tool]);
+      const ring = this.tool === 'drought' || this.tool === 'volcano' ? 3 : this.radius;
+      this.renderer.setCursor(!!p, p?.x, p?.y, ring, TOOL_IDS[this.tool]);
       if (p && this.down) { if (this.down.sculpt) this.down.p = p; else this.dragTo(p); }
     });
     cv.addEventListener('pointerleave', () => this.renderer.setCursor(false));
     cv.addEventListener('pointerdown', (e) => {
       if (this.tool === 'none' || e.button !== 0 || e.shiftKey) return;
+      if (!this.heightsReady || (isSculpt(this.tool) && this.sim.sculptBusy)) {
+        this.toast('miss', 'Getting ready...', 'Reading the shape of the land. Try again in a moment.');
+        this.refreshHeights(true).catch(() => {});
+        return;
+      }
       const p = this.pick(e.clientX, e.clientY);
       if (!p) { this.toast('miss', 'Click on the land', 'That click missed the map. Point at the ground and try again.'); return; }
       cv.setPointerCapture(e.pointerId);
@@ -236,7 +252,8 @@ export class BrushTool {
     cv.addEventListener('pointerup', up);
     cv.addEventListener('pointercancel', up);
     window.addEventListener('keydown', (e) => {
-      if (['INPUT', 'SELECT', 'TEXTAREA'].includes(document.activeElement?.tagName)) return;
+      const a = document.activeElement;
+      if (a && (a.tagName === 'TEXTAREA' || a.tagName === 'SELECT' || a.isContentEditable || (a.tagName === 'INPUT' && ['text', 'number', 'search'].includes(a.type)))) return;
       if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z') { e.preventDefault(); this.undo(); return; }
       if (e.ctrlKey || e.metaKey || e.altKey) return;
       if (e.key === 'Escape') this.setTool('none');
@@ -259,7 +276,7 @@ export class BrushTool {
   // ---- sculpting: a held stroke dabs every DAB_MS at the pointer ----
   startSculpt(p) {
     const sim = this.sim;
-    if (!this.H || this.hN !== sim.world.N) return;
+    if (!this.heightsReady || sim.sculptBusy) return;
     sim.beginStroke();
     const d = this.down = { sculpt: true, tool: this.tool, p, last: p, H0: this.H.slice() };
     if (this.tool === 'flatten') d.target = this.heightAt(p.x, p.y);
@@ -288,15 +305,16 @@ export class BrushTool {
     this.down = null;
     if (!d?.sculpt) return;
     clearInterval(d.timer);
-    this.sim.endStroke().then(() => { this.updateUndo(); this.refreshHeights(true); });
+    this.sim.endStroke().then(() => { this.updateUndo(); return this.refreshHeights(true); }).catch((e) => console.warn(e));
     this.updateUndo(true);
   }
 
   async undo() {
     if (this.down?.sculpt || !this.sim.canUndo) return false;
-    const box = await this.sim.undoSculpt();
+    let box = false;
+    try { box = await this.sim.undoSculpt(); } catch (e) { console.warn(e); }
     this.updateUndo();
-    this.refreshHeights(true);
+    this.refreshHeights(true).catch(() => {});
     if (box) this.toast('undo', 'Undone', 'The last shaping stroke is gone. Any erosion since then is kept.');
     return box;
   }
@@ -319,7 +337,7 @@ export class BrushTool {
     if (type === 'fire') type = 'wildfire';
     const o = { x, y, radius: opts.radius ?? this.radius, intensity: opts.intensity ?? this.intensity, days: opts.days };
     if (type === 'drought') delete o.radius;
-    if (type === 'volcano') { delete o.radius; o.style = opts.style ?? this.volcanoStyle; if (this.H && this.hN === this.sim.world.N) o.ground = this.heightAt(x, y); }
+    if (type === 'volcano') { delete o.radius; o.style = opts.style ?? this.volcanoStyle; if (this.heightsReady) o.ground = this.heightAt(x, y); }
     const ev = this.sim.brush(type, o);
     this.renderer.clickRipple(ev.x, ev.y, type === 'drought' ? this.sim.world.N * 0.35 : ev.r, TOOL_IDS[type]);
     this.explain(ev);
@@ -392,6 +410,8 @@ export class BrushTool {
     }
   }
 
+  cancelLater() { clearTimeout(this.laterTimer); this.laterTimer = null; }
+
   // action: optional { label, speed } button that sets the speed dial (and plays)
   toast(kind, title, text, action = null) {
     const el = $('toast');
@@ -405,7 +425,7 @@ export class BrushTool {
     el.onclick = (e) => {
       if (action && e.target.classList.contains('tact')) {
         this.app.setSpeed(action.speed); this.app.play();
-        if (action.later) setTimeout(() => this.app.setSpeed(365), 6000);
+        if (action.later) this.laterTimer = setTimeout(() => { this.laterTimer = null; this.app.setSpeed(365); }, 6000);
       }
       el.classList.remove('show');
     };

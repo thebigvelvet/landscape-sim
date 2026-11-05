@@ -36,6 +36,13 @@ async function initGPU() {
   for (const k of want) if (adapter.limits[k] !== undefined) requiredLimits[k] = adapter.limits[k];
   const requiredFeatures = ['timestamp-query'].filter((f) => adapter.features.has(f));
   const device = await adapter.requestDevice({ requiredLimits, requiredFeatures });
+  // the terrain shader binds 14 storage buffers per stage and the column kernel 13: below that the
+  // pipelines fail to build and the view would just stay black
+  const L = device.limits;
+  if (L.maxStorageBuffersPerShaderStage < 14 || (L.maxStorageBuffersInVertexStage !== undefined && L.maxStorageBuffersInVertexStage < 14)) {
+    fatal('This graphics card is too limited', `<p>The simulator needs a graphics card that can use at least 14 data buffers in one shader; this one allows ${L.maxStorageBuffersPerShaderStage}.</p>${NO_WEBGPU}`);
+    return null;
+  }
   device.lost.then((info) => {
     if (info.reason !== 'destroyed') fatal('The graphics device was lost', `<p>${info.message || ''}</p><p>This can happen after a driver update or if the GPU ran out of memory. <button onclick="location.reload()">Reload</button></p>`);
   });
@@ -67,24 +74,41 @@ async function main() {
   let stats = null;
   let fpsEMA = 60, gpuMs = 0, gpuPending = false, frames = 0, lastT = performance.now(), statsPending = false;
 
+  // the largest grid whose biggest layer (sediment beds, 64 bytes per cell) the GPU can bind
+  const maxBind = Math.min(device.limits.maxStorageBufferBindingSize, device.limits.maxBufferSize);
+  const sizeOk = (N) => N * N * 64 <= maxBind;
+  for (const o of document.querySelectorAll('#size option')) if (!sizeOk(+o.value)) { o.disabled = true; o.textContent += ' (too big for this GPU)'; }
+
+  let loadSeq = 0;
   const app = {
     sim, renderer, device,
+    // Loads queue up inside sim.load; only the newest one updates the panel and hides the overlay.
     async load(scenario, opts = {}) {
+      if (opts.size && !sizeOk(+opts.size)) opts = { ...opts, size: 512 };
+      const my = ++loadSeq;
       busy(scenario === 'random' ? 'Raising mountains...' : 'Shaping the land...');
       await new Promise((r) => setTimeout(r, 30));   // let the overlay paint
       try {
         const res = await sim.load(scenario, opts);
+        if (my !== loadSeq) return res;              // a newer load is on its way
+        stats = null;
         renderer.frameTerrain(sim.terrainRange);
         renderer.visuals.clear();
+        brushTool?.cancelLater();
         brushTool?.refreshHeights(true);
         brushTool?.updateUndo();
         panel?.syncTerrain(res);
         panel?.sync();
         stats = await sim.stats();
         return res;
-      } finally { busy(''); }
+      } finally { if (my === loadSeq) busy(''); }
     },
-    setSpeed(v) { sim.speed = Math.min(365000, Math.max(0.01, +v)); panel?.sync(); },
+    setSpeed(v) {
+      if (!Number.isFinite(+v)) return;
+      brushTool?.cancelLater();     // a speed picked now beats a "speed up in a moment" from a notice
+      sim.speed = Math.min(365000, Math.max(0.01, +v));
+      panel?.sync();
+    },
     pause() { sim.paused = true; panel?.sync(); },
     play() { sim.paused = false; panel?.sync(); },
     async bench(sizes = [256, 512, 1024]) {
@@ -136,7 +160,7 @@ async function main() {
   const preset = q.get('preset') && PRESETS[q.get('preset')] ? q.get('preset') : 'Colorado alpine';
   const size = +q.get('size') || 512;
   const seed = q.has('seed') ? +q.get('seed') : 1;
-  if (q.has('speed')) sim.speed = +q.get('speed');
+  if (q.has('speed')) app.setSpeed(q.get('speed'));
   if (q.has('paused')) sim.paused = q.get('paused') !== '0';
 
   panel = new Panel(app);
@@ -168,7 +192,8 @@ async function main() {
     if (timer.ok) {
       if (timer.samples < 4 || frames % 6) return;
       gpuMs = timer.simMs + timer.renderMs;
-      const per = timer.simMs / Math.max(2, sim.nSub);
+      // cost of one sub-step as actually run (slow motion runs fewer than nSub)
+      const per = timer.subMs || timer.simMs / Math.max(2, sim.nSub);
       if (per <= 0) return;
       const target = Math.max(2, Math.min(sim.maxSub, (BUDGET_MS - timer.renderMs) / per));
       let n = sim.nSub + Math.max(-Math.ceil(sim.nSub * 0.25), Math.min(Math.ceil(sim.nSub * 0.25) + 1, target - sim.nSub));
@@ -199,12 +224,12 @@ async function main() {
       sim.tick(dt);
       const enc = device.createCommandEncoder({ label: 'render' });
       renderer.encode(enc, sim, timer.renderPassTimestamps());
-      timer.resolveInto(enc);
+      timer.resolveInto(enc, sim.lastN);
       device.queue.submit([enc.finish()]);
       timer.collect();
     } catch (e) { console.error(e); }
     governor();
-    if (frames % 15 === 0 && !statsPending && sim.world && !sim.running) {
+    if (frames % 15 === 0 && !statsPending && sim.world && !sim.running && !sim.loading) {
       statsPending = true;
       sim.stats().then((s) => { stats = s; }).catch(() => {}).finally(() => { statsPending = false; });
     }
@@ -275,6 +300,12 @@ async function main() {
     // sediment beds (sim/deposits.js): one cell's stack (top bed first) and a whole-map summary
     bedsAt: async (x, y) => bedsAt(await sim.readLayer('deposit'), y * sim.N + x),
     depositStats: async () => depositSummary(await sim.readLayer('deposit'), sim.world.cells, sim.world.cellSize ** 2),
+    // the same from every k-th cell (the legend's live note: the full layer is 64 bytes per cell)
+    depositPreview: async () => {
+      const k = Math.max(1, Math.round(sim.N / 256));
+      const { data, n } = await sim.sampleLayer('deposit', 16, k);
+      return depositSummary(data, n * n, (sim.world.cellSize * k) ** 2);
+    },
     // wind (sim/wind.js): settings (from = compass bearing it blows from, speed, steady 0..1, on) and
     // a whole-map summary of the wind field and the wind-blown sand
     get wind() { return { ...sim.climate.windSettings(), on: sim.windOn }; },

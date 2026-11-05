@@ -1,0 +1,180 @@
+{
+  "checks": {
+    "dunesForm": {
+      "pass": true,
+      "relief_m": 28.57871103286743
+    },
+    "dunesTravelDownwind": {
+      "pass": true,
+      "cellsIn50yr": 9
+    },
+    "slipFaces": {
+      "pass": true,
+      "leeP90deg": 30.488323987669638,
+      "stossP90deg": 26.825640762611858
+    },
+    "crestsAcrossSteadyWind": {
+      "pass": true,
+      "alongShare": 0.532005312485918,
+      "gradientAngleToWind": 39.959614694061585,
+      "coherence": 0.3656991411554574
+    },
+    "booksSand": {
+      "pass": true,
+      "solidsError_m3": -93.9144968315959,
+      "sedOut_m3": 6308765.52840478,
+      "balPct": 1.1656578923389898e-7
+    },
+    "linearDunesAlongWind": {
+      "pass": true,
+      "alongShare": 0.048240477622268775,
+      "gradientAngleToWind": 89.40687199216022,
+      "coherence": 0.9037127299755088
+    },
+    "directionDial": {
+      "pass": true,
+      "alongShare": 0.5003787644406933,
+      "gradientAngleToWind": 44.50038073391656,
+      "travelSouthCells": 10
+    },
+    "protectedSurfaces": {
+      "pass": true,
+      "wetGreen": 0.2989687919616699,
+      "pavementMeanChange_m": 0.0014463800316055616,
+      "pavementRelief": 0.023968935012817383
+    },
+    "sandblastingDifferential": {
+      "pass": true,
+      "hard_m": 0.030372769818091897,
+      "soft_m": 0.23767929353008496,
+      "cells": {
+        "hard": 7061,
+        "soft": 30699
+      },
+      "stack": "Colorado Plateau: 23 beds, dipping 0.37° to the S; a monocline drops them 444 m at up to 16°; a broad syncline arches them 11 m."
+    },
+    "snowDrifts": {
+      "pass": true,
+      "leeGain": 1.3433607700902923,
+      "exposedLoss": 0.25895035123859494,
+      "leeCells": 30559,
+      "exposedCells": 18595,
+      "balOn": 0.0000011866456092190725,
+      "snowOn_m3": 1594367.763710022,
+      "snowOff_m3": 1559195.984840393
+    },
+    "booksSnow": {
+      "pass": true,
+      "balPct": 0.0000011866456092190725
+    },
+    "booksLandscape": {
+      "pass": true,
+      "solidsError_m3": -16.91224851226434,
+      "sedOut_m3": 1281478.3029767075,
+      "balPct": -8.308330767664284e-8,
+      "nan": false,
+      "maxErosion_m": 134.4619140625,
+      "meanWind": 0.7156304679935963,
+      "shelteredFrac": 0.5230255126953125,
+      "sandCoverFrac": 0.42889404296875,
+      "topSandVolume_m3": 1075961.8955247104,
+      "lastBatch": {
+        "K": 1,
+        "eSand": 4.38469887491035e-12,
+        "eDust": 1.0961747187275873e-13,
+        "eSnow": 1.6004150893422775e-10,
+        "dirs": [
+          190.77054312918335
+        ]
+      }
+    }
+  },
+  "runs": {
+    "steady": {
+      "relief": 28.57871103286743,
+      "leeP90deg": 30.488323987669638,
+      "stossP90deg": 26.825640762611858,
+      "leeMedDeg": 16.874344405656544,
+      "stossMedDeg": 14.290357757118285,
+      "crestAngleToWind": 39.959614694061585,
+      "coherence": 0.3656991411554574,
+      "alongShare": 0.532005312485918,
+      "travelCells50yr": 9,
+      "solidsError_m3": -93.9144968315959,
+      "sedOut_m3": 6308765.52840478,
+      "balPct": 1.1656578923389898e-7,
+      "nan": false
+    },
+    "bimodal": {
+      "relief": 19.60004472732544,
+      "leeP90deg": 6.669114922481536,
+      "stossP90deg": 7.738587150364177,
+      "leeMedDeg": 1.0980561465282075,
+      "stossMedDeg": 1.0873994643939577,
+      "crestAngleToWind": 89.40687199216022,
+      "coherence": 0.9037127299755088,
+      "alongShare": 0.048240477622268775
+    },
+    "north": {
+      "relief": 29.125292778015137,
+      "leeP90deg": 29.69159634401088,
+      "stossP90deg": 23.51139910922603,
+      "leeMedDeg": 16.073894903027927,
+      "stossMedDeg": 13.15804465925572,
+      "crestAngleToWind": 44.50038073391656,
+      "coherence": 0.04343848505746941,
+      "alongShare": 0.5003787644406933,
+      "travelCells50yr": 10
+    },
+    "protected": {
+      "wetGreen": 0.2989687919616699,
+      "pavementMeanChange_m": 0.0014463800316055616,
+      "pavementRelief": 0.023968935012817383
+    },
+    "abrasion": {
+      "hard_m": 0.030372769818091897,
+      "soft_m": 0.23767929353008496,
+      "cells": {
+        "hard": 7061,
+        "soft": 30699
+      },
+      "stack": "Colorado Plateau: 23 beds, dipping 0.37° to the S; a monocline drops them 444 m at up to 16°; a broad syncline arches them 11 m."
+    },
+    "snow": {
+      "leeGain": 1.3433607700902923,
+      "exposedLoss": 0.25895035123859494,
+      "leeCells": 30559,
+      "exposedCells": 18595,
+      "balOn": 0.0000011866456092190725,
+      "snowOn_m3": 1594367.763710022,
+      "snowOff_m3": 1559195.984840393
+    },
+    "utah1000": {
+      "solidsError_m3": -16.91224851226434,
+      "sedOut_m3": 1281478.3029767075,
+      "balPct": -8.308330767664284e-8,
+      "nan": false,
+      "maxErosion_m": 134.4619140625,
+      "meanWind": 0.7156304679935963,
+      "shelteredFrac": 0.5230255126953125,
+      "sandCoverFrac": 0.42889404296875,
+      "topSandVolume_m3": 1075961.8955247104,
+      "lastBatch": {
+        "K": 1,
+        "eSand": 4.38469887491035e-12,
+        "eDust": 1.0961747187275873e-13,
+        "eSnow": 1.6004150893422775e-10,
+        "dirs": [
+          190.77054312918335
+        ]
+      }
+    }
+  },
+  "passed": 12,
+  "total": 12,
+  "minutes": 0.7867850000003974,
+  "gpuErrors": 0,
+  "gpuFeatureStatusWebGPU": "enabled",
+  "electron": "45.2.1",
+  "chrome": "156.0.8078.75"
+}

@@ -7,7 +7,8 @@ const $ = (id) => document.getElementById(id);
 const preset = () => e.climate.presetName;
 // a load shows the #loading overlay and fades it (class 'fade') when done
 const waitLoad = async () => { await sleep(200); for (let k = 0; k < 300; k++) { if ($('loading').classList.contains('fade')) break; await sleep(100); } await sleep(500); };
-const choose = async (prov) => { $('province').value = prov; $('province').dispatchEvent(new Event('change')); await waitLoad(); };
+// picking a province waits for "Make this landscape" (like the other landscape settings)
+const choose = async (prov) => { $('province').value = prov; $('province').dispatchEvent(new Event('change')); $('generate').click(); await waitLoad(); };
 $('size').value = '256';
 // 1. picking a province brings its home climate
 await choose('gulf');

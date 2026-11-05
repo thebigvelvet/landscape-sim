@@ -75,7 +75,17 @@ export class Simulation {
 
   get N() { return this.world?.N ?? 0; }
 
-  async load(scenario = 'random', opts = {}) {
+  // Loads never overlap (a second one waits for the first), and while one is in progress the frame
+  // loop neither simulates nor reads stats: batches run on a half-loaded map would put water into
+  // the books before the starting store (stored0) is measured.
+  load(scenario = 'random', opts = {}) {
+    this.loading = (this.loading || 0) + 1;
+    const job = (this._loadQ || Promise.resolve()).then(() => this._load(scenario, opts));
+    this._loadQ = job.catch(() => {});
+    return job.finally(() => { this.loading--; });
+  }
+
+  async _load(scenario = 'random', opts = {}) {
     const N = [256, 512, 1024, 2048].includes(+opts.size) ? +opts.size : (this.world?.N || 512);
     const cellSize = +opts.cellSize || this.cellSize || 10;
     const seed = Number.isFinite(+opts.seed) ? +opts.seed : 1;
@@ -91,6 +101,7 @@ export class Simulation {
     await this.device.queue.onSubmittedWorkDone();
     if (!this.world || this.world.N !== N || this.cellSize !== cellSize) {
       this.statsK?.destroy();
+      this.world?.params?.buffer.destroy();
       this.world?.destroy();
       this.world = new World(this.device, { N, cellSize });
       this.world.params = new ParamBlock(this.device);
@@ -137,7 +148,7 @@ export class Simulation {
     // a readback started before this load (the frame loop asks for stats every few frames) must not
     // fold the old map's flux log into the new books: each load starts a new generation
     this.gen = (this.gen || 0) + 1;
-    this.day = 0; this.frame = 0; this.carry = 0; this.hmax = 0.3; this.consumed = 0;
+    this.day = 0; this.frame = 0; this.carry = 0; this.hmax = 0.3; this.consumed = 0; this.lastN = 0;
     this.depEpoch = 0; this.depEpochStart = 0;
     this.cum = { precip: 0, outflow: 0, evap: 0, sedOut: 0, erupted: 0 };
     this.climate.stormDaysLeft = 0;
@@ -150,6 +161,10 @@ export class Simulation {
     sculptor.reset();
     this.world.params.set({ N, cellSize, cellArea: cellSize * cellSize, frame: 0, logSize: LOG_SIZE });
     this.world.params.upload();
+    // the date card and sky start from the new map's first day, not the old map's last
+    this.lastPlan = {};
+    this.lastClimate = this.climate.produce(0, this.datum + this.terrainRange.mean, 1);
+    this.lastState = null;
     if (opts.spinUp !== false) await this._spinUp();
     const s0 = await this._readback();
     this.stored0 = (s0.water + s0.snow + s0.groundwater + 0.9 * s0.ice) * this.world.cellSize ** 2;
@@ -295,7 +310,12 @@ export class Simulation {
   brush(type, opts = {}) {
     if (!this.world) throw new Error('load() first');
     const ev = this.events.add(type, opts, { vegetation, volcano, readLayer: (n) => this.readLayer(n) });
-    if (ev.type === 'volcano' && this.terrainRange) this.terrainRange.max = Math.max(this.terrainRange.max, (Number.isFinite(+opts.ground) ? +opts.ground : this.terrainRange.max) + ev.coneHeight);
+    if (ev.type === 'volcano' && this.terrainRange) {
+      const tr = this.terrainRange, g = Number.isFinite(+opts.ground) ? +opts.ground : null;
+      tr.max = Math.max(tr.max, (g ?? tr.max) + (ev.coneHeight || 0));
+      // explosion craters dig below the old ground: keep the picking box under them
+      if (ev.craterD > 0) tr.min = Math.min(tr.min, (g ?? tr.min) - ev.craterD);
+    }
     return ev;
   }
 
@@ -315,10 +335,11 @@ export class Simulation {
     }
     return { op, x: +opts.x, y: +opts.y, r: +opts.radius || 10, box };
   }
-  beginStroke() { sculptor.beginStroke((n) => this.readLayer(n)); }
+  beginStroke() { sculptor.beginStroke(); }
   endStroke() { return sculptor.endStroke(); }
-  undoSculpt() { return sculptor.undo((n) => this.readLayer(n)); }
+  undoSculpt() { return sculptor.undo(); }
   get canUndo() { return sculptor.canUndo; }
+  get sculptBusy() { return sculptor.busy; }
   // rock layers on/off (sim/strata.js); on by default, takes effect at the next batch
   strata = true;
   // karst valleys (sim/karst.js: sinking water dissolving its way down, walls retreating) on/off; the
@@ -349,7 +370,8 @@ export class Simulation {
 
   // Interactive frame. realDt in seconds. Returns sub-steps run (0 if paused).
   tick(realDt) {
-    if (!this.world || this.paused || this.running) return 0;
+    this.lastN = 0;
+    if (!this.world || this.paused || this.running || this.loading) return 0;
     const dt = Math.min(Math.max(realDt, 0), 0.1);
     const target = Math.min(this.speed * dt, MAX_DAYS_PER_FRAME * 2);
     this.bedDays = Math.min(Math.max(2 * this.speed, 7), 500 * 365);
@@ -364,14 +386,19 @@ export class Simulation {
       this.carry -= Dcol;
       this.strobe = true;
     } else {
-      Dcol = target + this.carry; this.carry = 0; this.strobe = false;
+      // leaving the time-lapse: the days it still owes are paid off a few per frame (at most 4x the
+      // requested rate) rather than as up to a year of snow and growth in one jump
+      const pay = Math.min(this.carry, 3 * target);
+      Dcol = target + pay; this.carry -= pay; this.strobe = false;
     }
     if (Dcol <= 0) return 0;
     // Slow motion (below ~1 day/s): never simulate more hydraulic seconds than clock seconds, so
     // water moves at its real speed and a flood wave can be watched travelling down the valley.
     const nClock = Math.max(2, 2 * Math.floor((Dcol * 86400) / (0.2 * this.world.cellSize) / 2));
     const n = this._batch(Dcol, target, Math.min(this.nSub, nClock), true);
-    if (this.frame % 30 === 0) this._readback();
+    this.lastN = n;               // sub-steps actually run (the governor divides the GPU time by it)
+    this.lastBatchDays = Dcol;
+    if (this.frame % 30 === 0) this._readback().catch(() => {});
     if (arches.due(this)) arches.update(this).catch((e) => console.error(e));
     return n;
   }
@@ -422,6 +449,11 @@ export class Simulation {
       }
       this.consumed = frameAt;
       this.hmax = state.maxWater;
+      // keep the picking/framing box around the land as it erodes, caves in or builds up
+      const tr = this.terrainRange;
+      if (tr && Number.isFinite(state.minH) && Number.isFinite(state.maxH)) {
+        tr.min = Math.min(tr.min, state.minH); tr.max = Math.max(tr.max, state.maxH);
+      }
       glacier.hasIce = state.ice > 0;
       volcano.hasLava = state.hotLava > 0 || volcano.erupting;
       this.lastState = state;
@@ -438,10 +470,34 @@ export class Simulation {
     const enc = this.device.createCommandEncoder();
     enc.copyBufferToBuffer(src, 0, st, 0, src.size);
     this.device.queue.submit([enc.finish()]);
-    await st.mapAsync(GPUMapMode.READ);
-    const out = new Float32Array(st.getMappedRange().slice(0));
-    st.unmap(); st.destroy();
-    return out;
+    try {
+      await st.mapAsync(GPUMapMode.READ);
+      const out = new Float32Array(st.getMappedRange().slice(0));
+      st.unmap();
+      return out;
+    } finally { st.destroy(); }
+  }
+
+  // Every k-th cell in x and y of a layer with `per` floats per cell (cheap look at a huge layer).
+  // Returns { data, n, per } with n x n cells of `per` floats.
+  async sampleLayer(name, per = 1, k = 1) {
+    const src = this.world.buffers[name], N = this.world.N;
+    if (k <= 1) return { data: await this.readLayer(name), n: N, per };
+    const n = Math.ceil(N / k), rowBytes = N * per * 4;
+    const st = this.device.createBuffer({ size: n * rowBytes, usage: GPUBufferUsage.MAP_READ | GPUBufferUsage.COPY_DST });
+    const enc = this.device.createCommandEncoder();
+    for (let j = 0; j < n; j++) enc.copyBufferToBuffer(src, j * k * rowBytes, st, j * rowBytes, rowBytes);
+    this.device.queue.submit([enc.finish()]);
+    try {
+      await st.mapAsync(GPUMapMode.READ);
+      const rows = new Float32Array(st.getMappedRange());
+      const data = new Float32Array(n * n * per);
+      for (let j = 0; j < n; j++) for (let i = 0; i < n; i++) {
+        for (let c = 0; c < per; c++) data[(j * n + i) * per + c] = rows[j * N * per + i * k * per + c];
+      }
+      st.unmap();
+      return { data, n, per };
+    } finally { st.destroy(); }
   }
 
   async stats() {

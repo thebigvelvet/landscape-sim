@@ -53,7 +53,9 @@ const env = { ...process.env };
 delete env.ELECTRON_RUN_AS_NODE;
 if (wait) {
   const r = spawnSync(exe, [ROOT, ...extra], { stdio: 'inherit', env });
-  process.exit(r.status ?? 0);
+  // no status means Electron was killed by a signal (crash): that is a failure, not a pass
+  if (r.status === null) console.error(`Electron stopped unexpectedly (${r.signal || r.error?.message || 'unknown'}).`);
+  process.exit(r.status ?? 1);
 } else {
   const child = spawn(exe, [ROOT, ...extra], { detached: true, stdio: 'ignore', env });
   child.unref();

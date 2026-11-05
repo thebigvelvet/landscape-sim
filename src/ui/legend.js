@@ -36,7 +36,7 @@ export const OVERLAYS = [
     id: 5, name: 'Erosion & deposition', dot: 'linear-gradient(90deg,#b3141a,#fff,#1440bf)',
     desc: 'How much the ground has been lowered (red) or built up (blue) since the start.',
     gradient: 'linear-gradient(90deg, rgb(179,20,26), rgb(255,217,191) 45%, rgba(255,255,255,0.4) 50%, rgb(204,224,255) 55%, rgb(20,64,191))',
-    labels: ['-50 m', '-1 m', '0', '+1 m', '+50 m'],
+    labels: ['-50 m', '-1 m', '+1 m', '+50 m'], at: [0, 43, 57, 100],
     note: 'Red: worn away by streams, landslides and frost. Blue: sediment dropped in valleys, fans and lakes.',
   },
   {
@@ -50,7 +50,7 @@ export const OVERLAYS = [
     id: 7, name: 'Plants & burn scars', dot: 'linear-gradient(135deg,#eedc9e,#9ed65a,#1a7a29)',
     desc: 'Where plants grow, from bare ground to grass, shrubs and forest, and where fire has burned.',
     gradient: 'linear-gradient(90deg, rgb(237,219,158), rgb(158,214,82), rgb(26,122,41) 80%, rgb(5,66,26))',
-    labels: ['bare', 'grass', 'forest'],
+    labels: ['bare', 'grass', 'forest'], at: [0, 40, 80],
     note: 'Plants need warmth (there is a treeline), water and some soil. Red patches burned recently; they turn green again as grass, then shrubs, then trees come back. Orange is fire burning now.',
   },
   {
@@ -77,16 +77,18 @@ export const OVERLAYS = [
   {
     id: 11, name: 'Volcanic rock', dot: 'linear-gradient(135deg,#333d73,#e64d26,#8c33b3)',
     desc: 'Rock made by volcanoes, under the soil or at the surface, and lava that is still molten.',
+    swatches: ['rgb(51,61,115)', 'rgb(230,77,38)', 'rgb(140,51,179)', 'rgb(115,158,204)', 'rgb(235,224,179)', 'rgb(217,153,64)', 'rgb(102,179,102)', 'rgb(255,166,26)'],
     gradient: 'linear-gradient(90deg, rgb(51,61,115) 0 12.5%, rgb(230,77,38) 12.5% 25%, rgb(140,51,179) 25% 37.5%, rgb(115,158,204) 37.5% 50%, rgb(235,224,179) 50% 62.5%, rgb(217,153,64) 62.5% 75%, rgb(102,179,102) 75% 87.5%, rgb(255,166,26) 87.5%)',
     labels: ['basalt', 'cinders', 'plug', 'andesite', 'ash', 'tuff', 'breccia', 'lava'],
-    note: 'Basalt is set lava: very hard, so old flows end up capping ridges and mesas. Cinders are loose and frothy and wash away quickly. The plug is lava that set in the throat of the volcano; it outlasts the cone as a rocky neck. Andesite and dacite are the stiff lavas of Vulcanian and Pelean eruptions (lava domes). Ash and pumice from explosive eruptions is the softest of all, so rain soon gullies it. Tuff is ash welded or packed together: tuff rings round maars, and the ignimbrite left by pyroclastic flows. Breccia is the broken old rock thrown out by steam blasts. Paint a volcano with the Volcano brush (pick the eruption style under it), or load maps until one starts with an old volcano.',
+    note: 'Basalt (set lava) and the plug in a volcano\'s throat are very hard, so old flows end up capping ridges and the plug stands as a rocky neck. Cinders and ash are soft and wash away fast; tuff is packed ash. Paint a volcano with the Volcano brush.',
   },
   {
     id: 12, name: 'Subsurface', dot: 'linear-gradient(135deg,#0dbfcc,#264df2,#ff4019)',
     desc: 'What the rock under each spot does underground: dissolves, carries groundwater, or warms the ground.',
+    swatches: ['rgb(13,191,204)', 'rgb(255,255,255)', 'rgb(38,77,242)', 'rgb(13,13,15)', 'rgb(255,64,26)', 'rgb(150,60,200)'],
     gradient: 'linear-gradient(90deg, rgb(13,191,204) 0 16.6%, rgb(255,255,255) 16.6% 33.3%, rgb(38,77,242) 33.3% 50%, rgb(13,13,15) 50% 66.6%, rgb(255,64,26) 66.6% 83.3%, rgb(150,60,200) 83.3%)',
     labels: ['soluble rock', 'salt', 'water conduits', 'intrusions', 'hot ground', 'dissolved'],
-    note: 'Cyan: limestone, gypsum and chalk that groundwater slowly dissolves (karst). White: salt, which dissolves fast so the ground above it sinks. Blue: fault zones, joints, breccia pipes and hot-spring conduits that carry groundwater fast (cave conduits in limestone show as cyan) and feed springs. Black: intrusive igneous rock that resists erosion (dikes, sills, laccolith cores, granite stocks and batholiths, volcanic necks). Red: ground warmed by a hot spring. Purple: where groundwater has already dissolved rock away: sinkholes, and karst valleys where they have joined up (darker = deeper). Pick a province in Geology to see its own set; the landscape description lists each one with its geophysical signature.',
+    note: 'Cyan: limestone, gypsum and chalk that groundwater slowly dissolves. White: salt, which dissolves fast so the ground above sinks. Blue: faults and joints that carry groundwater to springs. Black: hard intrusive rock (dikes, sills, granite). Red: ground warmed by a hot spring. Purple: rock already dissolved away (sinkholes, karst valleys).',
   },
 ];
 
@@ -96,7 +98,21 @@ export function showLegend(id) {
   if (!o || !o.gradient) { el.classList.add('hidden'); return; }
   el.classList.remove('hidden');
   document.getElementById('legend-title').textContent = o.name;
-  document.getElementById('legend-bar').style.background = o.gradient;
-  document.getElementById('legend-labels').innerHTML = o.labels.map((l) => `<span>${l}</span>`).join('');
+  const bar = document.getElementById('legend-bar'), labels = document.getElementById('legend-labels'), sw = document.getElementById('legend-swatches');
+  if (o.swatches) {
+    // categories: one coloured square and name each, two columns
+    bar.hidden = true; labels.hidden = true; sw.hidden = false;
+    sw.innerHTML = o.labels.map((l, k) => `<span><i style="background:${o.swatches[k]}"></i>${l}</span>`).join('');
+  } else {
+    bar.hidden = false; labels.hidden = false; sw.hidden = true;
+    bar.style.background = o.gradient;
+    // each label at its own stop along the bar (evenly spread unless the overlay says where)
+    const n = o.labels.length;
+    labels.innerHTML = o.labels.map((l, k) => {
+      const pct = o.at ? o.at[k] : (100 * k) / Math.max(1, n - 1);
+      const shift = pct <= 0 ? '0' : pct >= 100 ? '-100%' : '-50%';
+      return `<span style="left:${pct}%;transform:translateX(${shift})">${l}</span>`;
+    }).join('');
+  }
   document.getElementById('legend-note').textContent = o.note;
 }

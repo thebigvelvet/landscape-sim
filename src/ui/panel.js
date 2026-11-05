@@ -8,6 +8,12 @@ const SPEED_MAX = 365000;
 const SPEED_MIN = 0.01;   // ~15 minutes per second: slow motion for floods
 const WEATHER_VISIBLE_SPEED = 36;
 
+// controls where the Space bar does something of its own (a range slider does not, so Space still
+// plays/pauses after you drag one)
+const usesSpace = (el) => !!el && (el.tagName === 'TEXTAREA' || el.tagName === 'SELECT' || el.tagName === 'BUTTON'
+  || el.isContentEditable || (el.tagName === 'INPUT' && el.type !== 'range')
+  || ['button', 'radio'].includes(el.getAttribute?.('role')));
+
 const LMIN = Math.log10(SPEED_MIN), LMAX = Math.log10(SPEED_MAX);
 export function speedToSlider(s) { return Math.round(((Math.log10(Math.max(SPEED_MIN, s)) - LMIN) / (LMAX - LMIN)) * 1000); }
 export function sliderToSpeed(v) { return Math.pow(10, LMIN + (v / 1000) * (LMAX - LMIN)); }
@@ -101,9 +107,15 @@ export class Panel {
     $('wind-section').classList.toggle('wind-off', !sim.windOn);
     $('wind-arrow').style.transform = `rotate(${w.from}deg)`;
     const names = ['N', 'NNE', 'NE', 'ENE', 'E', 'ESE', 'SE', 'SSE', 'S', 'SSW', 'SW', 'WSW', 'W', 'WNW', 'NW', 'NNW'];
-    $('wind-from').textContent = `from the ${names[Math.round(w.from / 22.5) % 16]}`;
+    const from = names[Math.round(w.from / 22.5) % 16];
+    $('wind-from').textContent = `Wind from the ${from}`;
+    const dial = $('wind-dial');
+    dial.setAttribute('aria-valuenow', String(Math.round(w.from)));
+    dial.setAttribute('aria-valuetext', `from the ${from}`);
+    dial.tabIndex = sim.windOn ? 0 : -1;
     $('wind-speed').value = w.speed;
-    $('wind-speed-out').textContent = w.speed < 0.05 ? 'calm' : w.speed.toFixed(2);
+    $('wind-speed-out').textContent = w.speed < 0.05 ? 'calm' : w.speed < 0.3 ? 'very light' : w.speed < 0.8 ? 'light'
+      : w.speed < 1.3 ? 'moderate' : w.speed < 1.7 ? 'strong' : 'gale';
     $('wind-steady').value = w.steady;
     $('wind-steady-out').textContent = w.steady >= 0.7 ? 'steady' : w.steady >= 0.35 ? 'two seasons' : 'shifting';
     $('wind-dunes').textContent = w.speed < 0.6 ? 'Too gentle to move sand; it still drifts snow.'
@@ -114,28 +126,42 @@ export class Panel {
   buildOverlays() {
     const wrap = $('overlays');
     wrap.innerHTML = '';
+    wrap.setAttribute('role', 'radiogroup');
+    wrap.setAttribute('aria-label', 'View');
     for (const o of OVERLAYS) {
       const d = document.createElement('div');
       d.className = 'overlay-opt' + (o.id === 0 ? ' active' : '');
       d.dataset.id = o.id;
+      d.tabIndex = 0;
+      d.setAttribute('role', 'radio');
+      d.setAttribute('aria-checked', String(o.id === 0));
       d.innerHTML = `<span class="dot" style="background:${o.dot}"></span><span>${o.name}</span><small>${o.desc}</small>`;
       d.addEventListener('click', () => this.setOverlay(o.id));
+      d.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); e.stopPropagation(); this.setOverlay(o.id); } });
       wrap.appendChild(d);
     }
+    $('show-me-current').textContent = `: ${OVERLAYS[0].name}`;
   }
 
   /** Accepts the shader mode number or the engine's overlay name ('water', 'change', ...). */
   setOverlay(id) {
     const r = this.app.renderer;
     r.overlay = id;
-    for (const d of document.querySelectorAll('.overlay-opt')) d.classList.toggle('active', +d.dataset.id === r.mode);
+    for (const d of document.querySelectorAll('.overlay-opt')) {
+      const on = +d.dataset.id === r.mode;
+      d.classList.toggle('active', on);
+      d.setAttribute('aria-checked', String(on));
+    }
+    // the heading says which view is on while the menu is closed
+    const cur = OVERLAYS.find((o) => o.id === r.mode);
+    $('show-me-current').textContent = cur ? `: ${cur.name}` : '';
     showLegend(r.mode);
     // sediment beds: add live numbers to the legend note while that view is open
     clearInterval(this.bedsTimer);
     if (r.mode === 8) {
       const base = document.getElementById('legend-note').textContent;
       const upd = async () => {
-        const st = await window.sim?.depositStats?.().catch(() => null);
+        const st = await window.sim?.depositPreview?.().catch(() => null);
         if (!st || r.mode !== 8) return;
         document.getElementById('legend-note').textContent = st.maxThickness_m < 0.01 ? `${base} (Nothing laid down yet.)`
           : `${base} Now: up to ${st.maxThickness_m.toFixed(st.maxThickness_m < 10 ? 1 : 0)} m thick and ${st.maxBeds} beds deep, covering ${(100 * st.coveredFrac).toFixed(0)}% of the map.`;
@@ -174,19 +200,33 @@ export class Panel {
       $(id).addEventListener('input', fn);
       fn();
     }
-    $('storm').addEventListener('click', () => { c.triggerStorm(3, 12); });
+    $('storm').addEventListener('click', () => {
+      c.triggerStorm(3, 12);
+      app.brushTool?.toast('storm', 'Big storm!', 'Three days of very heavy rain or snow over the whole map, about twelve times the usual amount. Watch the streams flood, carry mud and cut into their beds.' + (sim.paused ? ' Press play to let it fall.' : ''));
+    });
     $('rugged').addEventListener('input', () => out('rugged-out', (+$('rugged').value).toFixed(2)));
+    // the landscape settings wait for "Make this landscape"; the button says when they have changed
+    const pending = () => $('generate').classList.add('pending');
+    for (const id of ['scenario', 'size', 'seed', 'rugged', 'province', 'old-volcanoes']) $(id).addEventListener('change', pending);
+    $('scenario').addEventListener('change', () => this.syncRugged());
+    this.syncRugged();
     $('vex').addEventListener('input', () => {
       app.renderer.exaggeration = +$('vex').value;
       out('vex-out', `${(+$('vex').value).toFixed(2)}x`);
     });
     $('contours').addEventListener('change', () => { app.renderer.contours = $('contours').checked; });
     $('spin').addEventListener('change', () => { app.renderer.camera.autoRotate = $('spin').checked; });
+    app.renderer.camera.onAutoRotateChange = (on) => { $('spin').checked = on; };
     $('trees').addEventListener('change', () => { app.renderer.showTrees = $('trees').checked; });
     $('strata').addEventListener('change', () => { app.sim.strata = $('strata').checked; });
-    $('province').addEventListener('change', () => this.generate());
     $('glaciers').addEventListener('change', () => { app.sim.glaciers = $('glaciers').checked; });
     $('old-volcanoes').addEventListener('change', () => { app.sim.oldVolcanoes = $('old-volcanoes').checked; });
+    // the browser may restore ticked boxes and slider positions after a reload: the engine follows them
+    app.sim.strata = $('strata').checked; app.sim.glaciers = $('glaciers').checked;
+    app.sim.oldVolcanoes = $('old-volcanoes').checked;
+    app.renderer.contours = $('contours').checked; app.renderer.showTrees = $('trees').checked;
+    app.renderer.camera.autoRotate = $('spin').checked;
+    app.renderer.exaggeration = +$('vex').value; out('vex-out', `${(+$('vex').value).toFixed(2)}x`);
     // wind: on/off, a compass dial for where it blows from, strength and steadiness
     $('wind-on').addEventListener('change', () => { app.sim.windOn = $('wind-on').checked; this.syncWind(); });
     $('wind-speed').addEventListener('input', () => { c.windSpeed = +$('wind-speed').value; this.syncWind(); });
@@ -220,23 +260,33 @@ export class Panel {
       t.style.left = `${pct}%`;
       t.style.transform = pct < 3 ? 'none' : pct > 97 ? 'translateX(-100%)' : 'translateX(-50%)';
       t.addEventListener('click', () => app.setSpeed(+t.dataset.speed));
+      t.tabIndex = 0; t.setAttribute('role', 'button');
+      t.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); e.stopPropagation(); app.setSpeed(+t.dataset.speed); } });
     }
     $('play').addEventListener('click', () => (sim.paused ? app.play() : app.pause()));
     window.addEventListener('keydown', (e) => {
-      if (e.code === 'Space' && !['INPUT', 'SELECT'].includes(document.activeElement?.tagName)) {
+      // Space plays/pauses unless a control that uses Space itself has the focus (a slider does not)
+      if (e.code === 'Space' && !e.defaultPrevented && !usesSpace(document.activeElement)) {
         e.preventDefault();
         sim.paused ? app.play() : app.pause();
       }
     });
     $('collapse').addEventListener('click', () => this.collapse(true));
     $('expand').addEventListener('click', () => this.collapse(false));
+    let hidden = false;
+    try { hidden = localStorage.getItem('panel:collapsed') === '1'; } catch { /* storage unavailable */ }
+    if (hidden) this.collapse(true);
   }
 
   collapse(on) {
     $('panel').classList.toggle('hidden', on);
     $('expand').classList.toggle('hidden', !on);
     document.body.classList.toggle('collapsed', on);
+    try { localStorage.setItem('panel:collapsed', on ? '1' : '0'); } catch { /* storage unavailable */ }
   }
+
+  // Ruggedness only shapes the random mountain range
+  syncRugged() { $('rugged-row').hidden = $('scenario').value !== 'random'; }
 
   // A new province brings its home climate (Plateau: Utah desert, Rockies: Colorado alpine, Valley and
   // Ridge: Temperate, Gulf: Gulf Coast humid). Only when the province changes, so a climate you pick
@@ -253,13 +303,20 @@ export class Panel {
   }
 
   generate() {
+    // a seed from 1 to 99999 (a blank box or 0 would quietly make seed 0)
+    const seed = Math.min(99999, Math.max(1, Math.round(+$('seed').value || 1)));
+    $('seed').value = seed;
     this.pickHomeClimate();
-    this.app.load($('scenario').value, {
+    $('generate').classList.remove('pending');
+    return this.app.load($('scenario').value, {
       size: +$('size').value,
-      seed: +$('seed').value,
+      seed,
       ruggedness: +$('rugged').value,
       preset: this.app.sim.climate.presetName,
       province: $('province').value,
+    }).catch((e) => {
+      console.error(e);
+      this.app.brushTool?.toast('miss', 'Could not make that landscape', String(e?.message || e));
     });
   }
 
@@ -276,6 +333,8 @@ export class Panel {
 • ${n}`).join('')}` : '';
     $('rugged').value = sim.ruggedness;
     $('rugged-out').textContent = (+sim.ruggedness).toFixed(2);
+    $('generate').classList.remove('pending');
+    this.syncRugged();
     this.initialSolid = null;
   }
 
@@ -293,8 +352,9 @@ export class Panel {
   bindDropdowns() {
     for (const sec of document.querySelectorAll('section.dropdown')) {
       const h = sec.querySelector(':scope > h2'), key = `dropdown:${sec.id}`;
-      let open = false;
-      try { open = localStorage.getItem(key) === '1'; } catch { /* storage unavailable */ }
+      // remembered state, else the section's default (data-default-open: open on the first run)
+      let open = sec.hasAttribute('data-default-open');
+      try { const v = localStorage.getItem(key); if (v !== null) open = v === '1'; } catch { /* storage unavailable */ }
       sec.classList.toggle('open', open);
       h.tabIndex = 0; h.setAttribute('role', 'button'); h.setAttribute('aria-expanded', String(open));
       const toggle = () => {
@@ -303,9 +363,11 @@ export class Panel {
         try { localStorage.setItem(key, now ? '1' : '0'); } catch { /* storage unavailable */ }
       };
       h.addEventListener('click', (e) => { if (!e.target.closest('.tip')) toggle(); });
-      h.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggle(); } });
-      // open on request (picking a brush tool opens Weather events, where its sliders are)
-      document.addEventListener('open-section', (e) => { if (e.detail === sec.id && !sec.classList.contains('open')) toggle(); });
+      h.addEventListener('keydown', (e) => {
+        if (e.target !== h) return;
+        // handled here: Space must not also play/pause
+        if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); e.stopPropagation(); toggle(); }
+      });
     }
   }
 
@@ -314,9 +376,7 @@ export class Panel {
     tip.id = 'tooltip';
     tip.className = 'hidden';
     document.body.appendChild(tip);
-    document.addEventListener('mouseover', (e) => {
-      const t = e.target.closest?.('.tip');
-      if (!t) return;
+    const show = (t) => {
       tip.textContent = t.dataset.tip;
       tip.classList.remove('hidden');
       const r = t.getBoundingClientRect();
@@ -324,11 +384,18 @@ export class Panel {
       let x = r.right + 8;
       if (x + w > window.innerWidth - 8) x = Math.max(8, r.left - w - 8);
       tip.style.left = `${x}px`;
-      tip.style.top = `${Math.min(window.innerHeight - 140, Math.max(8, r.top - 10))}px`;
-    });
-    document.addEventListener('mouseout', (e) => {
-      if (e.target.closest?.('.tip')) tip.classList.add('hidden');
-    });
+      // measured after the text is in, so a long tip never runs off the bottom of the window
+      const h = tip.offsetHeight;
+      tip.style.top = `${Math.max(8, Math.min(window.innerHeight - h - 8, r.top - 10))}px`;
+    };
+    document.addEventListener('mouseover', (e) => { const t = e.target.closest?.('.tip'); if (t) show(t); });
+    document.addEventListener('mouseout', (e) => { if (e.target.closest?.('.tip')) tip.classList.add('hidden'); });
+    document.addEventListener('focusin', (e) => { const t = e.target.closest?.('.tip'); if (t) show(t); });
+    document.addEventListener('focusout', (e) => { if (e.target.closest?.('.tip')) tip.classList.add('hidden'); });
+    // a "?" inside a checkbox label or button only explains: it must not tick the box or press the button
+    document.addEventListener('click', (e) => {
+      if (e.target.closest?.('.tip')) { e.preventDefault(); e.stopPropagation(); }
+    }, true);
   }
 
   /** Date/weather card; called every frame. */
@@ -367,8 +434,13 @@ export class Panel {
     $('hud-weather').textContent = weather;
     const f = (t) => `${t >= 0 ? '' : '−'}${Math.abs(Math.round(t))} °C`;
     $('hud-temps').textContent = `Valley ${f(tLow)} · Peaks ${f(tHigh)} · ${Math.round(zLow).toLocaleString()}–${Math.round(zHigh).toLocaleString()} m above sea level`;
+    // what the viewer is actually seeing: seasons stroboscopic (about 1 year per 4 s) only in the
+    // time-lapse mode, weather averaged once a frame spans more than a couple of days
+    const each = speedText(sim.speed).replace(' / second', '');
     $('hud-lapse').textContent = sim.running ? 'Fast-forwarding...'
-      : fast ? `Time-lapse: each second is about ${speedText(sim.speed).replace(' / second', '')}; seasons shown at about 1 year per 4 s` : '';
+      : sim.paused || !fast ? ''
+      : sim.strobe ? `Time-lapse: each second is about ${each}; seasons shown at about 1 year per 4 s`
+      : `Each second is about ${each}; day-to-day weather is averaged`;
   }
 
   /** Running account; called a few times per second. */
@@ -388,7 +460,7 @@ export class Panel {
       ['Rain & snow that fell', fmtVol(t.cumPrecip_m3)],
       ['Flowed off the map', fmtVol(t.cumOutflow_m3)],
       ['Evaporated or used by plants', fmtVol(t.cumEvapLoss_m3)],
-      ['Water books balance', `<span class="${ok ? 'good' : 'bad'}">${t.hasNaN ? 'ERROR (NaN)' : err < 0.001 ? 'yes, exact' : `off by ${err.toFixed(3)}%`}</span>`],
+      ['All water accounted for', `<span class="${ok ? 'good' : 'bad'}">${t.hasNaN ? 'ERROR (NaN)' : err < 0.001 ? 'yes' : `off by ${err.toFixed(3)}%`}</span>`],
       'sep',
       ['Ground covered by plants', `${Math.round(100 * (t.vegCoveredFrac ?? 0))}%`],
       ['Recently burned', `${(100 * (t.burnedFrac ?? 0)).toFixed(1)}%`],
@@ -397,10 +469,8 @@ export class Panel {
       ['Highest point', `${Math.round(t.maxHeight).toLocaleString()} m`],
       ['Lowest point', `${Math.round(t.minHeight).toLocaleString()} m`],
       ...((t.archesStanding || t.archesFallen) ? [['Natural arches', `${t.archesStanding} standing${t.bridgesStanding ? ` (${t.bridgesStanding} bridge${t.bridgesStanding === 1 ? '' : 's'})` : ''}, ${t.archesFallen} fallen`]] : []),
-      'sep',
-      ['Frames per second', `${Math.round(info.fps)}`],
-      ['Graphics card', info.adapter || '?'],
     ];
-    $('stats').innerHTML = rows.map((r) => (r === 'sep' ? '<div class="sep"></div>' : `<span class="k">${r[0]}</span><span class="v">${r[1]}</span>`)).join('');
+    $('stats').innerHTML = rows.map((r) => (r === 'sep' ? '<div class="sep"></div>' : `<span class="k">${r[0]}</span><span class="v">${r[1]}</span>`)).join('')
+      + `<div class="tech">${Math.round(info.fps)} frames/s &middot; ${info.adapter || 'graphics card ?'}</div>`;
   }
 }

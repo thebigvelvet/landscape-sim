@@ -127,7 +127,12 @@ export class Climate {
     this.wx = this.wet ? this.size / p.wetFrac : 0;
   }
   get preset() { return PRESETS[this.presetName] || PRESETS['Colorado alpine']; }
-  setPreset(name) { if (PRESETS[name]) { this.presetName = name; this.windFrom = this.windSpeed = this.windSteady = null; } }
+  // a different place brings its own wind; re-picking the same place keeps the user's wind settings
+  setPreset(name) {
+    if (!PRESETS[name]) return;
+    if (name !== this.presetName) this.windFrom = this.windSpeed = this.windSteady = null;
+    this.presetName = name;
+  }
   // prevailing wind: { from (bearing deg), speed, steady 0..1, sandy }
   windSettings() {
     const w = this.preset.wind;

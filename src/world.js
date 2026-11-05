@@ -22,7 +22,8 @@
 //                      groundwater fill smoothed over ~1 year, ground height at the last batch,
 //                      active fire 0..1).
 //   fireNext           f32 scratch: next fire state (race-free fire spread).
-//   sculptScratch      f32 scratch for the sculpt brushes (smoothing copy, undo deltas), sim/sculpt.js.
+//   sculptScratch      3 x N*N f32 for the sculpt brushes (smoothing copy / undo deltas, and a running
+//                      total of soil cut away by channels so undo can give it back as soil), sim/sculpt.js.
 //   soilPrev           soil depth before the water sub-steps of the batch (sim/deposits.js).
 //   deposit            16 floats per cell: the stack of sediment beds on top of the soil (sim/deposits.js).
 //   wind               vec4 per cell: drifting-snow scratch, local wind speed and shelter (sim/wind.js).
@@ -37,7 +38,7 @@
 //   statPartials, accPartials, fluxLog   reduction scratch / log ring.
 
 export const LAYERS = ['bedrock', 'soil', 'water', 'sediment', 'snowSWE', 'frostDepth', 'temp', 'velX', 'velY'];
-export const EXTRA1 = ['water2', 'sediment2', 'groundwater', 'slope', 'initHeight', 'spring', 'veg', 'burn', 'fireNext', 'sculptScratch', 'soilPrev'];
+export const EXTRA1 = ['water2', 'sediment2', 'groundwater', 'slope', 'initHeight', 'spring', 'veg', 'burn', 'fireNext', 'soilPrev'];
 export const STAT_GROUPS = 256;   // workgroups in the stats reduction
 export const STAT_STRIDE = 16;    // floats per partial
 export const LOG_SIZE = 4096;     // entries in the GPU flux log ring
@@ -57,6 +58,7 @@ export class World {
     for (const n of EXTRA1) mk(n);
     mk('flux', 4);
     mk('acc', 4);
+    mk('sculptScratch', 3); // sim/sculpt.js: [smoothing copy / undo rock delta | undo soil delta | soil cut by channels so far]
     mk('thermalDelta', 4);
     mk('gwFlux', 4);  // groundwater transfers through the four faces (-x, +x, -y, +y)
     mk('plant', 4);   // (woody, moisture memory, previous ground height, fire)
@@ -83,7 +85,7 @@ export class World {
   upload(layers) {
     const q = this.device.queue;
     const zero = new Float32Array(this.cells * 4);
-    for (const name of [...LAYERS, ...EXTRA1, 'flux', 'acc', 'thermalDelta', 'gwFlux', 'plant', 'deposit', 'wind', 'glacier', 'volcRock', 'lava', 'karst']) {
+    for (const name of [...LAYERS, ...EXTRA1, 'flux', 'acc', 'sculptScratch','thermalDelta', 'gwFlux', 'plant', 'deposit', 'wind', 'glacier', 'volcRock', 'lava', 'karst']) {
       const buf = this.buffers[name];
       const src = layers[name];
       if (src) q.writeBuffer(buf, 0, src);

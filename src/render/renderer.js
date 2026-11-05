@@ -144,6 +144,7 @@ export class Renderer {
     this.bgTerrain = bg(this.pTerrain, [this.ub, w.bedrock, w.soil, w.snowSWE, w.water, w.sediment, w.frostDepth, w.light, w.height0, w.wind, w.glacier, w.volcRock, w.lava, w.arches, w.karst]);
     this.bgSkirt = bg(this.pSkirt, [this.ub, w.bedrock, w.soil, w.deposit, w.volcRock]);
     this.bgWater = bg(this.pWater, [this.ub, w.bedrock, w.soil, w.water, w.velX, w.velY, w.sediment, w.light, w.snowSWE, w.glacier]);
+    this.lighting?.ub.destroy();
     this.lighting = new Lighting(d, world);
     this.lightDirty = true;
     // instance lists for trees/snags and burning cells, with drawIndirect argument blocks
