@@ -107,6 +107,12 @@ check('startButtonShown', $('tl-icon-play').style.display !== 'none' && $('tl-st
   $('tl-stop').click();
   check('uiStartPauseStop', s1.tl && s1.tl.days === 3650 && s1.tl.watchSec === 15 && controlsLocked && pausedBySpace && resumedBySpace
     && e.paused && !sim.timelapseState().tl && !$('tl-span').disabled && e.day > start, { s1 });
+  // during free run, one press of Start switches straight to the timelapse
+  sim.freeRun(); await sleep(200);
+  $('tl-go').click(); await sleep(200);
+  const s2 = sim.timelapseState();
+  check('startFromFreeRunOnePress', !!s2.tl && !e.paused, { s2 });
+  sim.stopTimelapse();
   sim.timelapse(365000, 30);
   await sim.load('random', { size: 256, seed: 2 });
   check('newMapEndsTimelapse', !sim.timelapseState().tl && e.paused && e.stopAtDay === null, {});

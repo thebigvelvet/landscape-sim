@@ -281,7 +281,7 @@ export class Panel {
       // uses Space itself has the focus (a slider does not)
       if (e.code === 'Space' && !e.defaultPrevented && !usesSpace(document.activeElement)) {
         e.preventDefault();
-        this.timelapseButton();
+        this.timelapseButton({ key: true });
       }
     });
     $('collapse').addEventListener('click', () => this.collapse(true));
@@ -449,10 +449,11 @@ export class Panel {
   }
 
   /** The big button and the space bar: start, pause or resume. */
-  timelapseButton() {
+  timelapseButton({ key = false } = {}) {
     const { app } = this, sim = app.sim;
     if (app.tl) { sim.paused ? app.play() : app.pause(); return; }
-    if (!sim.paused) { app.pause(); return; }            // free run going: space just pauses it
+    // free run going: Space just pauses it, but the Start button switches straight to the timelapse
+    if (!sim.paused && key) { app.pause(); return; }
     const { days, watchSec } = this.timelapseChoice();
     if (!(days > 0)) { $('tl-custom-n').focus(); return; }
     this.rate = null;
