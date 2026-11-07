@@ -30,6 +30,16 @@ export function speedText(s) {
   return `${(Math.round(y / 10) * 10).toLocaleString()} years / second`;
 }
 
+function fmtSecs(s) {
+  s = Math.max(1, Math.round(s));
+  if (s < 90) return `${s} s`;
+  const m = Math.floor(s / 60), r = s % 60;
+  if (s < 3600) return r && m < 10 ? `${m} min ${r} s` : `${Math.round(s / 60)} min`;
+  const h = s / 3600;
+  if (h < 48) return `${Math.floor(h)} h ${Math.round((s % 3600) / 60)} min`;
+  return `${Math.round(h / 24).toLocaleString()} days`;
+}
+
 const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
 const MONTH_START = [0, 31, 59, 90, 120, 151, 181, 212, 243, 273, 304, 334, 365];
 
@@ -68,6 +78,7 @@ export class Panel {
     this.bindControls();
     this.bindTooltips();
     this.bindDropdowns();
+    this.bindTimelapse();
     this.initialSolid = null;
     this.syncPreset();
     this.sync();
@@ -202,7 +213,7 @@ export class Panel {
     }
     $('storm').addEventListener('click', () => {
       c.triggerStorm(3, 12);
-      app.brushTool?.toast('storm', 'Big storm!', 'Three days of very heavy rain or snow over the whole map, about twelve times the usual amount. Watch the streams flood, carry mud and cut into their beds.' + (sim.paused ? ' Press play to let it fall.' : ''));
+      app.brushTool?.toast('storm', 'Big storm!', 'Three days of very heavy rain or snow over the whole map, about twelve times the usual amount. Watch the streams flood, carry mud and cut into their beds.' + (sim.paused ? ` Press ${app.tl ? 'Resume' : 'Start'} to let it fall.` : ''));
     });
     $('rugged').addEventListener('input', () => out('rugged-out', (+$('rugged').value).toFixed(2)));
     // the landscape settings wait for "Make this landscape"; the button says when they have changed
@@ -263,12 +274,14 @@ export class Panel {
       t.tabIndex = 0; t.setAttribute('role', 'button');
       t.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); e.stopPropagation(); app.setSpeed(+t.dataset.speed); } });
     }
-    $('play').addEventListener('click', () => (sim.paused ? app.play() : app.pause()));
+    // free run: open-ended time (ends any timelapse)
+    $('play').addEventListener('click', () => (sim.paused || app.tl ? app.freeRun() : app.pause()));
     window.addEventListener('keydown', (e) => {
-      // Space plays/pauses unless a control that uses Space itself has the focus (a slider does not)
+      // Space pauses/resumes (or starts a timelapse when nothing is running) unless a control that
+      // uses Space itself has the focus (a slider does not)
       if (e.code === 'Space' && !e.defaultPrevented && !usesSpace(document.activeElement)) {
         e.preventDefault();
-        sim.paused ? app.play() : app.pause();
+        this.timelapseButton();
       }
     });
     $('collapse').addEventListener('click', () => this.collapse(true));
@@ -338,14 +351,150 @@ export class Panel {
     this.initialSolid = null;
   }
 
-  /** Reflect speed, play state and climate preset. */
+  /** Reflect speed, play state, timelapse and climate preset. */
   sync() {
-    const sim = this.app.sim;
+    const { sim, tl } = this.app;
     $('speed').value = speedToSlider(sim.speed);
     $('speed-text').textContent = speedText(sim.speed);
-    $('icon-pause').style.display = sim.paused ? 'none' : '';
-    $('icon-play').style.display = sim.paused ? '' : 'none';
+    const freeRunning = !sim.paused && !tl;
+    $('icon-pause').style.display = freeRunning ? '' : 'none';
+    $('icon-play').style.display = freeRunning ? 'none' : '';
+    // the big button: Start (no timelapse), Pause (running), Resume (paused part-way)
+    const tlRunning = !!tl && !sim.paused;
+    $('tl-icon-pause').style.display = tlRunning ? '' : 'none';
+    $('tl-icon-play').style.display = tlRunning ? 'none' : '';
+    const label = !tl ? 'Start timelapse' : tlRunning ? 'Pause timelapse' : 'Resume timelapse';
+    $('tl-go').setAttribute('aria-label', label);
+    $('tl-go-text').textContent = !tl ? 'Start' : tlRunning ? 'Pause' : 'Resume';
+    $('tl-go').title = `${label} (space bar)`;
+    $('tl-stop').hidden = !tl;
+    $('tl-progress').hidden = !tl;
+    for (const el of [$('tl-span'), $('tl-custom-n'), $('tl-custom-unit'), ...document.querySelectorAll('#tl-watch button')]) el.disabled = !!tl;
+    $('timebar').classList.toggle('tl-active', !!tl);
+    this.syncEstimate();
+    this.updateProgress();
     this.syncPreset();
+  }
+
+  // ---------------- timelapse ----------------
+  /** "1 day", "1 week", "3 months", "1,000 years" ... for a span in days. */
+  spanText(days) {
+    const n = (v) => (Math.round(v * 10) / 10).toLocaleString();
+    if (days === 7) return '1 week';
+    if (days === 30) return '1 month';
+    if (days < 365) { const d = Math.round(days * 10) / 10; return `${n(d)} day${d === 1 ? '' : 's'}`; }
+    const y = days / 365;
+    return `${n(y)} year${Math.abs(y - 1) < 0.05 ? '' : 's'}`;
+  }
+
+  /** The span and watch length picked in the bar. */
+  timelapseChoice() {
+    let days;
+    if ($('tl-span').value === 'custom') days = Math.max(0, +$('tl-custom-n').value || 0) * +$('tl-custom-unit').value;
+    else days = +$('tl-span').value;
+    const sel = document.querySelector('#tl-watch button[aria-checked="true"]');
+    return { days, watchSec: sel ? +sel.dataset.sec : 30 };
+  }
+
+  bindTimelapse() {
+    const app = this.app;
+    // remembered choices
+    let saved = null;
+    try { saved = JSON.parse(localStorage.getItem('timelapse:choice') || 'null'); } catch { /* storage unavailable */ }
+    if (saved) {
+      if ([...$('tl-span').options].some((o) => o.value === saved.span)) $('tl-span').value = saved.span;
+      if (saved.n > 0) $('tl-custom-n').value = saved.n;
+      if (saved.unit) $('tl-custom-unit').value = saved.unit;
+    }
+    const watch = saved?.watch || 30;
+    const chips = [...document.querySelectorAll('#tl-watch button')];
+    const pick = (b) => { for (const c of chips) { c.setAttribute('aria-checked', String(c === b)); c.tabIndex = c === b ? 0 : -1; } };
+    pick(chips.find((c) => +c.dataset.sec === watch) || chips[1]);
+    const save = () => {
+      try {
+        localStorage.setItem('timelapse:choice', JSON.stringify({ span: $('tl-span').value, n: +$('tl-custom-n').value, unit: $('tl-custom-unit').value, watch: this.timelapseChoice().watchSec }));
+      } catch { /* storage unavailable */ }
+    };
+    const changed = () => { $('tl-custom').hidden = $('tl-span').value !== 'custom'; this.syncEstimate(); save(); };
+    $('tl-span').addEventListener('change', changed);
+    $('tl-custom-n').addEventListener('input', changed);
+    $('tl-custom-unit').addEventListener('change', changed);
+    chips.forEach((c, i) => {
+      c.addEventListener('click', () => { pick(c); changed(); });
+      c.addEventListener('keydown', (e) => {
+        const d = e.key === 'ArrowRight' || e.key === 'ArrowDown' ? 1 : e.key === 'ArrowLeft' || e.key === 'ArrowUp' ? -1 : 0;
+        if (!d) return;
+        e.preventDefault();
+        const n = chips[(i + d + chips.length) % chips.length];
+        pick(n); n.focus(); changed();
+      });
+    });
+    $('tl-custom').hidden = $('tl-span').value !== 'custom';
+    $('tl-go').addEventListener('click', () => this.timelapseButton());
+    $('tl-stop').addEventListener('click', () => app.stopTimelapse());
+    // free-run drawer, closed unless it was left open
+    let open = false;
+    try { open = localStorage.getItem('dropdown:freerun') === '1'; } catch { /* storage unavailable */ }
+    const setOpen = (on) => {
+      $('freerun').hidden = !on;
+      $('freerun-toggle').setAttribute('aria-expanded', String(on));
+      $('freerun-toggle').classList.toggle('open', on);
+      try { localStorage.setItem('dropdown:freerun', on ? '1' : '0'); } catch { /* storage unavailable */ }
+    };
+    setOpen(open);
+    $('freerun-toggle').addEventListener('click', () => setOpen($('freerun').hidden));
+    // the legend sits clear of the bar, whatever its height
+    const ro = new ResizeObserver(() => document.documentElement.style.setProperty('--timebar-h', `${$('timebar').offsetHeight}px`));
+    ro.observe($('timebar'));
+  }
+
+  /** The big button and the space bar: start, pause or resume. */
+  timelapseButton() {
+    const { app } = this, sim = app.sim;
+    if (app.tl) { sim.paused ? app.play() : app.pause(); return; }
+    if (!sim.paused) { app.pause(); return; }            // free run going: space just pauses it
+    const { days, watchSec } = this.timelapseChoice();
+    if (!(days > 0)) { $('tl-custom-n').focus(); return; }
+    this.rate = null;
+    app.timelapse({ days, watchSec });
+  }
+
+  /** "1,000 years in about 30 s" under the controls (before a run). */
+  syncEstimate() {
+    const el = $('tl-estimate');
+    if (this.app.tl) { el.textContent = ''; el.hidden = true; return; }
+    el.hidden = false;
+    const { days, watchSec } = this.timelapseChoice();
+    if (!(days > 0)) { el.textContent = 'Type how much time should pass.'; el.className = 'tl-estimate warn'; return; }
+    const speed = this.app.timelapseSpeed(days, watchSec);
+    const secs = days / speed;
+    const each = speedText(speed).replace(' / second', '');
+    if (secs > watchSec * 1.05) {
+      el.textContent = `Too long for ${fmtSecs(watchSec)} at top speed (about 1,000 years a second): it will take about ${fmtSecs(secs)}.`;
+      el.className = 'tl-estimate warn';
+    } else {
+      el.textContent = `${this.spanText(days)} in about ${fmtSecs(secs)}: each second is ${each}.`;
+      el.className = 'tl-estimate';
+    }
+  }
+
+  /** Progress bar and "Year 340 of 1,000"; called every frame. */
+  updateProgress() {
+    const { tl, sim } = this.app;
+    if (!tl) { this.rate = null; return; }
+    const done = Math.min(tl.days, Math.max(0, sim.day - tl.startDay));
+    $('tl-fill').style.width = `${(100 * done) / tl.days}%`;
+    // measured pace (days per real second), so "time left" is honest on a slow graphics card too
+    const now = performance.now();
+    if (this.rate && !sim.paused && now > this.rate.t + 400) {
+      const r = (sim.day - this.rate.day) / ((now - this.rate.t) / 1000);
+      this.rate = { t: now, day: sim.day, v: this.rate.v ? this.rate.v * 0.6 + r * 0.4 : r };
+    } else if (!this.rate || sim.paused) this.rate = { t: now, day: sim.day, v: this.rate?.v || 0 };
+    const pace = this.rate.v > 0 ? this.rate.v : sim.speed;
+    const left = (tl.days - done) / pace;
+    const where = tl.days >= 730 ? `${Math.floor(done / 365).toLocaleString()} of ${Math.round(tl.days / 365).toLocaleString()} years passed`
+      : `${Math.floor(done).toLocaleString()} of ${Math.round(tl.days).toLocaleString()} days passed`;
+    $('tl-progress-text').textContent = `${where} · ${sim.paused ? 'paused' : `about ${fmtSecs(left)} left`}`;
   }
 
   // Sections marked class="dropdown" open and close from their heading; each remembers its state.
@@ -401,6 +550,7 @@ export class Panel {
   /** Date/weather card; called every frame. */
   updateHud() {
     const sim = this.app.sim;
+    this.updateProgress();
     const c = sim.lastClimate;
     if (!c) return;
     const cl = sim.climate;

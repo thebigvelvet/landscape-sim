@@ -42,6 +42,11 @@ const ALL_TOOLS = [...TOOLS, ...SCULPT_TOOLS];
 const isSculpt = (id) => SCULPT_TOOLS.some((t) => t.id === id);
 const DAB_MS = 30;
 
+// notice icons for things that are not tools
+const TOAST_ICONS = {
+  timelapse: '<svg viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3h12M6 21h12M7 3c0 5 10 5 10 9s-10 4-10 9M17 3c0 5-10 5-10 9s10 4 10 9" style="fill:none"/></svg>',
+};
+
 export class BrushTool {
   constructor(app) {
     this.app = app;
@@ -363,7 +368,8 @@ export class BrushTool {
     const zMid = sim.datum + (sim.terrainRange?.mean ?? 0);
     const cold = c.airTempAt(doy, zMid) < 0.5;
     const normal = Math.max(0.1, c.precipAt(doy) / Math.max(0.05, c.preset.wetFrac || 0.3));
-    const pausedNote = sim.paused ? ' Press play to let it happen.' : '';
+    const goWord = this.app.tl ? 'Resume' : 'Start';
+    const pausedNote = sim.paused ? ` Press ${goWord} to let it happen.` : '';
     const fmt = (v) => v >= 100 ? Math.round(v).toLocaleString() : v.toFixed(v < 10 ? 1 : 0);
     if (ev.type === 'storm') {
       const mm = ev.centreMm;
@@ -387,7 +393,7 @@ export class BrushTool {
         t = 'The plants here are burning. Dry fuel nearby can catch; fire runs uphill and with the wind. The black scar sheds water and mud in the next storms until grass, then shrubs, then trees grow back.';
         if (speed > 3650 && !sim.paused) t += ' At this speed the scar heals within a second.';
       }
-      this.toast('wildfire', 'Wildfire!', t + (sim.paused ? ' Press play to let it burn.' : ''), fuel !== null && fuel < 0.06 ? null : { label: speed > 120 ? 'Watch it at 1 day per second, then speed up' : 'Then watch it grow back at 1 year per second', speed: speed > 120 ? 1 : 365, later: speed > 120 });
+      this.toast('wildfire', 'Wildfire!', t + (sim.paused ? ` Press ${goWord} to let it burn.` : ''), fuel !== null && fuel < 0.06 ? null : { label: speed > 120 ? 'Watch it at 1 day per second, then speed up' : 'Then watch it grow back at 1 year per second', speed: speed > 120 ? 1 : 365, later: speed > 120 });
     } else if (ev.type === 'volcano') {
       const S = ERUPTION_STYLES[ev.style] || ERUPTION_STYLES.strombolian;
       const span = ev.days >= 365 ? `${fmt(ev.days / 365)} year${ev.days === 365 ? '' : 's'}` : `${fmt(ev.days)} days`;
@@ -415,7 +421,9 @@ export class BrushTool {
   // action: optional { label, speed } button that sets the speed dial (and plays)
   toast(kind, title, text, action = null) {
     const el = $('toast');
-    const icon = ALL_TOOLS.find((t) => t.id === kind)?.icon || '';
+    // a speed button would skip or throw away a timelapse, so they are offered only in free run
+    if ((this.app.tl || this.sim.paused) && action?.speed !== undefined) action = null;
+    const icon = ALL_TOOLS.find((t) => t.id === kind)?.icon || TOAST_ICONS[kind] || '';
     el.className = `toast ${kind}`;
     el.innerHTML = `<div class="ticon">${icon}</div><div><b>${title}</b><p>${text}</p>${action ? `<button class="tact">${action.label}</button>` : ''}</div>`;
     void el.offsetWidth;

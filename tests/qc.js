@@ -33,6 +33,7 @@ sim.setSpeed(365000); sim.play();
 await sleep(500);
 const dayBefore = e.day;
 await sim.load('random', { size: 512, seed: 8, preset: 'Colorado alpine' });
+sim.play();   // a new landscape now starts frozen (round 12 timelapse)
 const st0 = await sim.stats();
 await sleep(2500);
 const st1 = await sim.stats();
