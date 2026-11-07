@@ -26,9 +26,16 @@ second. All of the simulation runs on the graphics card (WebGPU compute shaders)
 - **Fine-tune nature**: Season contrast, Erosion strength, Glaciers on/off, Rock layers on/off (these apply right away).
 - **What's happening**: where all the water went, plants, burn scars, how much ground has been carried away, highest and lowest points, natural arches.
 
-**Mouse and keys**: drag to turn the view, right-drag (or Shift-drag) to slide it, scroll to zoom. Space plays and pauses,
-Esc puts the brush down, Ctrl+Z undoes a shaping stroke. The speed bar at the bottom runs from 15 minutes to 1000 years per second
-(click a label to jump there).
+**The timelapse bar** (bottom): every new landscape starts with time frozen, so you can shape it, paint events and set the
+climate first. Pick a **Time span** (1 day up to 100,000 years, or Custom) and how long to **Watch for** (15 s to 2 min), then
+press the big button. Time runs at span ÷ watch length, shows "Year 340 of 1,000 · about 12 s left", and freezes exactly at the
+end; that becomes the starting point for the next one. The engine's top speed is about 1,000 years per second, so a span too
+long for the watch length runs at top speed and the bar says beforehand how long it will take. While it runs you can pause and
+resume, **Stop** (keeps what has happened so far) and keep painting. **Free run** (the small drawer under it) is the old
+open-ended play button and speed bar, from 15 minutes to 1000 years per second; using it ends any timelapse.
+
+**Mouse and keys**: drag to turn the view, right-drag (or Shift-drag) to slide it, scroll to zoom. Space starts, pauses and resumes
+the timelapse, Esc puts the brush down, Ctrl+Z undoes a shaping stroke.
 
 ## Quality-control pass (after round 11)
 
@@ -512,7 +519,8 @@ The panel shows which adapter is in use.
 
 ### Test hook (`window.sim`)
 `load(scenario, {size, seed, preset, cellSize, ruggedness, relief})`, `run(days, {batchDays?, nSub?})`,
-`setSpeed(daysPerSec)`, `pause()`, `play()`, `stats()`, `bench(sizes?)`, `brush(type, opts)` (round 2, see above). Also `sim.engine` (the
+`setSpeed(daysPerSec)`, `pause()`, `play()`, `freeRun()`, `timelapse(days, watchSec)`, `stopTimelapse()`, `timelapseState()`
+(round 12; maps now load paused unless the URL has `?paused=0`; `tests/timelapse.js` 19/19), `stats()`, `bench(sizes?)`, `brush(type, opts)` (round 2, see above). Also `sim.engine` (the
 Simulation, including `readLayer(name)` for tests) and `sim.gpuTimes`.
 `stats()` returns all of the required fields, plus `totalGroundwater_m3`, `balanceError_m3`/`balanceErrorPct`,
 `cumSedimentOut_m3`, `solidsError_m3`, `maxErosion_m`, `maxDeposition_m`, `maxWaterDepth`, `dtH`,

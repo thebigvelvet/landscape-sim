@@ -1,0 +1,103 @@
+{
+  "checks": {
+    "loadsPaused": {
+      "pass": true,
+      "paused": true,
+      "day0": 0,
+      "dayAfter2s": 0
+    },
+    "startButtonShown": {
+      "pass": true
+    },
+    "tenYearsEndsExactly": {
+      "pass": true,
+      "day": 3650,
+      "endDay": 3650,
+      "paused": true,
+      "secs": 5.0092000000476835
+    },
+    "tenYearsTookAboutFiveSeconds": {
+      "pass": true,
+      "secs": 5.0092000000476835
+    },
+    "progressShownWhileRunning": {
+      "pass": true,
+      "text": "9 of 10 years passed · about 1 s left"
+    },
+    "frozenAfterEnd": {
+      "pass": true,
+      "day": 3650
+    },
+    "toastAtEnd": {
+      "pass": true,
+      "toast": "Timelapse done: 10 years laterTime is frozen here. Look around, paint or sculpt, then press Start to run another timelap"
+    },
+    "booksAfterTimelapse": {
+      "pass": true,
+      "balPct": -0.000001108515568066618
+    },
+    "weekIsSlowMotion": {
+      "pass": true,
+      "speed": 0.7,
+      "daysAfter2s": 1.389499999995678
+    },
+    "weekEndsExactly": {
+      "pass": true,
+      "day": 3657,
+      "endDay": 3657,
+      "secs": 10.013
+    },
+    "longSpanCappedAtTopSpeed": {
+      "pass": true,
+      "speed": 365000
+    },
+    "stopKeepsDayAndFreezes": {
+      "pass": true,
+      "dStop": 757897.5625000006,
+      "after": 757897.5625000006,
+      "paused": true
+    },
+    "pauseResumeKeepsEnd": {
+      "pass": true,
+      "dp": 762352.0833333358,
+      "day": 776147.5625000006,
+      "endDay": 776147.5625000006
+    },
+    "freeRunCancelsTimelapse": {
+      "pass": true
+    },
+    "speedSliderCancelsTimelapse": {
+      "pass": true
+    },
+    "estimateWarnsTooLong": {
+      "pass": true,
+      "est": "Too long for 15 s at top speed (about 1,000 years a second): it will take about 1 min 40 s."
+    },
+    "uiStartPauseStop": {
+      "pass": true,
+      "s1": {
+        "tl": {
+          "startDay": 782389.5436666686,
+          "endDay": 786039.5436666686,
+          "days": 3650,
+          "watchSec": 15
+        },
+        "day": 782504.7255000019,
+        "paused": false,
+        "speed": 243.33333333333334,
+        "stopAtDay": 786039.5436666686
+      }
+    },
+    "newMapEndsTimelapse": {
+      "pass": true
+    },
+    "noGpuErrors": {
+      "pass": true
+    }
+  },
+  "gpuErrors": 0,
+  "passed": "19/19",
+  "gpuFeatureStatusWebGPU": "enabled",
+  "electron": "45.2.1",
+  "chrome": "156.0.8078.75"
+}

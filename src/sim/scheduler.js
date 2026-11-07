@@ -71,6 +71,9 @@ export class Simulation {
     this.lastPlan = {};
     this.running = false;
     this.fps = 0;
+    // timelapse: when set, tick() lands exactly on this sim day, pauses and calls onStop()
+    this.stopAtDay = null;
+    this.onStop = null;
   }
 
   get N() { return this.world?.N ?? 0; }
@@ -149,6 +152,7 @@ export class Simulation {
     // fold the old map's flux log into the new books: each load starts a new generation
     this.gen = (this.gen || 0) + 1;
     this.day = 0; this.frame = 0; this.carry = 0; this.hmax = 0.3; this.consumed = 0; this.lastN = 0;
+    this.stopAtDay = null;
     this.depEpoch = 0; this.depEpochStart = 0;
     this.cum = { precip: 0, outflow: 0, evap: 0, sedOut: 0, erupted: 0 };
     this.climate.stormDaysLeft = 0;
@@ -373,7 +377,10 @@ export class Simulation {
     this.lastN = 0;
     if (!this.world || this.paused || this.running || this.loading) return 0;
     const dt = Math.min(Math.max(realDt, 0), 0.1);
-    const target = Math.min(this.speed * dt, MAX_DAYS_PER_FRAME * 2);
+    const stop = this.stopAtDay !== null;
+    const rem = stop ? this.stopAtDay - this.day : Infinity;
+    if (stop && rem <= 1e-9) { this._finishTimelapse(); return 0; }
+    const target = Math.min(this.speed * dt, MAX_DAYS_PER_FRAME * 2, rem);
     this.bedDays = Math.min(Math.max(2 * this.speed, 7), 500 * 365);
     if (target <= 0) return 0;
     let Dcol;
@@ -391,6 +398,9 @@ export class Simulation {
       const pay = Math.min(this.carry, 3 * target);
       Dcol = target + pay; this.carry -= pay; this.strobe = false;
     }
+    // timelapse end: the strobe holds days back in `carry` (whole years at a time); once what is
+    // owed reaches the end of the span, pay exactly up to the end and drop the rest
+    if (stop && (Dcol + this.carry >= rem - 1e-9 || Dcol > rem)) { Dcol = rem; this.carry = 0; }
     if (Dcol <= 0) return 0;
     // Slow motion (below ~1 day/s): never simulate more hydraulic seconds than clock seconds, so
     // water moves at its real speed and a flood wave can be watched travelling down the valley.
@@ -400,7 +410,20 @@ export class Simulation {
     this.lastBatchDays = Dcol;
     if (this.frame % 30 === 0) this._readback().catch(() => {});
     if (arches.due(this)) arches.update(this).catch((e) => console.error(e));
+    if (stop && this.stopAtDay - this.day <= 1e-9) this._finishTimelapse();
     return n;
+  }
+
+  // The timelapse reached its end: snap the clock onto the end day, freeze and tell the app.
+  _finishTimelapse() {
+    const end = this.stopAtDay;
+    if (end === null) return;
+    if (Math.abs(this.day - end) < 1e-6) this.day = end;
+    this.stopAtDay = null;
+    this.carry = 0;
+    this.paused = true;
+    this._readback().catch(() => {});
+    try { this.onStop?.(end); } catch (e) { console.error(e); }
   }
 
   // Advance `days` as fast as possible (no wall-clock coupling). Resolves when the GPU is done.

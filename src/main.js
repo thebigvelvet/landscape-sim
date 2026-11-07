@@ -80,6 +80,8 @@ async function main() {
   for (const o of document.querySelectorAll('#size option')) if (!sizeOk(+o.value)) { o.disabled = true; o.textContent += ' (too big for this GPU)'; }
 
   let loadSeq = 0;
+  // ?paused=0 keeps the old behaviour (time runs as soon as a landscape loads)
+  const autoRun = new URLSearchParams(location.search).get('paused') === '0';
   const app = {
     sim, renderer, device,
     // Loads queue up inside sim.load; only the newest one updates the panel and hides the overlay.
@@ -93,6 +95,9 @@ async function main() {
         if (my !== loadSeq) return res;              // a newer load is on its way
         stats = null;
         renderer.frameTerrain(sim.terrainRange);
+        // every new landscape starts frozen so it can be set up before time runs
+        app.endTimelapse();
+        sim.paused = !autoRun;
         renderer.visuals.clear();
         brushTool?.cancelLater();
         brushTool?.refreshHeights(true);
@@ -103,14 +108,43 @@ async function main() {
         return res;
       } finally { if (my === loadSeq) busy(''); }
     },
+    // Free-run speed. Picking a speed by hand ends any timelapse (time then runs open-ended).
     setSpeed(v) {
       if (!Number.isFinite(+v)) return;
       brushTool?.cancelLater();     // a speed picked now beats a "speed up in a moment" from a notice
+      app.endTimelapse();
       sim.speed = Math.min(365000, Math.max(0.01, +v));
       panel?.sync();
     },
+    // Pause / resume whatever is running (a timelapse keeps its end point).
     pause() { sim.paused = true; panel?.sync(); },
     play() { sim.paused = false; panel?.sync(); },
+    // The free-run play button: open-ended time at the slider speed.
+    freeRun() { app.endTimelapse(); sim.paused = false; panel?.sync(); },
+
+    // ---- timelapse: `days` of sim time shown over about `watchSec` seconds, then freeze ----
+    tl: null,                       // { startDay, endDay, days, watchSec } while one is set up
+    TL_MAX_SPEED: 365000,           // days per second (about 1000 years / s)
+    timelapseSpeed(days, watchSec) { return Math.min(app.TL_MAX_SPEED, Math.max(0.001, days / Math.max(1, watchSec))); },
+    timelapse({ days, watchSec = 30 } = {}) {
+      days = +days; watchSec = +watchSec;
+      if (!(days > 0) || !(watchSec > 0) || !sim.world || sim.loading) return null;
+      brushTool?.cancelLater();
+      if (!app.tl) app.freeSpeed = sim.speed;      // the free-run speed comes back afterwards
+      sim.speed = app.timelapseSpeed(days, watchSec);
+      app.tl = { startDay: sim.day, endDay: sim.day + days, days, watchSec };
+      sim.carry = 0;
+      sim.stopAtDay = app.tl.endDay;
+      sim.paused = false;
+      panel?.sync();
+      return app.tl;
+    },
+    // Stop early (the land stays as it got to), or quietly drop the timelapse when free run takes over.
+    stopTimelapse() { if (!app.tl) return; app.endTimelapse(); sim.paused = true; panel?.sync(); },
+    endTimelapse() {
+      if (app.tl && app.freeSpeed) sim.speed = app.freeSpeed;
+      app.tl = null; sim.stopAtDay = null;
+    },
     async bench(sizes = [256, 512, 1024]) {
       const prev = { scenario: sim.scenario, size: sim.N, seed: sim.seed, cellSize: sim.cellSize, province: sim.province };
       const prevSpeed = sim.speed, prevPaused = sim.paused, prevSub = sim.nSub;
@@ -166,6 +200,14 @@ async function main() {
   panel = new Panel(app);
   brushTool = new BrushTool(app);
   app.brushTool = brushTool;   // the panel shows its notices through it
+  // a timelapse reached its end: the land freezes there and becomes the new starting point
+  sim.onStop = () => {
+    const tl = app.tl;
+    app.endTimelapse();
+    panel.sync();
+    if (tl) brushTool.toast('timelapse', `Timelapse done: ${panel.spanText(tl.days)} later`,
+      'Time is frozen here. Look around, paint or sculpt, then press Start to run another timelapse from this point.');
+  };
   // a notice when an arch opens or falls (at most one every 20 s, so a fast time-lapse is not noisy)
   let archToastAt = -1e9;
   sim.arches.onEvent = ({ type, arch }) => {
@@ -246,6 +288,11 @@ async function main() {
     setSpeed: (v) => app.setSpeed(v),
     pause: () => app.pause(),
     play: () => app.play(),
+    freeRun: () => app.freeRun(),
+    // Timelapse: `days` of sim time over about `watchSec` s, then it freezes. Returns {startDay, endDay, ...}.
+    timelapse: (days, watchSec) => app.timelapse({ days, watchSec }),
+    stopTimelapse: () => app.stopTimelapse(),
+    timelapseState: () => ({ tl: app.tl, day: sim.day, paused: sim.paused, speed: sim.speed, stopAtDay: sim.stopAtDay }),
     stats: () => sim.stats(),
     setOverlay: (o) => panel.setOverlay(o),
     bench: (sizes) => app.bench(sizes),
