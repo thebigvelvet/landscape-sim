@@ -44,6 +44,7 @@ const DAB_MS = 30;
 
 // notice icons for things that are not tools
 const TOAST_ICONS = {
+  quake: '<svg viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M2 13h4l2-6 3 11 3-14 2 9 2-3h4" style="fill:none"/></svg>',
   timelapse: '<svg viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3h12M6 21h12M7 3c0 5 10 5 10 9s-10 4-10 9M17 3c0 5-10 5-10 9s10 4 10 9" style="fill:none"/></svg>',
 };
 
@@ -437,6 +438,6 @@ export class BrushTool {
       }
       el.classList.remove('show');
     };
-    this.lastToast = { kind, title, text, action: action?.label };
+    this.lastToast = { kind, title, text, action: action?.label, at: performance.now() };
   }
 }

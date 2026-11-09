@@ -14,7 +14,7 @@
 // Where a lot of snow runs through a cell, trees are knocked down (the woody share of the cover,
 // plant.x, shrinks); over decades this keeps open avalanche chutes through the forest.
 import { column } from './column.js';
-import { COMMON_WGSL, makeKernel, dispatchGrid } from './common.js';
+import { COMMON_WGSL, QUAKE_WGSL, makeKernel, dispatchGrid } from './common.js';
 
 export const SNOW_PARAMS = {
   ddf: 0.0045,      // m water / (degC day)  (4.5 mm/degC/day, typical for open snow)
@@ -52,6 +52,7 @@ const SNOW_DEN = 0.33;   // snow density relative to water (also used by the ren
 
 const AVAL_GATHER_WGSL = /* wgsl */`
 ${COMMON_WGSL}
+${QUAKE_WGSL}
 @group(0) @binding(1) var<storage, read> bedrock : array<f32>;
 @group(0) @binding(2) var<storage, read> soil : array<f32>;
 @group(0) @binding(3) var<storage, read> snowSWE : array<f32>;
@@ -63,9 +64,9 @@ fn surf(i : u32) -> f32 { return bedrock[i] + soil[i] + snowSWE[i] / ${SNOW_DEN}
 // SWE moved from a to b (negative: b to a). Half the excess height above the release angle moves,
 // at most 1/8.5 of the donor's snow per neighbour (so a cell can never give more than it has).
 // Both cells of a pair evaluate the same expression, so the transfer is exactly antisymmetric.
-fn tr(a : u32, b : u32, dist : f32) -> f32 {
+fn tr(a : u32, b : u32, dist : f32, sh : f32) -> f32 {
   let d = surf(a) - surf(b);
-  let T = P.avalTan * dist;
+  let T = P.avalTan * sh * dist;
   if (d > T) { return min(0.5 * (d - T) * ${SNOW_DEN}, snowSWE[a] / 8.5); }
   if (-d > T) { return -min(0.5 * (-d - T) * ${SNOW_DEN}, snowSWE[b] / 8.5); }
   return 0.0;
@@ -85,7 +86,8 @@ fn main(@builtin(global_invocation_id) gid : vec3<u32>) {
       let nx = x + dx; let ny = y + dy;
       if (nx < 0 || ny < 0 || nx >= N || ny >= N) { continue; }
       let dist = P.cellSize * select(1.0, 1.41421356, dx != 0 && dy != 0);
-      let t = tr(i, idx(nx, ny), dist);
+      // quake shaking (sim/quake.js) lowers the release angle; the pair mean keeps it antisymmetric
+      let t = tr(i, idx(nx, ny), dist, 0.5 * (quakeShake(x, y) + quakeShake(nx, ny)));
       net -= t;
       out += max(t, 0.0);
     }

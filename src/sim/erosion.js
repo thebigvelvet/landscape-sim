@@ -19,7 +19,7 @@
 //   Bedrock steeper than its bed's cliff angle (rockTan with rock layers off) converts to soil
 //   (rock fall) at rockRate per frame. Rock layers (sim/strata.js) also scale kRock per bed.
 //   What slumps and creeps is recorded as sediment beds (sim/deposits.js).
-import { COMMON_WGSL, ROCK_WGSL, makeKernel, dispatchGrid } from './common.js';
+import { COMMON_WGSL, ROCK_WGSL, QUAKE_WGSL, makeKernel, dispatchGrid } from './common.js';
 import { DEPOSIT_WGSL } from './deposits.js';
 
 export const EROSION_PARAMS = {
@@ -124,6 +124,7 @@ ${COMMON_WGSL}
 @group(0) @binding(5) var<storage, read> deposit : array<vec4<f32>>;
 @group(0) @binding(6) var<storage, read> volcRock : array<vec4<f32>>;
 ${ROCK_WGSL}
+${QUAKE_WGSL}
 
 // Loose sand on top (a sand-grain top sediment bed, e.g. a dune) slides at its own ~33 degree angle
 // of repose, which keeps dune slip faces sharp; other soil and talus stand at talusTan.
@@ -138,10 +139,11 @@ fn reposeTan(i : u32) -> f32 {
 // Returns (flux, share of it that is slumping talus rather than creep) - the share sets the grain
 // of the bed it lays down (sim/deposits.js): talus is coarse rubble, creep is finer slope wash.
 // tn: angle of repose of the higher (donor) cell, so both cells of a pair use the same value.
-fn pairFlux(dz : f32, dist : f32, donorSoil : f32, vm : f32, tn : f32) -> vec2<f32> {
+// qw: share of the slump rate that applies at the donor (1, except in quake passes: see main).
+fn pairFlux(dz : f32, dist : f32, donorSoil : f32, vm : f32, tn : f32, qw : f32) -> vec2<f32> {
   let excess = dz - tn * dist;
   let r = P.cellSize / dist;
-  let slump = 0.5 * P.thermalRate * max(excess, 0.0) * (1.0 - 0.3 * vm);
+  let slump = 0.5 * P.thermalRate * qw * max(excess, 0.0) * (1.0 - 0.3 * vm);
   let creep = P.creepFrac * r * r * dz * (1.0 - 0.6 * vm);
   var F = min(slump + creep, 0.12 * dz);
   F = min(F, donorSoil / 8.5);
@@ -157,8 +159,13 @@ fn main(@builtin(global_invocation_id) gid : vec3<u32>) {
   let so = soil[i];
   let z = bedrock[i] + so;
   let v0 = clamp(veg[i], 0.0, 1.0);
-  let tn0 = reposeTan(i);
-  let cliffTan = rockAt(bedrock[i], x, y).z;   // sandstone holds near-vertical faces, shale does not
+  // an earthquake shaking this batch (sim/quake.js) makes slopes give way at lower angles
+  // In the quake passes the raised slump/rockfall rates apply only as far as the shaking reaches
+  // (qw = 0 far away), so cliffs and slopes elsewhere keep their usual slow pace.
+  let shake = quakeShake(x, y);
+  let qw0 = select(1.0, (1.0 - shake) / P.qA, P.qA > 0.0);
+  let tn0 = reposeTan(i) * shake;
+  let cliffTan = rockAt(bedrock[i], x, y).z * shake;   // sandstone holds near-vertical faces, shale does not
   var net = 0.0;
   var gain = 0.0;
   var gainTalus = 0.0;
@@ -174,17 +181,20 @@ fn main(@builtin(global_invocation_id) gid : vec3<u32>) {
       let dist = P.cellSize * select(1.0, 1.41421356, dx != 0 && dy != 0);
       let vm = 0.5 * (v0 + clamp(veg[j], 0.0, 1.0));
       if (dz > 0.0) {
-        net -= pairFlux(dz, dist, so, vm, tn0).x;
+        net -= pairFlux(dz, dist, so, vm, tn0, qw0).x;
         rockEx = max(rockEx, dz - cliffTan * dist);
       } else if (dz < 0.0) {
-        let tj = reposeTan(j);
-        let f = pairFlux(-dz, dist, sn, vm, tj);
+        let shj = quakeShake(nx, ny);
+        let tj = reposeTan(j) * shj;
+        let f = pairFlux(-dz, dist, sn, vm, tj, select(1.0, (1.0 - shj) / P.qA, P.qA > 0.0));
         // sand avalanching down a slip face stays sand (grain 0.62 in thermal-apply), not rubble
         net += f.x; gain += f.x; gainTalus += f.x * select(f.y, 0.35, tj < P.talusTan);
       }
     }
   }
-  let rock = min(P.rockRate, 0.5) * max(rockEx, 0.0);
+  // in a quake pass a susceptible cliff sheds at most 50 cm of rock (times the shaking weight, which
+  // is zero outside the landslide patches): a few deep scars, not the whole overhang everywhere
+  let rock = min(min(P.rockRate, 0.5) * qw0 * max(rockEx, 0.0), select(1e9, 0.5 * qw0, P.qA > 0.0));
   // (net soil change, rock fall, material arriving from neighbours, coarse share of it)
   delta[i] = vec4<f32>(net, rock, gain, select(0.0, gainTalus / gain, gain > 0.0));
 }

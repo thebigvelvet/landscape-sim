@@ -10,7 +10,7 @@
 // its own outflow and the neighbours' matching inflow, so every cubic metre leaving one cell arrives
 // in another (exact conservation). Transfers across the map edge and spring water that the routed
 // solver cannot carry this frame (fraction 1 - fR) are logged as outflow.
-import { COMMON_WGSL, makeKernel, dispatchGrid } from './common.js';
+import { COMMON_WGSL, QUAKE_WGSL, makeKernel, dispatchGrid } from './common.js';
 
 export const GROUNDWATER_PARAMS = {
   kGw: 3e-5,       // m/s hydraulic conductivity of the shallow ground (silty sand)
@@ -19,6 +19,7 @@ export const GROUNDWATER_PARAMS = {
 
 const OUT_WGSL = /* wgsl */`
 ${COMMON_WGSL}
+${QUAKE_WGSL}
 @group(0) @binding(1) var<storage, read> bedrock : array<f32>;
 @group(0) @binding(2) var<storage, read> soil : array<f32>;
 @group(0) @binding(3) var<storage, read> groundwater : array<f32>;
@@ -47,6 +48,8 @@ fn main(@builtin(global_invocation_id) gid : vec3<u32>) {
   // fault zones, joints, pipes and karst conduits carry water much faster than plain ground
   // (sim/strata.js perm); dikes and clay hold it back
   o = o * clamp(rockExtra(bedrock[i], x, y).y, 0.1, 40.0);
+  // for a few years after a quake, cracked rock near the fault drains faster (sim/quake.js)
+  o = o * quakePerm(x, y);
   let tot = o.x + o.y + o.z + o.w;
   // never move more than half the store in one batch (stable for any batch length); frozen ground is sealed
   var sc = 0.0;

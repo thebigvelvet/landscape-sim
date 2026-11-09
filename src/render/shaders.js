@@ -1,5 +1,6 @@
 import { strataWGSL, MAX_BEDS, TABLE_LEN, TB, VOLCANIC, ANOM_COLORS } from '../sim/strata.js';
 import { VOLC_WGSL } from '../sim/common.js';
+import { FRESH_WGSL } from '../sim/sculpt.js';
 // WGSL for the renderer: shared uniforms, sky, terrain, terrain block sides, water, falling precipitation.
 
 export const UNIFORMS = /* wgsl */ `
@@ -37,7 +38,8 @@ struct R {
   stBeds: array<vec4f, ${TABLE_LEN}>,
   stCol: array<vec4f, ${MAX_BEDS}>,
   vent: array<vec4f, 2>,   // erupting vents (sim/volcano.js): world x, world z, cone top (world y), strength 0..1
-  archN: vec4f,            // x = natural arches standing (sim/arches.js)
+  archN: vec4f,            // x = natural arches standing (sim/arches.js); y, z, w = slipped fault glow: angle, offset (m), strength (sim/quake.js)
+  quakeT: vec4f,           // x = landscape years now (fresh rock on broken fault faces fades with age, sim/sculpt.js)
 };
 @group(0) @binding(0) var<uniform> R_: R;
 `;
@@ -296,7 +298,20 @@ const TERRAIN_DATA = /* wgsl */ `
 @group(0) @binding(11) var<storage, read> volcRock: array<vec4f>; // sim/volcano.js: unit bases, unit types
 @group(0) @binding(12) var<storage, read> lava: array<vec4f>;     // sim/volcano.js: (molten m, temperature, afterglow, ..)
 @group(0) @binding(13) var<storage, read> arch: array<vec4f>;     // sim/arches.js: 3 vec4 per arch
-@group(0) @binding(14) var<storage, read> karst: array<vec4f>;    // sim/karst.js: (rock dissolved so far m, ..)
+@group(0) @binding(14) var<storage, read> karst: array<vec4f>;    // sim/karst.js: (rock dissolved so far m, .., year a fault face broke, fresh strength)
+${FRESH_WGSL}
+// fresh pale rock on a newly broken fault face (sim/sculpt.js OP.fault), 0..1, bilinear between cells
+fn freshRock(g: vec2f) -> f32 {
+  let n = i32(R_.grid.x);
+  let g0 = vec2i(floor(g)); let f = g - floor(g);
+  var v = array<f32, 4>(0.0, 0.0, 0.0, 0.0);
+  for (var k = 0; k < 4; k++) {
+    let c = clamp(g0 + vec2i(k & 1, k >> 1), vec2i(0), vec2i(n - 1));
+    let kv = karst[u32(c.y * n + c.x)];
+    v[k] = kv.w * freshFade(R_.quakeT.x - kv.z);
+  }
+  return mix(mix(v[0], v[1], f.x), mix(v[2], v[3], f.x), f.y);
+}
 // Inside the opening of a natural arch? The height field cannot hold the hole, so the ground's
 // triangles that slope from the abutments down to the opening's floor are cut away here, inside
 // the half-ellipse under the lintel (drawn by ARCHES).
@@ -547,6 +562,23 @@ fn overlay(mode: i32, m0: vec4f, m1: vec4f, m3: vec2f, m4: vec4f, m5: vec4f, m6:
   // (combined build: proportional, so sparse plants in rock cracks read as rock with green flecks)
   let cov = smoothstep(0.0, 0.45, veg * 1.1 - (patchN - 0.5) * 0.6 - 0.2) * smoothstep(0.0, 0.05, veg);
   albedo = mix(albedo, vegC, cov);
+  // A freshly broken fault face: bare, lighter, unweathered rock, weathering back over ~2,000 years.
+  // Only on ground that is actually steep (the scarp itself; faint on the rubble below it), with
+  // ragged broken edges, and in the local rock's own colour lightened toward grey - not white.
+  let fresh = freshRock(i.m2.yz);
+  if (fresh > 0.003) {
+    let face = mix(0.25, 1.0, smoothstep(0.3, 0.65, slopeTan));   // from about 17 degrees, full at 33
+    // broken edges and gaps: a noise mask that does not depend on age, so the colour itself fades
+    // gradually with the stored strength instead of switching off
+    let rag = 0.55 * vnoise(p2 * 0.11) + 0.3 * vnoise(p2 * 0.37) + 0.15 * vnoise(p2 * 1.3);
+    let mask = smoothstep(0.28, 0.5, rag);
+    let amt = clamp(fresh * 1.25, 0.0, 1.0) * face * mask;
+    // light grey rock with streaks down the face (fresh fractures), tinted by the local rock's colour,
+    // and never as bright as snow
+    let streak = 0.72 + 0.4 * vnoise(p2 * vec2f(0.6, 2.4)) * (0.6 + 0.4 * vnoise(p2 * 0.21));
+    let paleC = min(mix(srgb(vec3f(0.74, 0.73, 0.70)), rockC * 1.5 + vec3f(0.06), 0.4) * streak, srgb(vec3f(0.78)));
+    albedo = mix(albedo, paleC, amt);
+  }
   // Burn scar: char with grey ash, fading to dark earth as it ages; green shoots come back on top.
   let ashN = vnoise(p2 * 0.8);
   let scar = mix(srgb(vec3f(0.07, 0.06, 0.055)), srgb(vec3f(0.42, 0.40, 0.38)), smoothstep(0.55, 0.85, ashN) * 0.7);
@@ -664,6 +696,13 @@ fn overlay(mode: i32, m0: vec4f, m1: vec4f, m3: vec2f, m4: vec4f, m5: vec4f, m6:
   }
   // ---- Event markers, brush cursor, click ripple (drawn on the ground) ----
   let px = max(fwidth(wp.x) + fwidth(wp.z), 0.5);
+  // ---- A fault that just slipped in an earthquake glows along its trace (sim/quake.js) ----
+  if (R_.archN.w > 0.0) {
+    let fd = abs(dot(vec2f(cos(R_.archN.y), sin(R_.archN.y)), stP(i.m2.yz)) - R_.archN.z);
+    let fl = 1.0 - smoothstep(px * 1.5, px * 1.5 + 2.5 * R_.stS[3].z, fd);
+    let pulse = 0.75 + 0.25 * sin(tt * 9.0);
+    outc = mix(outc, vec3f(1.0, 0.55, 0.15), fl * R_.archN.w * pulse * 0.85);
+  }
   for (var k = 0; k < 4; k++) {
     let m = R_.mk[k];
     let a = R_.mkA[k];

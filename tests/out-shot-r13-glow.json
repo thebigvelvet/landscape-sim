@@ -1,0 +1,24 @@
+{
+  "mode": "glow",
+  "log": [
+    "67y M5.4 fault",
+    "82y M5.4 fault",
+    "225y M5.8 fault",
+    "301y M6.8 fault"
+  ],
+  "count": 4,
+  "slip": [
+    1.9211300924301993,
+    0,
+    0.2605279991000011,
+    0
+  ],
+  "day": 109721.00000000006,
+  "bal": 1.359541914671998e-7,
+  "solidsErr": -84.40993173280731,
+  "nan": false,
+  "gpuErrors": 0,
+  "gpuFeatureStatusWebGPU": "enabled",
+  "electron": "45.2.1",
+  "chrome": "156.0.8078.75"
+}

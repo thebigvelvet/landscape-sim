@@ -41,6 +41,7 @@ import { glacier, GLACIER_PARAMS } from './glacier.js';
 import { volcano } from './volcano.js';
 import { karst, KARST_PARAMS as KARST_V } from './karst.js';
 import { arches } from './arches.js';
+import { quakes } from './quake.js';
 import { Stats } from './stats.js';
 
 export const A_CAP = 150;              // max routing intensity (x real-time runoff rate)
@@ -143,6 +144,8 @@ export class Simulation {
     this.strataInfo = makeStrata(seed, height, N, cellSize, Math.max(0.5, reliefUsed), this.provinceUsed);
     this.strataPack = packStrata(this.strataInfo, true);
     this.volcanoInfo = volcanoInfo;
+    // earthquakes on this map's faults (sim/quake.js); own random stream from the seed
+    quakes.reset(seed, this.strataInfo, this.provinceUsed, cellSize, N);
     if (volcanoInfo?.length) {
       const flows = volcanoInfo.reduce((s, v) => s + v.flows, 0);
       this.strataInfo.describe = this.strataInfo.describe.replace(/\.$/, '') +
@@ -232,6 +235,7 @@ export class Simulation {
       kDiss: KARST_PARAMS.kDiss, yrsE: yearsE, kRech: this.karstValleys ? KARST_V.kRech : 0, kFoot: this.karstValleys ? KARST_V.kFoot : 0,
       ...ev.fields,
       ...vp.fields,
+      ...quakes.plan(this.day).fields,
     };
     return { plan, n, A, tau, dm, fastFloodM3: ev.fastFloodM3, eruptedM3: vp.eruptedM3 };
   }
@@ -266,6 +270,9 @@ export class Simulation {
     this.climate.advanceWeather(this.day, Dcol);
     // sediment beds: a new bed can start once per bedDays of sim time (about 2 s of watching)
     if (this.day - this.depEpochStart >= this.bedDays) { this.depEpoch++; this.depEpochStart = this.day; }
+    // earthquakes in this batch: the ground offset is queued now (before the plan, so the faults'
+    // new throws reach this batch's rock table); the shaking runs after the batch
+    const shake = quakes.step(this, Dcol, this.day);
     const { plan, n, A, tau, dm, fastFloodM3, eruptedM3 } = this._plan(Dcol, Deros, nSub);
     // what the vents add to the map (cinders, lava), logged in float64 for the solids books
     this.cum.erupted += eruptedM3;
@@ -301,6 +308,7 @@ export class Simulation {
     this.statsK.recordAccumulate(pass);
     pass.end();
     this.device.queue.submit([enc.finish()]);
+    if (shake) this._shake(shake, plan);
     this.climate.consume(Dcol);
     this.events.consume(Dcol);
     this.day += Dcol;
@@ -308,6 +316,21 @@ export class Simulation {
     this.lastPlan = { ...plan, A, tau, Deros, climate: climateObj };
     this.lastClimate = climateObj;
     return n;
+  }
+
+  // Earthquake shaking: a few extra slump / rockfall / avalanche passes with slopes near the rupture
+  // standing at lower angles (sim/quake.js). Creep is off in these passes (it already ran this batch).
+  _shake(q, plan) {
+    const p = this.world.params;
+    p.set({ ...quakes.shakeFields(q), thermalRate: 0.5, creepFrac: 0, rockRate: 0.25 });
+    p.upload();
+    const enc = this.device.createCommandEncoder({ label: 'quake' });
+    const pass = enc.beginComputePass({ label: 'quake' });
+    for (let k = 0; k < q.passes; k++) erosion.recordThermal(pass);
+    avalanche.record(pass);
+    pass.end();
+    this.device.queue.submit([enc.finish()]);
+    p.set(plan); p.upload();
   }
 
   // Paint a weather event (brush). type: storm | drought | flood | wildfire; x, y in grid cells.
@@ -367,6 +390,7 @@ export class Simulation {
   oldVolcanoes = true;
   get volcanoes() { return volcano; }
   get arches() { return arches; }
+  get quakes() { return quakes; }
 
   // snow avalanches on/off (sim/snow.js); on by default
   get avalanches() { return avalanche.enabled; }

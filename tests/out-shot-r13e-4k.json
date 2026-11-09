@@ -1,0 +1,36 @@
+{
+  "mode": "scarp",
+  "log": [
+    "3048y M7.1 fault",
+    "3123y M5.3 fault",
+    "3155y M5.1 fault",
+    "3165y M5.3 fault",
+    "3219y M5.6 fault",
+    "3336y M5.3 fault",
+    "3395y M5.0 fault",
+    "3461y M5.2 fault",
+    "3485y M5.4 fault",
+    "3517y M5.3 fault",
+    "3704y M5.5 fault",
+    "3792y M6.0 fault",
+    "3824y M5.6 fault",
+    "3936y M5.0 fault",
+    "3979y M5.1 fault"
+  ],
+  "count": 53,
+  "slip": [
+    13.754716259977572,
+    14.867347099851019,
+    15.467668473455177,
+    0
+  ],
+  "day": 1460220,
+  "bal": 2.745134414704991e-7,
+  "solidsErr": -286.9716340210289,
+  "nan": false,
+  "gpuErrors": 0,
+  "freshPixelsPct": 4.56,
+  "gpuFeatureStatusWebGPU": "enabled",
+  "electron": "45.2.1",
+  "chrome": "156.0.8078.75"
+}

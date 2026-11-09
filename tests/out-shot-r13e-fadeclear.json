@@ -1,0 +1,21 @@
+{
+  "mode": "fade",
+  "log": [
+    "1y M7.0 fault"
+  ],
+  "count": 1,
+  "slip": [
+    4.754679577383342,
+    0,
+    0,
+    0
+  ],
+  "day": 220.00000000000003,
+  "bal": 3.2062527988251556e-8,
+  "solidsErr": 36.24175797066779,
+  "nan": false,
+  "gpuErrors": 0,
+  "gpuFeatureStatusWebGPU": "enabled",
+  "electron": "45.2.1",
+  "chrome": "156.0.8078.75"
+}

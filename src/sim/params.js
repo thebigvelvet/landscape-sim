@@ -65,6 +65,13 @@ export const PARAM_FIELDS = [
   ['kDiss', 'f32'], ['yrsE', 'f32'],
   // karst valleys (sim/karst.js): rock dissolved per m of water sunk, and at the foot of wet walls (m/yr)
   ['kRech', 'f32'], ['kFoot', 'f32'],
+  // earthquakes (sim/quake.js): shaking for the extra slump/avalanche passes (strength 0..0.35, 1 line /
+  // 2 point, fault line n.p = c or epicentre, reach m), then the post-quake spring boost near a fault
+  ['qA', 'f32'], ['qMode', 'f32'], ['qNx', 'f32'], ['qNy', 'f32'],
+  ['qC', 'f32'], ['qX', 'f32'], ['qY', 'f32'], ['qL', 'f32'],
+  ['gqA', 'f32'], ['gqNx', 'f32'], ['gqNy', 'f32'], ['gqC', 'f32'], ['gqL', 'f32'],
+  // rupture half-length along the trace (m) and this quake's landslide patch pattern
+  ['qHL', 'f32'], ['qS', 'f32'],
   // rock layers (sim/strata.js): on/off, top of the stack (m, bedrock frame), dip, monocline, fold
   ...STRATA_PARAM_FIELDS.map((n) => [n, 'f32']),
   // rock table (strata.js TB layout: beds, faults, domes, anomalies, joints, basement); must stay last

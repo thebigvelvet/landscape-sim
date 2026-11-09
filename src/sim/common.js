@@ -115,3 +115,43 @@ export function makeKernel(device, label, code, bindings, entryPoint = 'main') {
     },
   };
 }
+
+// Earthquakes (sim/quake.js), used by erosion.js, snow.js and groundwater.js: how much the shaking lowers the standing angle at cell (x, y)
+// (1 = no change). Positions in metres from the map centre, as in strata.js.
+export const QUAKE_WGSL = /* wgsl */`
+fn qHash(p : vec2<f32>) -> f32 {
+  let q = fract(p * vec2<f32>(0.1031, 0.1030));
+  let r = q + dot(q, q.yx + 33.33);
+  return fract((r.x + r.y) * r.x);
+}
+fn qNoise(p : vec2<f32>) -> f32 {
+  let i = floor(p); let u = fract(p); let s = u * u * (3.0 - 2.0 * u);
+  return mix(mix(qHash(i), qHash(i + vec2<f32>(1.0, 0.0)), s.x), mix(qHash(i + vec2<f32>(0.0, 1.0)), qHash(i + vec2<f32>(1.0, 1.0)), s.x), s.y);
+}
+// Distance to the rupture (fault quakes: the stretch of the trace that broke, half-length qHL
+// either side of the epicentre qX, qY; background quakes: the epicentre), fading over qL. Only
+// some ground fails: a patch mask (new pattern each quake, seed qS) leaves about a quarter of
+// the slopes susceptible, so a quake leaves scattered scars rather than a stripped band.
+fn quakeShake(x : i32, y : i32) -> f32 {
+  if (P.qA <= 0.0) { return 1.0; }
+  let p = (vec2<f32>(f32(x), f32(y)) - 0.5 * f32(P.N - 1u)) * P.cellSize;
+  let q = p - vec2<f32>(P.qX, P.qY);
+  var d = length(q);
+  if (P.qMode < 1.5) {
+    let along = dot(q, vec2<f32>(-P.qNy, P.qNx));
+    let perp = dot(q, vec2<f32>(P.qNx, P.qNy));
+    d = length(vec2<f32>(max(abs(along) - P.qHL, 0.0), perp));
+  }
+  let g = p / 90.0 + vec2<f32>(P.qS * 37.0, P.qS * 91.0);
+  let susc = smoothstep(0.52, 0.72, 0.65 * qNoise(g) + 0.35 * qNoise(g * 2.7));
+  return 1.0 - P.qA * susc * exp(-d / max(P.qL, 1.0));
+}
+// After a quake, rock near the fault drains faster for a few years (springs run harder).
+fn quakePerm(x : i32, y : i32) -> f32 {
+  if (P.gqA <= 0.0) { return 1.0; }
+  let p = (vec2<f32>(f32(x), f32(y)) - 0.5 * f32(P.N - 1u)) * P.cellSize;
+  let d = abs(dot(vec2<f32>(P.gqNx, P.gqNy), p) - P.gqC);
+  return 1.0 + P.gqA * exp(-d / max(P.gqL, 1.0));
+}
+`;
+

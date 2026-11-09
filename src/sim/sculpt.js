@@ -26,7 +26,14 @@ export const SCULPT_DEFAULTS = {
   channelDepth: 6,    // metres below the original ground along the stroke (normal strength)
   undoDepth: 20,      // strokes kept for undo
 };
-const OP = { add: 0, smooth: 1, flatten: 2, channel: 3, delta: 4, copy: 5 };
+const OP = { add: 0, smooth: 1, flatten: 2, channel: 3, delta: 4, copy: 5, fault: 6 };
+// A freshly broken fault face shows pale, unweathered rock that weathers back to the normal colour
+// over about this many landscape years. Kept in karst.z (year it broke) and karst.w (strength 0..1);
+// the karst and column kernels only use karst.x and .y. The terrain shader draws it (render/shaders.js).
+export const FRESH_YEARS = 2000;
+export const FRESH_WGSL = /* wgsl */`
+fn freshFade(age : f32) -> f32 { return sqrt(clamp(1.0 - age / ${FRESH_YEARS.toFixed(1)}, 0.0, 1.0)); }
+`;
 
 const SCULPT_WGSL = /* wgsl */`
 struct U {
@@ -41,6 +48,10 @@ struct U {
 @group(0) @binding(2) var<storage, read_write> soil : array<f32>;
 @group(0) @binding(3) var<storage, read_write> initHeight : array<f32>;
 @group(0) @binding(4) var<storage, read_write> scratch : array<f32>;
+@group(0) @binding(5) var<storage, read_write> volcRock : array<vec4<f32>>;
+@group(0) @binding(6) var<storage, read_write> plant : array<vec4<f32>>;
+@group(0) @binding(7) var<storage, read_write> karst : array<vec4<f32>>;
+${FRESH_WGSL}
 
 fn ix(x : i32, y : i32) -> u32 { return u32(y) * u.N + u32(x); }
 // smooth bell: 1 at the centre, 0 at the rim, flat-topped enough that strokes blend
@@ -64,6 +75,43 @@ fn main(@builtin(global_invocation_id) gid : vec3<u32>) {
   let p = vec2<f32>(f32(x), f32(y));
   let NN = u.N * u.N;
   if (u.op == ${OP.copy}u) { scratch[i] = bedrock[i] + soil[i]; return; }
+  if (u.op == ${OP.fault}u) {
+    // earthquake (sim/quake.js): the down side of the fault line n.p = c drops by the slip (amt) with
+    // the rock step's tanh profile (width r m), plus a sag of depth k at the foot of the scarp.
+    // bx = cell size (m), zb = landscape years now. Positions in metres from the map centre, as in strata.js.
+    let cs = u.bx;
+    let pm = (p - 0.5 * f32(u.N - 1u)) * cs;
+    let s = dot(vec2<f32>(u.ax, u.ay), pm) - u.za;
+    let t = clamp(s / u.r, -10.0, 10.0);
+    let s0 = max(3.0 * u.r, 1.5 * cs); let sw = max(u.r, cs);
+    let q = (s - s0) / sw;
+    let dz = -u.amt * 0.5 * (1.0 + tanh(t)) - u.k * exp(-q * q);
+    if (abs(dz) < 1e-5) { return; }
+    let b = bedrock[i];
+    moveGround(i, dz);
+    let real = bedrock[i] - b;
+    // the broken face and the rubble at its foot are marked fresh (a band about 2 cells wide each
+    // side of the step); a metre and a half of slip or more gives the full colour. The terrain shader
+    // shows it only where the ground is actually steep, with ragged edges. A fresher, stronger break
+    // replaces a faded one.
+    let fw = max(u.r, 2.0 * cs);
+    let fs = (s - 0.3 * s0) / fw;
+    let st = exp(-fs * fs) * clamp(abs(u.amt) / 1.5, 0.0, 1.0);
+    if (st > 0.02) {
+      let kv = karst[i];
+      let old = kv.w * freshFade(u.zb - kv.z);
+      if (st > old) { karst[i] = vec4<f32>(kv.x, kv.y, u.zb, st); }
+    }
+    // plants remember the ground height they grew on (sim/vegetation.js plant.z) and take a sudden
+    // drop for stripping: the block they stand on moved, so their reference moves with it
+    var pl = plant[i]; pl.z = pl.z + real; plant[i] = pl;
+    // volcanic unit bases are absolute heights: they ride down with the ground
+    let ty = volcRock[2u * i + 1u];
+    if (ty.x > 0.5) {
+      volcRock[2u * i] = volcRock[2u * i] + real * vec4<f32>(1.0, select(0.0, 1.0, ty.y > 0.5), select(0.0, 1.0, ty.z > 0.5), select(0.0, 1.0, ty.w > 0.5));
+    }
+    return;
+  }
   if (u.op == ${OP.delta}u) {
     // undo: scratch[i] = rock change, scratch[NN + i] = soil to give back (soil a channel cut away)
     let db = scratch[i]; let ds = scratch[NN + i];
@@ -126,7 +174,7 @@ export class Sculptor {
     this.reset();
     if (!this.pipeline) {
       const entries = [{ binding: 0, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'uniform' } }];
-      for (let b = 1; b <= 4; b++) entries.push({ binding: b, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'storage' } });
+      for (let b = 1; b <= 7; b++) entries.push({ binding: b, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'storage' } });
       this.layout = device.createBindGroupLayout({ label: 'sculpt', entries });
       const module = device.createShaderModule({ label: 'sculpt', code: SCULPT_WGSL });
       module.getCompilationInfo?.().then((info) => {
@@ -139,7 +187,7 @@ export class Sculptor {
     // a small ring of uniform buffers so several dabs can be queued in one frame
     this.ring = Array.from({ length: 8 }, () => device.createBuffer({ size: 80, usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST, label: 'sculpt.u' }));
     const B = world.buffers;
-    this.bgs = this.ring.map((ub) => device.createBindGroup({ label: 'sculpt', layout: this.layout, entries: [ub, B.bedrock, B.soil, B.initHeight, B.sculptScratch].map((b, k) => ({ binding: k, resource: { buffer: b } })) }));
+    this.bgs = this.ring.map((ub) => device.createBindGroup({ label: 'sculpt', layout: this.layout, entries: [ub, B.bedrock, B.soil, B.initHeight, B.sculptScratch, B.volcRock, B.plant, B.karst].map((b, k) => ({ binding: k, resource: { buffer: b } })) }));
     this.slot = 0;
   }
 
@@ -255,6 +303,17 @@ export class Sculptor {
       // the snapshot failed (device lost?): this stroke cannot be undone
       const k = this.undoStack.indexOf(entry); if (k >= 0) this.undoStack.splice(k, 1);
     });
+  }
+
+  /**
+   * Earthquake offset over the whole map (sim/quake.js): fault line (nx, ny, c) in metres from the
+   * centre, step width w (m), slip and sag depth (m), years = landscape years now (for the fresh
+   * rock on the broken face). Not part of any stroke or undo.
+   */
+  fault(o) {
+    const N = this.world.N;
+    this._run(this.device.createCommandEncoder({ label: 'sculpt.fault' }), OP.fault, [0, 0, N - 1, N - 1],
+      { ax: o.nx, ay: o.ny, za: o.c, r: Math.max(1e-3, o.w), amt: o.slip, k: o.sag || 0, bx: o.cellSize, zb: o.years || 0 });
   }
 
   get canUndo() { return this.undoStack.length > 0; }

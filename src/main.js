@@ -222,6 +222,31 @@ async function main() {
       brushTool.toast('arch', bridge ? 'A natural bridge fell' : 'An arch collapsed', `After about ${Math.max(1, Math.round(arch.age))} thousand years the span grew too thin for its width and fell into the opening, leaving two buttresses standing.`);
     }
   };
+  // earthquakes (sim/quake.js): the view shakes (at most every 4 s, since a fast time-lapse can pass
+  // many quakes a second) and a notice names the quake (at most one every 20 s). A clearly bigger
+  // quake gets through either window; a notice the user's own brush raised is never covered up.
+  let quakeToastAt = -1e9, quakeShakeAt = -1e9, quakeToastM = 0, quakeShakeM = 0, quakeGen = -1;
+  sim.quakes.onEvent = (q) => {
+    const now = performance.now();
+    if (sim.gen !== quakeGen) { quakeGen = sim.gen; quakeToastAt = quakeShakeAt = -1e9; }   // a new map
+    if (q.M >= 4.8 && (now - quakeShakeAt > 4000 || q.M >= quakeShakeM + 0.7)) {
+      quakeShakeAt = now; quakeShakeM = q.M;
+      renderer.camera.shake(Math.min(0.03, 0.008 * (q.M - 4.3)), 1.2 + 0.4 * (q.M - 5));
+    }
+    if (!q.toast || (now - quakeToastAt < 20000 && q.M < quakeToastM + 0.7)) return;
+    // never cover a notice of the user's own (brush, volcano, timelapse) while it is still showing
+    const last = brushTool.lastToast;
+    if (last && last.kind !== 'quake' && document.getElementById('toast')?.classList.contains('show')) return;
+    quakeToastAt = now; quakeToastM = q.M;
+    const more = q.n > 1 ? ` (plus ${q.n - 1} smaller one${q.n > 2 ? 's' : ''})` : '';
+    const slip = q.slip >= 1 ? `${q.slip.toFixed(1)} m` : `${Math.max(1, Math.round(q.slip * 100))} cm`;
+    const moved = q.kind === 'thrust' ? 'one side was pushed up over the other' : 'one side dropped';
+    let text;
+    if (q.fault < 0) text = 'A quake with no break at the surface. Shaking loosened soil and rock on any steep slopes near its centre.';
+    else if (q.kind === 'growth') text = `The ${q.name} slipped ${slip}: the seaward side dropped a little more, as these faults slowly do. On flat ground there was little for the shaking to loosen; springs along the fault will run harder for a few years.`;
+    else text = `The ${q.name} slipped ${slip}: ${moved}, leaving a fresh step (a scarp) that will wear back over time. Shaking set off landslides and rockfalls on steep slopes nearby, and springs along the fault will run harder for a few years.`;
+    brushTool.toast('quake', `Magnitude ${q.M.toFixed(1)} earthquake${more}`, text);
+  };
   await app.load(scenario, { size, seed, preset });
 
   // ------------- sub-step governor -------------

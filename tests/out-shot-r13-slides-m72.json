@@ -1,0 +1,21 @@
+{
+  "mode": "slides",
+  "log": [
+    "1y M7.2 fault"
+  ],
+  "count": 1,
+  "slip": [
+    5.985786944906643,
+    0,
+    0,
+    0
+  ],
+  "day": 201.99999999999423,
+  "bal": 0.000021410584199949673,
+  "solidsErr": 48.63278309418948,
+  "nan": false,
+  "gpuErrors": 0,
+  "gpuFeatureStatusWebGPU": "enabled",
+  "electron": "45.2.1",
+  "chrome": "156.0.8078.75"
+}

@@ -16,7 +16,7 @@ import { MAX_BEDS, TABLE_LEN } from '../sim/strata.js';
 export const OVERLAYS = ['none', 'water', 'sediment', 'snow', 'frost', 'change', 'groundwater', 'plants', 'beds', 'wind', 'glaciers', 'volcanic', 'subsurface'];
 export const TOOL_IDS = { none: 0, storm: 1, drought: 2, flood: 3, wildfire: 4, raise: 5, lower: 5, smooth: 5, flatten: 5, channel: 5, volcano: 6 };
 const VENT_AT = 156 + 16 + 4 * TABLE_LEN + 4 * MAX_BEDS;   // R.vent (after the rock table and bed colours)
-const UB_FLOATS = VENT_AT + 12;   // + R.archN
+const UB_FLOATS = VENT_AT + 16;   // + R.archN, R.quakeT
 
 const SAMPLES = 4;
 const WEATHER_VISIBLE_SPEED = 36;   // days/s; above this rain particles and clouds are averaged out
@@ -364,7 +364,12 @@ export class Renderer {
       u.set(st.table, 172); u.set(st.colors, 172 + 4 * TABLE_LEN);
     } else u[156] = 0;
     for (let k = 0; k < 2; k++) u.set(vis.vents[k] || [0, 0, 0, 0], VENT_AT + 4 * k);
-    u.set([sim.arches?.count || 0, 0, 0, 0], VENT_AT + 8);
+    // y, z, w: a fault that just slipped glows for a few seconds (sim/quake.js): line angle, offset (m), strength
+    const gl = sim.quakes?.glow;
+    let glowA = 0;
+    if (gl) { glowA = Math.max(0, 1 - (performance.now() - gl.t0) / 5000) * Math.min(1, 0.4 + 0.25 * (gl.M - 5)); if (glowA <= 0) sim.quakes.glow = null; }
+    u.set([sim.arches?.count || 0, gl?.ang || 0, gl?.c || 0, glowA], VENT_AT + 8);
+    u.set([(sim.day || 0) / 365, 0, 0, 0], VENT_AT + 12);   // landscape years now: fresh fault rock fades
     this.device.queue.writeBuffer(this.ub, 0, u);
     this.nStorms = vis.storms.length;
     this.nVents = vis.vents.length;

@@ -1,0 +1,19 @@
+{
+  "mode": "slides",
+  "log": [],
+  "count": 0,
+  "slip": [
+    0,
+    0,
+    0,
+    0
+  ],
+  "day": 201.99999999999423,
+  "bal": 0.00001933087592569763,
+  "solidsErr": 50.874560076380845,
+  "nan": false,
+  "gpuErrors": 0,
+  "gpuFeatureStatusWebGPU": "enabled",
+  "electron": "45.2.1",
+  "chrome": "156.0.8078.75"
+}

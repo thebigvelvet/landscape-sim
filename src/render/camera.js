@@ -138,6 +138,18 @@ export class OrbitCamera {
     if (this.autoRotate) this.yaw += dt * 0.05;
   }
 
+  /** Earthquake: shake the view for `secs` seconds; amp is a share of the viewing distance. */
+  shake(amp, secs = 1.6) { this.shakeAmp = amp; this.shakeT0 = performance.now(); this.shakeDur = secs * 1000; }
+
+  // the current shake offset (world units), decaying to nothing over the shake's duration
+  _shakeOffset() {
+    if (!this.shakeAmp) return null;
+    const t = (performance.now() - this.shakeT0) / this.shakeDur;
+    if (t >= 1) { this.shakeAmp = 0; return null; }
+    const a = this.shakeAmp * this.dist * (1 - t) * (1 - t), w = performance.now() * 0.001;
+    return [a * Math.sin(w * 37.1), a * 0.6 * Math.sin(w * 43.7 + 1.3), a * Math.sin(w * 29.3 + 2.1)];
+  }
+
   eye() {
     const cp = Math.cos(this.pitch);
     return [
@@ -149,8 +161,10 @@ export class OrbitCamera {
 
   /** shift: fraction of the canvas width covered on the left (the image centre moves right by half of it). */
   matrices(aspect, shift = 0) {
-    const eye = this.eye();
-    const view = mat4.lookAt(eye, this.target, [0, 1, 0]);
+    let eye = this.eye(), target = this.target;
+    const sh = this._shakeOffset();
+    if (sh) { eye = eye.map((v, k) => v + sh[k]); target = target.map((v, k) => v + 0.6 * sh[k]); }
+    const view = mat4.lookAt(eye, target, [0, 1, 0]);
     const near = Math.max(2, this.dist * 0.01);
     const far = this.dist + this.extent * 4;
     const proj = mat4.perspective(this.fov, aspect, near, far);

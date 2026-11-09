@@ -99,7 +99,8 @@ function insideVsRing(T, type, low, N, opt = {}) {
   return { inside: mean(inside), ring: mean(ring), nIn: inside.length, nRing: ring.length };
 }
 const books = (s) => ({ balPct: s.balanceErrorPct, solids_m3: s.solidsError_m3, bedrock_m3: s.totalBedrock_m3, sedOut_m3: s.cumSedimentOut_m3, nan: s.hasNaN });
-const booksOk = (b) => Math.abs(b.balPct) < 0.01 && Math.abs(b.solids_m3) < 3e-7 * b.bedrock_m3 && !b.nan;
+// (+2000 m3 floor as in the other suites: Gulf fault creep can take the bedrock total near or below zero)
+const booksOk = (b) => Math.abs(b.balPct) < 0.01 && Math.abs(b.solids_m3) < 3e-7 * Math.abs(b.bedrock_m3) + 2000 && !b.nan;
 async function lowering() {
   const N = e.N, b = await layer('bedrock'), so = await layer('soil'), h0 = await layer('initHeight');
   const rock = new Float32Array(N * N), surf = new Float32Array(N * N);

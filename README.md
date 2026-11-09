@@ -37,6 +37,63 @@ open-ended play button and speed bar, from 15 minutes to 1000 years per second; 
 **Mouse and keys**: drag to turn the view, right-drag (or Shift-drag) to slide it, scroll to zoom. Space starts, pauses and resumes
 the timelapse, Esc puts the brush down, Ctrl+Z undoes a shaping stroke.
 
+**Earthquakes** happen on their own; there is no button or setting for them. The faults already in each landscape's rock
+slip now and then. When one does, the view shakes, a notice gives the magnitude, and the fault line glows for a few seconds.
+One side of the fault drops, leaving a fresh step (a scarp) of pale, newly broken rock that weathers back to the normal colour
+over about 2,000 years, and repeated quakes build it into a fault cliff.
+Steep slopes nearby shed landslides, rockfalls and snow avalanches, and springs along the fault run harder for a few years.
+The Southern Rockies are busiest, with the biggest quakes. The Colorado Plateau and Valley and Ridge get rare, moderate ones.
+Gulf Coast faults mostly creep without shaking, leaving only a faint step. Maps with no faults still get the odd small quake that loosens slopes.
+
+## Earthquakes (round 13, `src/sim/quake.js`)
+
+- **When and how big.** Each fault draws quakes at its province's rate (`QUAKE_PROVINCES`). The real ranking is kept but sped
+  up roughly 10-50×. The Rockies rate is 1 per 250 years per fault (M5-7.2); the Plateau 1/1200 (M5-6.8); Valley and Ridge
+  1/1500 (M5-6.5); the Gulf 1/8000 (M4.8-5.8) plus 0.5 mm/yr creep (a faint step: on the real Gulf Coast new mud keeps
+  burying these). Magnitudes follow Gutenberg-Richter (b = 1). Slip is
+  10^(0.5M − 3.3) m (0.16 m at M5, 1.6 m at M7, capped at 3 m). Rockies faults slip 3× that (`slipMul`), so their cliffs show
+  against about 1 km of relief (12-23 m of cliff after 5,000 years). Maps also get background quakes (M4.5 up) at a random point,
+  with no ground offset. Each map has its own random stream from the seed.
+- **Ground offset** (`OP.fault` in sculpt.js). The down side of the fault (the side the strata step already puts lower) drops by
+  the slip, with the rock step's tanh profile. A sag of a quarter of the slip forms at the foot of the scarp, where ponds
+  collect. Bedrock and `initHeight` move together, so the books stay exact and the scarp is not counted as erosion. The fault's
+  `throw` grows by the slip, so the same rock stays at the surface on both sides. Volcanic unit bases, arch floors and the
+  plants' remembered ground height (`plant.z`, which would otherwise read the drop as stripping and kill them) on the down
+  side move with the ground. No ground moves while a sculpt stroke is open; the slip waits for the stroke to end, so undo
+  is unaffected.
+- **Fresh rock on the broken face.** The scarp and the rubble at its foot (a band about 2 cells, or the fault width, each side of
+  the step) are marked
+  in `karst.z` (landscape year it broke) and `karst.w` (strength, full from 1.5 m of slip); the karst and column kernels only
+  use `karst.x`/`.y`. The terrain shader draws it as light grey, streaky, unweathered rock (tinted 40 % by the local
+  rock's colour, never as bright as snow) over any soil or plants, fully only where the ground is steeper than about 33° (fading in from 17°)
+  (a quarter as strong on the rubble below), broken
+  into ragged patches by a noise mask that does not change with age, so the colour fades gradually, as
+  sqrt(1 − age/2000 yr) (`FRESH_YEARS`, `freshFade` in sculpt.js; landscape years reach the shader as `R.quakeT.x`). A
+  fresher, stronger break replaces a faded one, so an active fault keeps a pale stripe and a quiet one weathers back.
+- **Shaking.** After the quake's batch, 2-8 extra slump/rockfall/avalanche passes run. In them, slopes stand at up to 35 % lower
+  angles (pseudo-static), fading over 10^(0.5M − 0.5) m (about 1 km at M7) from the stretch of fault that broke (half-length
+  from Wells & Coppersmith; from about M5.5 up that is the whole trace on the map) or from the epicentre. A patch mask, different for every quake, leaves only about a
+  quarter of the ground susceptible, so a quake leaves scattered scars, not a stripped band. The raised rates apply only where
+  shaking reaches, and a susceptible cliff sheds at most 50 cm per pass. On bare rock the scars are easiest to see in the
+  Change view.
+- **Springs.** For about 8 years (e-folding time), groundwater within ~300 m of the slipped fault moves up to 11× faster
+  (`quakePerm` in groundwater.js).
+- **Visuals** (main.js, camera.js, terrain shader). The camera shakes (at most every 4 s, a quake 0.7 bigger gets through). At top speed the glow waits 12 s between faults. A notice for M ≥ 5 appears at most
+  every 20 s (a quake 0.7 bigger gets through), and never covers a notice of your own that is still showing. The fault trace glows orange for 5 s (renderer uniform `archN.yzw`).
+- **Tests:** `tests/quakes.js` passes 18/18. Results:
+  - **Rockies:** 68 quakes in 5,000 years, with 12-23 m of the 14-26 m of slip still standing as scarps vs a no-quake twin.
+  - **Ranking:** Rockies 68 > Valley and Ridge 8, Plateau 3 > Gulf 2 (plus about 2.5 m of creep; about 10 m after 20,000 years, a faint step under the forest).
+  - **Rock matching:** the rock at the surface matches across a fresh slip to within 0.04 mm.
+  - **Fresh rock:** after an M7, every cell on the trace is marked fresh (this year), and nothing well away from it.
+  - **Fresh rock fades:** it changes part of the default view right after the quake and nothing 2,100 years later.
+  - **Shaking:** an M6.8 under a 256 map drops about 0.25 million m³ of rock (vs 0 on a quiet day). An M7.2 on a 512 map
+    drops more than 1 m on 0.7 % of the ground away from the fault (1 million m³ moved in all); plants on the dropped side survive.
+  - **Springs:** the boost near the fault is 2.7×.
+  - **Volcanic rock:** unit bases ride down with the ground.
+  - **Sculpting:** the stroke deferral and undo work.
+  - **Books:** water and solids balance in every run.
+- **Test hooks.** `sim.engine.quakes` has `enabled` (tests only), `force({fault, M, x, y})`, `log`, `count` and `slipTotal`.
+
 ## Quality-control pass (after round 11)
 
 Three read-only reviewers audited the code: two independent bug hunters and one for the interface. The confirmed findings were fixed on branch `qc-fixes`.

@@ -1,0 +1,470 @@
+{
+  "checks": {
+    "rockiesActive": {
+      "pass": true,
+      "count": 68,
+      "biggest": 7.06
+    },
+    "scarp": {
+      "pass": true,
+      "scarp": [
+        11.31,
+        19.55,
+        23.29
+      ],
+      "slip": [
+        14.28,
+        25.57,
+        23.05
+      ]
+    },
+    "scarpVisible": {
+      "pass": true,
+      "scarp": [
+        11.31,
+        19.55,
+        23.29
+      ]
+    },
+    "ranking": {
+      "pass": true,
+      "rockies": 68,
+      "plateau": 3,
+      "valleyRidge": 8,
+      "gulf": 2
+    },
+    "gulfCreep": {
+      "pass": true,
+      "slip": [
+        2.8,
+        2.48
+      ],
+      "count": 2
+    },
+    "faultless": {
+      "pass": true,
+      "seed": 1,
+      "count": 2,
+      "kinds": [
+        "background"
+      ],
+      "groundMoved": 0
+    },
+    "rockMatch": {
+      "pass": true,
+      "slip": 4.754679577383342,
+      "meanDrop": 4.754680216172162,
+      "worstUpMove": 0.000030517578125,
+      "worstDepthMismatch": 0.00004089570802534581,
+      "cells": 6181
+    },
+    "freshScarp": {
+      "pass": true,
+      "onTrace": 207,
+      "freshOn": 207,
+      "freshFar": 0,
+      "yearOk": true,
+      "year": 0
+    },
+    "freshFades": {
+      "pass": true,
+      "now": {
+        "pct": 0.24,
+        "flicker": 0.07
+      },
+      "after2100yr": {
+        "pct": 0.15,
+        "flicker": 0.15
+      }
+    },
+    "landslides": {
+      "pass": true,
+      "quake": {
+        "soilMoved_m3": 276294,
+        "rockFell_m3": 246428
+      },
+      "quiet": {
+        "soilMoved_m3": 341,
+        "rockFell_m3": 0
+      }
+    },
+    "plantsRideDown": {
+      "pass": true,
+      "upKept": 0.964,
+      "downKept": 0.927
+    },
+    "patchySlides": {
+      "pass": true,
+      "cells": 253746,
+      "droppedOver1m": 1819,
+      "share": 0.0071685859087433895,
+      "moved_m3": 1055385
+    },
+    "avalanches": {
+      "pass": true,
+      "quake": {
+        "sweMoved_m3": 47516,
+        "snowSWE_m3": 1260347
+      },
+      "quiet": {
+        "sweMoved_m3": 4166,
+        "snowSWE_m3": 1260347
+      }
+    },
+    "springs": {
+      "pass": true,
+      "quake": {
+        "gwFluxNear": 24.00699798132574,
+        "boostAfter1mo": 9.106,
+        "boostAfter21yr": 0.747
+      },
+      "quiet": {
+        "gwFluxNear": 9.049913377018886,
+        "boostAfter1mo": 0,
+        "boostAfter21yr": 0
+      }
+    },
+    "volcanicBases": {
+      "pass": true,
+      "found": true,
+      "prov": "rockies",
+      "seed": 6,
+      "fault": 0,
+      "cells": 8,
+      "slip": 3.7767762353825027,
+      "meanBaseDrop": 3.776763916015625
+    },
+    "strokeSafe": {
+      "pass": true,
+      "heldBack": true,
+      "applied": 3.7767791748046875,
+      "slip": 3.7767762353825027,
+      "undone": true,
+      "centreAfterUndo": 0.0000152587890625
+    },
+    "books": {
+      "pass": true,
+      "books": [
+        {
+          "run": "rockies 1",
+          "ok": true,
+          "bal": 2.137730797403322e-7,
+          "solids": -335.456919670105
+        },
+        {
+          "run": "rockies twin",
+          "ok": true,
+          "bal": -1.86295276767183e-9,
+          "solids": -255.1258087158203
+        },
+        {
+          "run": "plateau 7",
+          "ok": true,
+          "bal": -3.513200705339059e-8,
+          "solids": -482.7359628082613
+        },
+        {
+          "run": "valleyRidge 1",
+          "ok": true,
+          "bal": 6.413990992191039e-8,
+          "solids": 570.2898979187012
+        },
+        {
+          "run": "gulf 1",
+          "ok": true,
+          "bal": 2.366427240217222e-7,
+          "solids": -120.69287300109863
+        },
+        {
+          "run": "faultless",
+          "ok": true,
+          "bal": -1.1579353933243632e-8,
+          "solids": -186.5645408630371
+        },
+        {
+          "run": "rockMatch",
+          "ok": true,
+          "bal": 0,
+          "solids": 35.493666292772616
+        },
+        {
+          "run": "slides quake",
+          "ok": true,
+          "bal": 0.00002572761683355783,
+          "solids": 43.06279978441189
+        },
+        {
+          "run": "slides quiet",
+          "ok": true,
+          "bal": 0.00002852560777457112,
+          "solids": 43.39080216064979
+        },
+        {
+          "run": "patchy M7.2",
+          "ok": true,
+          "bal": 0.000021090691228957322,
+          "solids": 49.840180623113525
+        },
+        {
+          "run": "snow quake",
+          "ok": true,
+          "bal": 0.0001168412776518903,
+          "solids": 32.883434619169634
+        },
+        {
+          "run": "snow quiet",
+          "ok": true,
+          "bal": 0.00011895983476134639,
+          "solids": 33.54998585881395
+        },
+        {
+          "run": "springs quake",
+          "ok": true,
+          "bal": 0.0000042400893073459974,
+          "solids": 79.31464740224192
+        },
+        {
+          "run": "springs quiet",
+          "ok": true,
+          "bal": 0.0000016230664546839836,
+          "solids": 87.80025090329082
+        },
+        {
+          "run": "volcanic",
+          "ok": true,
+          "bal": 0,
+          "solids": 40.48233481271382
+        },
+        {
+          "run": "strokeSafe",
+          "ok": true,
+          "bal": 0,
+          "solids": 34.99572349808432
+        }
+      ]
+    },
+    "noGpuErrors": {
+      "pass": true,
+      "errors": 0
+    }
+  },
+  "runs": {
+    "rockies": {
+      "seed": 1,
+      "faults": 3,
+      "kinds": [
+        "fault",
+        "fault",
+        "fault"
+      ],
+      "count": 68,
+      "biggest": 7.06,
+      "slip": [
+        14.28,
+        25.57,
+        23.05
+      ],
+      "offsetAcross": [
+        13.49,
+        21.76,
+        23.24
+      ],
+      "log": [
+        "10y M5.7 fault",
+        "10y M5.3 fault",
+        "187y M5.7 fault",
+        "237y M5.4 fault",
+        "310y M5.3 fault",
+        "387y M6.3 fault",
+        "510y M5.5 fault",
+        "650y M5.3 fault",
+        "780y M6.0 fault",
+        "823y M6.4 fault",
+        "920y M5.7 fault",
+        "1087y M5.4 fault"
+      ],
+      "stepQuake": [
+        59.050319387847935,
+        15.61414251458632,
+        -30.496428991942253
+      ],
+      "stepTwin": [
+        47.73994795890667,
+        -3.934371106953961,
+        -53.78290308451335
+      ],
+      "scarp": [
+        11.31,
+        19.55,
+        23.29
+      ]
+    },
+    "plateau": {
+      "seed": 7,
+      "faults": 1,
+      "kinds": [
+        "normal"
+      ],
+      "count": 3,
+      "biggest": 5.22,
+      "slip": [
+        0.37
+      ],
+      "offsetAcross": [
+        0.37
+      ],
+      "log": [
+        "1123y M5.0 normal",
+        "1597y M4.7 background",
+        "3713y M5.2 normal"
+      ]
+    },
+    "valleyRidge": {
+      "seed": 1,
+      "faults": 2,
+      "kinds": [
+        "thrust",
+        "thrust"
+      ],
+      "count": 8,
+      "biggest": 5.4,
+      "slip": [
+        0.67,
+        0.17
+      ],
+      "offsetAcross": [
+        0.7,
+        0.14
+      ],
+      "log": [
+        "1497y M5.4 thrust",
+        "1820y M4.9 background",
+        "1927y M5.3 thrust",
+        "2573y M5.1 thrust",
+        "3037y M4.5 background",
+        "3487y M4.9 background",
+        "4260y M5.2 thrust",
+        "4973y M5.1 background"
+      ]
+    },
+    "gulf": {
+      "seed": 1,
+      "faults": 2,
+      "kinds": [
+        "growth",
+        "growth"
+      ],
+      "count": 2,
+      "biggest": 5.16,
+      "slip": [
+        2.8,
+        2.48
+      ],
+      "offsetAcross": [
+        2.97,
+        2.66
+      ],
+      "log": [
+        "1497y M5.2 growth",
+        "3053y M4.8 growth"
+      ]
+    },
+    "faultless": {
+      "seed": 1,
+      "count": 2,
+      "kinds": [
+        "background"
+      ],
+      "groundMoved": 0
+    },
+    "rockMatch": {
+      "slip": 4.754679577383342,
+      "meanDrop": 4.754680216172162,
+      "worstUpMove": 0.000030517578125,
+      "worstDepthMismatch": 0.00004089570802534581,
+      "cells": 6181
+    },
+    "freshScarp": {
+      "onTrace": 207,
+      "freshOn": 207,
+      "freshFar": 0,
+      "yearOk": true,
+      "year": 0
+    },
+    "freshFades": {
+      "now": {
+        "pct": 0.24,
+        "flicker": 0.07
+      },
+      "after2100yr": {
+        "pct": 0.15,
+        "flicker": 0.15
+      }
+    },
+    "landslides": {
+      "quake": {
+        "soilMoved_m3": 276294,
+        "rockFell_m3": 246428
+      },
+      "quiet": {
+        "soilMoved_m3": 341,
+        "rockFell_m3": 0
+      }
+    },
+    "plants": {
+      "upKept": 0.964,
+      "downKept": 0.927
+    },
+    "patchy": {
+      "cells": 253746,
+      "droppedOver1m": 1819,
+      "share": 0.0071685859087433895,
+      "moved_m3": 1055385
+    },
+    "avalanches": {
+      "quake": {
+        "sweMoved_m3": 47516,
+        "snowSWE_m3": 1260347
+      },
+      "quiet": {
+        "sweMoved_m3": 4166,
+        "snowSWE_m3": 1260347
+      }
+    },
+    "springs": {
+      "quake": {
+        "gwFluxNear": 24.00699798132574,
+        "boostAfter1mo": 9.106,
+        "boostAfter21yr": 0.747
+      },
+      "quiet": {
+        "gwFluxNear": 9.049913377018886,
+        "boostAfter1mo": 0,
+        "boostAfter21yr": 0
+      }
+    },
+    "volcanicBases": {
+      "found": true,
+      "prov": "rockies",
+      "seed": 6,
+      "fault": 0,
+      "cells": 8,
+      "slip": 3.7767762353825027,
+      "meanBaseDrop": 3.776763916015625
+    },
+    "strokeSafe": {
+      "heldBack": true,
+      "applied": 3.7767791748046875,
+      "slip": 3.7767762353825027,
+      "undone": true,
+      "centreAfterUndo": 0.0000152587890625
+    }
+  },
+  "minutes": 0.9664166666666667,
+  "gpuErrors": 0,
+  "gpuErrorMsgs": [],
+  "passed": "18/18",
+  "gpuFeatureStatusWebGPU": "enabled",
+  "electron": "45.2.1",
+  "chrome": "156.0.8078.75"
+}

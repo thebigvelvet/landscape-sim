@@ -1,3 +1,14 @@
 node_modules/
 dist/
 *.log
+# re-run and reviewer outputs (kept locally, not committed)
+tests/out-r1[0-9]*-*.json
+tests/*-rev*.json
+tests/*-rev*.png
+tests/shot-rev*.png
+tests/.shot-*
+tests/.rev*
+tests/.probe*
+tests/*shot-r13c-*
+tests/*shot-r13d-*
+tests/*shot-r13e-top*

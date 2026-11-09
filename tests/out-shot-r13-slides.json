@@ -1,0 +1,21 @@
+{
+  "mode": "slides",
+  "log": [
+    "1y M6.8 background"
+  ],
+  "count": 1,
+  "slip": [
+    0,
+    0,
+    0,
+    0
+  ],
+  "day": 201.99999999999935,
+  "bal": 0.0000060584048785064965,
+  "solidsErr": 52.59776840127394,
+  "nan": false,
+  "gpuErrors": 0,
+  "gpuFeatureStatusWebGPU": "enabled",
+  "electron": "45.2.1",
+  "chrome": "156.0.8078.75"
+}
